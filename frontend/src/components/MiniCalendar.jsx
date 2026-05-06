@@ -1,0 +1,87 @@
+import React from 'react';
+import {
+  endOfMonth, getDate, isSameDay, isSameMonth,
+  startOfMonth, startOfWeek, addDays,
+} from 'date-fns';
+import { Link } from 'react-router-dom';
+import { dateToISO, isoToDate } from '../utils/dayInfo';
+
+const cellSize = 22;
+
+function MonthGrid({ monthDate, todayDate, compact = false }) {
+  const monthStart = startOfMonth(monthDate);
+  const monthEnd = endOfMonth(monthDate);
+  const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+
+  const rows = [];
+  let cursor = gridStart;
+  for (let w = 0; w < 6; w++) {
+    const cells = [];
+    for (let d = 0; d < 7; d++) {
+      const inMonth = isSameMonth(cursor, monthStart);
+      const isToday = isSameDay(cursor, todayDate);
+      const iso = dateToISO(cursor);
+      cells.push({ date: cursor, inMonth, isToday, iso, day: getDate(cursor) });
+      cursor = addDays(cursor, 1);
+    }
+    rows.push(cells);
+    if (cursor > monthEnd && w >= 4) break;
+  }
+
+  const labelStyle = {
+    fontSize: compact ? 9 : 10,
+    color: '#6B5B40',
+    fontWeight: 600,
+    textAlign: 'center',
+    width: compact ? cellSize - 6 : cellSize,
+    padding: '2px 0',
+    letterSpacing: 0.5,
+  };
+  const cellStyle = (c) => ({
+    width: compact ? cellSize - 6 : cellSize,
+    height: compact ? cellSize - 6 : cellSize,
+    fontSize: compact ? 10 : 12,
+    fontVariantNumeric: 'tabular-nums',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: c.inMonth ? '#2D3436' : '#B5A88A',
+    fontWeight: c.isToday ? 700 : (c.inMonth ? 500 : 400),
+    background: c.isToday ? '#2D3436' : 'transparent',
+    borderRadius: c.isToday ? '50%' : 0,
+    boxShadow: c.isToday ? 'inset 0 0 0 1px #2D3436' : 'none',
+  });
+
+  return (
+    <table style={{ borderCollapse: 'collapse', margin: 0 }}>
+      <thead>
+        <tr>
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+            <th key={i} style={labelStyle}>{d}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row, ri) => (
+          <tr key={ri}>
+            {row.map((c, ci) => (
+              <td key={ci} style={{ padding: 0, textAlign: 'center' }}>
+                <Link
+                  to={`/day/${c.iso}`}
+                  style={{ ...cellStyle(c), textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
+                >
+                  {c.day}
+                </Link>
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export default function MiniCalendar({ dateISO }) {
+  const today = isoToDate(dateISO);
+  return <MonthGrid monthDate={today} todayDate={today} />;
+}
