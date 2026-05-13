@@ -82,7 +82,6 @@ function Row({ item, onPatch, onDelete }) {
         style={{
           border: 'none', background: 'transparent', padding: '4px 8px', fontSize: 14, width: '100%',
           color: '#2D3436',
-          textTransform: 'uppercase',
           textDecoration: item.status === 'done' ? 'line-through' : 'none',
           textDecorationColor: '#6B5B40',
         }}

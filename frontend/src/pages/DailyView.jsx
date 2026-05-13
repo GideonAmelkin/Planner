@@ -5,6 +5,7 @@ import MiniCalendar from '../components/MiniCalendar';
 import TimelineSchedule from '../components/TimelineSchedule';
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
 import DailyNotes from '../components/DailyNotes';
+import Ongoing from '../components/Ongoing';
 import DailyNotesText from '../components/DailyNotesText';
 import QuoteHeader from '../components/QuoteHeader';
 import { dayInfo } from '../utils/dayInfo';
@@ -12,6 +13,7 @@ import {
   getDay, pullForwardDay,
   createTask, deleteTask,
   createNote, deleteNote,
+  createOngoing, deleteOngoing,
 } from '../services/api';
 
 export default function DailyView() {
@@ -34,6 +36,7 @@ export default function DailyView() {
   const setTasks = useCallback((tasks) => setData((d) => d ? { ...d, tasks } : d), []);
   const setAppointments = useCallback((appointments) => setData((d) => d ? { ...d, appointments } : d), []);
   const setNotes = useCallback((notes) => setData((d) => d ? { ...d, notes } : d), []);
+  const setOngoing = useCallback((ongoing) => setData((d) => d ? { ...d, ongoing } : d), []);
   const setNotesText = useCallback((notes_text) => setData((d) => d ? { ...d, notes_text } : d), []);
 
   const handlePullForward = useCallback(async () => {
@@ -80,6 +83,58 @@ export default function DailyView() {
       await deleteTask(c.id);
     }
     await deleteTask(id);
+    const fresh = await getDay(date);
+    setData(fresh);
+  }, [date]);
+
+  const handleDropTaskOnOngoing = useCallback(async ({ id, text, children }) => {
+    const parent = await createOngoing({ text });
+    for (const c of (children || [])) {
+      await createOngoing({ text: c.text, parent_id: parent.id });
+    }
+    for (const c of (children || [])) {
+      await deleteTask(c.id);
+    }
+    await deleteTask(id);
+    const fresh = await getDay(date);
+    setData(fresh);
+  }, [date]);
+
+  const handleDropNoteOnOngoing = useCallback(async ({ id, text, children }) => {
+    const parent = await createOngoing({ text });
+    for (const c of (children || [])) {
+      await createOngoing({ text: c.text, parent_id: parent.id });
+    }
+    for (const c of (children || [])) {
+      await deleteNote(c.id);
+    }
+    await deleteNote(id);
+    const fresh = await getDay(date);
+    setData(fresh);
+  }, [date]);
+
+  const handleDropOngoingOnTasks = useCallback(async ({ id, text, children }) => {
+    const parent = await createTask({ date, text });
+    for (const c of (children || [])) {
+      await createTask({ date, text: c.text, parent_id: parent.id });
+    }
+    for (const c of (children || [])) {
+      await deleteOngoing(c.id);
+    }
+    await deleteOngoing(id);
+    const fresh = await getDay(date);
+    setData(fresh);
+  }, [date]);
+
+  const handleDropOngoingOnNotes = useCallback(async ({ id, text, children }) => {
+    const parent = await createNote({ date, text });
+    for (const c of (children || [])) {
+      await createNote({ date, text: c.text, parent_id: parent.id });
+    }
+    for (const c of (children || [])) {
+      await deleteOngoing(c.id);
+    }
+    await deleteOngoing(id);
     const fresh = await getDay(date);
     setData(fresh);
   }, [date]);
@@ -163,6 +218,7 @@ export default function DailyView() {
             onChange={setTasks}
             onPullForward={handlePullForward}
             onDropNote={handleDropNoteOnTasks}
+            onDropOngoing={handleDropOngoingOnTasks}
             pullStatus={pullStatus}
           />
           <DailyNotes
@@ -170,6 +226,13 @@ export default function DailyView() {
             notes={data.notes}
             onChange={setNotes}
             onDropTask={handleDropTaskOnNotes}
+            onDropOngoing={handleDropOngoingOnNotes}
+          />
+          <Ongoing
+            ongoing={data.ongoing || []}
+            onChange={setOngoing}
+            onDropTask={handleDropTaskOnOngoing}
+            onDropNote={handleDropNoteOnOngoing}
           />
           <DailyNotesText
             dateISO={date}

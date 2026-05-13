@@ -52,7 +52,12 @@ async function finishGoogleAuth(code) {
   } catch (_) {}
   await run(
     `INSERT INTO calendar_accounts (provider, email, display_name, access_token, refresh_token, expires_at)
-     VALUES ('google', ?, ?, ?, ?, ?)`,
+     VALUES ('google', ?, ?, ?, ?, ?)
+     ON CONFLICT(provider, email) DO UPDATE SET
+       display_name  = excluded.display_name,
+       access_token  = excluded.access_token,
+       refresh_token = COALESCE(excluded.refresh_token, calendar_accounts.refresh_token),
+       expires_at    = excluded.expires_at`,
     [email, name, tokens.access_token, tokens.refresh_token || null, tokens.expiry_date || null]
   );
 }
@@ -111,7 +116,12 @@ async function finishMicrosoftAuth(code) {
   } catch (_) {}
   await run(
     `INSERT INTO calendar_accounts (provider, email, display_name, access_token, refresh_token, expires_at)
-     VALUES ('outlook', ?, ?, ?, ?, ?)`,
+     VALUES ('outlook', ?, ?, ?, ?, ?)
+     ON CONFLICT(provider, email) DO UPDATE SET
+       display_name  = excluded.display_name,
+       access_token  = excluded.access_token,
+       refresh_token = COALESCE(excluded.refresh_token, calendar_accounts.refresh_token),
+       expires_at    = excluded.expires_at`,
     [email, name, t.access_token, t.refresh_token || null, expiresAt]
   );
 }

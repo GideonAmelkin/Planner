@@ -29,7 +29,7 @@ app.get('/api/day/:date', async (req, res) => {
   const { date } = req.params;
   if (!isDate(date)) return res.status(400).json({ error: 'invalid date' });
   try {
-    const [tasks, appointments, notes, notesTextRow, trackerRow, quote, calendarResult] = await Promise.all([
+    const [tasks, appointments, notes, ongoing, notesTextRow, trackerRow, quote, calendarResult] = await Promise.all([
       all(`SELECT * FROM tasks WHERE date = ? ORDER BY
              CASE priority WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 ELSE 4 END,
              priority_num,
@@ -37,6 +37,7 @@ app.get('/api/day/:date', async (req, res) => {
              id`, [date]),
       all('SELECT id, date, hour, start_at, end_at, text FROM appointments WHERE date = ? ORDER BY start_at, id', [date]),
       all('SELECT id, date, text, order_index, parent_id FROM daily_note_entries WHERE date = ? ORDER BY order_index, id', [date]),
+      all('SELECT id, text, order_index, parent_id FROM ongoing_items ORDER BY order_index, id'),
       get('SELECT content FROM daily_notes WHERE date = ?', [date]),
       get('SELECT content FROM daily_tracker WHERE date = ?', [date]),
       getQuoteForDate(date),
@@ -50,6 +51,7 @@ app.get('/api/day/:date', async (req, res) => {
       tasks,
       appointments,
       notes,
+      ongoing,
       notes_text: notesTextRow ? notesTextRow.content : '',
       tracker: trackerRow ? trackerRow.content : '',
       quote,
@@ -263,6 +265,77 @@ app.delete('/api/notes/:id', async (req, res) => {
   try {
     await run('DELETE FROM daily_note_entries WHERE parent_id = ?', [id]);
     await run('DELETE FROM daily_note_entries WHERE id = ?', [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/ongoing/reorder', async (req, res) => {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || !ids.every((x) => Number.isInteger(x))) {
+    return res.status(400).json({ error: 'ids must be an array of integers' });
+  }
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await run(
+        'UPDATE ongoing_items SET order_index = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [i, ids[i]]
+      );
+    }
+    res.json({ ok: true, count: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/ongoing', async (req, res) => {
+  const { text, order_index = 0, parent_id = null } = req.body || {};
+  if (!text || !String(text).trim()) {
+    return res.status(400).json({ error: 'text required' });
+  }
+  try {
+    const r = await run(
+      'INSERT INTO ongoing_items (text, order_index, parent_id) VALUES (?, ?, ?)',
+      [String(text).trim(), order_index, parent_id]
+    );
+    const row = await get('SELECT id, text, order_index, parent_id FROM ongoing_items WHERE id = ?', [r.lastID]);
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/ongoing/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'invalid id' });
+  const allowed = ['text', 'order_index', 'parent_id'];
+  const updates = [];
+  const values = [];
+  for (const key of allowed) {
+    if (key in req.body) {
+      updates.push(`${key} = ?`);
+      values.push(req.body[key]);
+    }
+  }
+  if (updates.length === 0) return res.status(400).json({ error: 'no fields' });
+  updates.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(id);
+  try {
+    await run(`UPDATE ongoing_items SET ${updates.join(', ')} WHERE id = ?`, values);
+    const row = await get('SELECT id, text, order_index, parent_id FROM ongoing_items WHERE id = ?', [id]);
+    res.json(row);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/ongoing/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'invalid id' });
+  try {
+    await run('DELETE FROM ongoing_items WHERE parent_id = ?', [id]);
+    await run('DELETE FROM ongoing_items WHERE id = ?', [id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

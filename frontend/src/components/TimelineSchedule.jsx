@@ -335,7 +335,7 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
         <div style={{ background: '#FFEBEE', color: '#C62828', fontSize: 11, padding: '4px 8px', borderBottom: '1px solid #EF9A9A' }}>
           {calendarErrors.map((e, i) => (
             <div key={i}>
-              {e.provider ? `${e.provider}: ` : ''}{e.email ? `(${e.email}) ` : ''}{e.message} — reconnect from Settings.
+              {e.provider ? `${e.provider}: ` : ''}{e.email ? `(${e.email}) ` : ''}{e.message} — Disconnect and reconnect from Settings.
             </div>
           ))}
         </div>

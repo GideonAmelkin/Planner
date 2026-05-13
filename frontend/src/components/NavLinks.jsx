@@ -19,8 +19,7 @@ const activeStyle = { ...baseStyle, background: 'white', color: '#2D3436' };
 export default function NavLinks({ dateISO }) {
   const [showSettings, setShowSettings] = useState(false);
   const location = useLocation();
-  const iso = dateISO || todayISO();
-  const d = isoToDate(iso);
+  const d = isoToDate(dateISO || todayISO());
   const year = d.getFullYear();
   const month = d.getMonth() + 1;
 
@@ -29,7 +28,7 @@ export default function NavLinks({ dateISO }) {
 
   return (
     <>
-      <Link to={`/day/${iso}`} style={styleFor(isActive('/day/'))}>Agenda</Link>
+      <Link to={`/day/${todayISO()}`} style={styleFor(isActive('/day/'))}>Agenda</Link>
       <Link to={`/master/${year}/${month}`} style={styleFor(isActive('/master/'))}>Goals</Link>
       <Link to={`/calendar/${year}/${month}`} style={styleFor(isActive('/calendar/'))}>Calendar</Link>
       <button

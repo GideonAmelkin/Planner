@@ -98,6 +98,21 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_cal_provider ON calendar_accounts(provider)`);
+  // Dedupe legacy rows from when "+ Connect" used to INSERT instead of UPSERT —
+  // keep the most recent row per (provider, email); leave NULL-email rows alone.
+  db.run(
+    `DELETE FROM calendar_accounts
+      WHERE email IS NOT NULL
+        AND id NOT IN (
+          SELECT MAX(id) FROM calendar_accounts
+           WHERE email IS NOT NULL
+           GROUP BY provider, email
+        )`
+  );
+  db.run(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_cal_provider_email
+       ON calendar_accounts(provider, email)`
+  );
 
   db.run(`CREATE TABLE IF NOT EXISTS daily_notes (
     date TEXT PRIMARY KEY,
@@ -135,6 +150,16 @@ db.serialize(() => {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_master_ym ON master_tasks(year, month)`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS ongoing_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    order_index INTEGER DEFAULT 0,
+    parent_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_ongoing_order ON ongoing_items(order_index)`);
 
   db.run(`CREATE TABLE IF NOT EXISTS quotes (
     date TEXT PRIMARY KEY,

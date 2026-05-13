@@ -108,9 +108,9 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 28px',
-          alignItems: 'center',
-          borderTop: dropZone === 'above' ? '2px solid #2D3436' : '1px solid #C9BB9A',
-          borderBottom: dropZone === 'below' ? '2px solid #2D3436' : 'none',
+          alignItems: 'flex-start',
+          borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
+          borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
           minHeight: 30,
           paddingLeft: INDENT_PX,
           cursor: 'grab',
@@ -133,7 +133,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
             }}
           />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
           <CheckMark done={done} onClick={toggleDone} />
         </div>
       </div>
@@ -150,9 +150,9 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 28px 24px',
-        alignItems: 'center',
-        borderTop: dropZone === 'above' ? '2px solid #2D3436' : '1px solid #C9BB9A',
-        borderBottom: dropZone === 'below' ? '2px solid #2D3436' : 'none',
+        alignItems: 'flex-start',
+        borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
+        borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
         minHeight: 30,
         cursor: 'grab',
       }}
@@ -171,7 +171,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
           textDecorationColor: '#6B5B40',
         }}
       />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
         <CheckMark done={done} onClick={toggleDone} />
       </div>
       <button
@@ -182,6 +182,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
           border: 'none', background: 'transparent',
           color: '#A89368', fontSize: 16, cursor: 'pointer',
           padding: 0, lineHeight: 1,
+          alignSelf: 'center',
         }}
       >+</button>
     </div>
@@ -212,7 +213,8 @@ function NewChildTaskRow({ dateISO, parentId, siblingOrderStart, onCreate, onCan
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: '1fr',
-      alignItems: 'center', borderTop: '1px solid #C9BB9A',
+      alignItems: 'center',
+      borderBottom: '1px solid #C9BB9A',
       background: '#FBF6E7',
       paddingLeft: INDENT_PX,
     }}>
@@ -255,7 +257,8 @@ function NewTaskRow({ dateISO, onCreate }) {
   return (
     <div style={{
       display: 'grid', gridTemplateColumns: '1fr 28px',
-      alignItems: 'center', borderTop: '1px solid #C9BB9A',
+      alignItems: 'center',
+      borderBottom: '1px solid #C9BB9A',
       background: '#FBF6E7',
     }}>
       <input
@@ -275,7 +278,7 @@ function NewTaskRow({ dateISO, onCreate }) {
   );
 }
 
-export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullForward, onDropNote, pullStatus }) {
+export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullForward, onDropNote, onDropOngoing, pullStatus }) {
   const handleCreate = (t) => onChange([...tasks, t]);
   const handlePatch = (t) => onChange(tasks.map((x) => x.id === t.id ? t : x));
   const handleDelete = (id) =>
@@ -353,25 +356,33 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
     );
   };
 
+  const incomingExternal = (e) => {
+    const types = Array.from(e.dataTransfer.types);
+    if (types.includes('application/x-planner-note')) return 'note';
+    if (types.includes('application/x-planner-ongoing')) return 'ongoing';
+    return null;
+  };
+
   const handleDragOver = (e) => {
-    if (Array.from(e.dataTransfer.types).includes('application/x-planner-note')) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      if (!dragOver) setDragOver(true);
-    }
+    if (!incomingExternal(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (!dragOver) setDragOver(true);
   };
   const handleDragLeave = (e) => {
     if (e.currentTarget.contains(e.relatedTarget)) return;
     setDragOver(false);
   };
   const handleDrop = (e) => {
-    const raw = e.dataTransfer.getData('application/x-planner-note');
+    const kind = incomingExternal(e);
     setDragOver(false);
-    if (!raw) return;
+    if (!kind) return;
     e.preventDefault();
+    const mime = kind === 'note' ? 'application/x-planner-note' : 'application/x-planner-ongoing';
     try {
-      const payload = JSON.parse(raw);
-      onDropNote && onDropNote(payload);
+      const payload = JSON.parse(e.dataTransfer.getData(mime));
+      if (kind === 'note') onDropNote && onDropNote(payload);
+      else onDropOngoing && onDropOngoing(payload);
     } catch (_) {}
   };
 

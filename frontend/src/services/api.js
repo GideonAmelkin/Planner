@@ -36,6 +36,11 @@ export const createNote = (payload) => api.post('/notes', payload).then((r) => r
 export const updateNote = (id, patch) => api.patch(`/notes/${id}`, patch).then((r) => r.data);
 export const deleteNote = (id) => api.delete(`/notes/${id}`).then((r) => r.data);
 export const reorderNotes = (ids) => api.post('/notes/reorder', { ids }).then((r) => r.data);
+
+export const createOngoing = (payload) => api.post('/ongoing', payload).then((r) => r.data);
+export const updateOngoing = (id, patch) => api.patch(`/ongoing/${id}`, patch).then((r) => r.data);
+export const deleteOngoing = (id) => api.delete(`/ongoing/${id}`).then((r) => r.data);
+export const reorderOngoing = (ids) => api.post('/ongoing/reorder', { ids }).then((r) => r.data);
 export const saveNotesText = (date, content) => api.put(`/notes-text/${date}`, { content }).then((r) => r.data);
 export const saveTracker = (date, content) => api.put(`/tracker/${date}`, { content }).then((r) => r.data);
 

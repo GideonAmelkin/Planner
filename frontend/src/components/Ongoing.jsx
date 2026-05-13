@@ -1,15 +1,15 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
-import { createNote, updateNote, deleteNote, reorderNotes } from '../services/api';
+import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from '../services/api';
 
 const INDENT_PX = 24;
 
-function NoteRow({ note, isChild, onPatch, onDelete, onIndent, onUnindent, onAddChild, onDragStart, onReorder }) {
-  const [text, setText] = useState(note.text);
+function OngoingRow({ item, isChild, onPatch, onDelete, onIndent, onUnindent, onAddChild, onDragStart, onReorder }) {
+  const [text, setText] = useState(item.text);
   const [dropZone, setDropZone] = useState(null);
-  useEffect(() => { setText(note.text); }, [note.text]);
+  useEffect(() => { setText(item.text); }, [item.text]);
 
   const handleRowDragOver = (e) => {
-    if (!Array.from(e.dataTransfer.types).includes('application/x-planner-note')) return;
+    if (!Array.from(e.dataTransfer.types).includes('application/x-planner-ongoing')) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
@@ -18,37 +18,37 @@ function NoteRow({ note, isChild, onPatch, onDelete, onIndent, onUnindent, onAdd
   };
   const handleRowDragLeave = () => setDropZone(null);
   const handleRowDrop = (e) => {
-    if (!Array.from(e.dataTransfer.types).includes('application/x-planner-note')) return;
+    if (!Array.from(e.dataTransfer.types).includes('application/x-planner-ongoing')) return;
     e.preventDefault();
     e.stopPropagation();
     const here = dropZone || 'below';
     setDropZone(null);
     try {
-      const payload = JSON.parse(e.dataTransfer.getData('application/x-planner-note'));
-      if (payload.id !== note.id) onReorder(payload.id, note.id, here);
+      const payload = JSON.parse(e.dataTransfer.getData('application/x-planner-ongoing'));
+      if (payload.id !== item.id) onReorder(payload.id, item.id, here);
     } catch (_) {}
   };
 
   const commit = async () => {
     const t = text.trim();
     if (!t) {
-      await deleteNote(note.id);
-      onDelete(note.id);
-    } else if (t !== note.text) {
-      const updated = await updateNote(note.id, { text: t });
+      await deleteOngoing(item.id);
+      onDelete(item.id);
+    } else if (t !== item.text) {
+      const updated = await updateOngoing(item.id, { text: t });
       onPatch(updated);
     }
   };
 
   const onKeyDown = (e) => {
     if (e.key === 'Tab' && !e.shiftKey) {
-      if (!isChild) { e.preventDefault(); onIndent(note.id); }
+      if (!isChild) { e.preventDefault(); onIndent(item.id); }
     } else if (e.key === 'Tab' && e.shiftKey) {
-      if (isChild) { e.preventDefault(); onUnindent(note.id); }
+      if (isChild) { e.preventDefault(); onUnindent(item.id); }
     } else if (e.key === 'Enter') {
-      if (isChild && note.parent_id) {
+      if (isChild && item.parent_id) {
         e.preventDefault();
-        onAddChild(note.parent_id);
+        onAddChild(item.parent_id);
       } else {
         e.target.blur();
       }
@@ -58,7 +58,7 @@ function NoteRow({ note, isChild, onPatch, onDelete, onIndent, onUnindent, onAdd
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart(e, note)}
+      onDragStart={(e) => onDragStart(e, item)}
       onDragOver={handleRowDragOver}
       onDragLeave={handleRowDragLeave}
       onDrop={handleRowDrop}
@@ -93,7 +93,7 @@ function NoteRow({ note, isChild, onPatch, onDelete, onIndent, onUnindent, onAdd
       {!isChild ? (
         <button
           type="button"
-          onClick={() => onAddChild(note.id)}
+          onClick={() => onAddChild(item.id)}
           title="Add sub-item"
           style={{
             border: 'none', background: 'transparent',
@@ -107,7 +107,7 @@ function NoteRow({ note, isChild, onPatch, onDelete, onIndent, onUnindent, onAdd
   );
 }
 
-function NewChildRow({ dateISO, parentId, siblingOrderStart, onCreate, onCancel }) {
+function NewChildRow({ parentId, siblingOrderStart, onCreate, onCancel }) {
   const [text, setText] = useState('');
   const [count, setCount] = useState(0);
   const inputRef = useRef(null);
@@ -116,8 +116,7 @@ function NewChildRow({ dateISO, parentId, siblingOrderStart, onCreate, onCancel 
   const commit = async () => {
     const t = text.trim();
     if (!t) { onCancel(); return; }
-    const created = await createNote({
-      date: dateISO,
+    const created = await createOngoing({
       text: t,
       parent_id: parentId,
       order_index: siblingOrderStart + count,
@@ -159,14 +158,14 @@ function NewChildRow({ dateISO, parentId, siblingOrderStart, onCreate, onCancel 
   );
 }
 
-function NewNoteRow({ dateISO, onCreate }) {
+function NewOngoingRow({ onCreate }) {
   const [text, setText] = useState('');
   const inputRef = useRef(null);
 
   const commit = async () => {
     const t = text.trim();
     if (!t) return;
-    const created = await createNote({ date: dateISO, text: t });
+    const created = await createOngoing({ text: t });
     onCreate(created);
     setText('');
     inputRef.current && inputRef.current.focus();
@@ -185,7 +184,7 @@ function NewNoteRow({ dateISO, onCreate }) {
         onChange={(e) => setText(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
-        placeholder="Add note..."
+        placeholder="Add item..."
         style={{
           border: 'none', background: 'transparent', padding: '6px 8px', fontSize: 14, width: '100%',
           color: '#2D3436',
@@ -196,8 +195,8 @@ function NewNoteRow({ dateISO, onCreate }) {
   );
 }
 
-export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDropOngoing }) {
-  const list = Array.isArray(notes) ? notes : [];
+export default function Ongoing({ ongoing, onChange, onDropTask, onDropNote }) {
+  const list = Array.isArray(ongoing) ? ongoing : [];
   const [addingChildOf, setAddingChildOf] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -206,27 +205,27 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
   const handleDelete = (id) =>
     onChange(list.filter((x) => x.id !== id && x.parent_id !== id));
 
-  const handleNoteDragStart = (e, note) => {
+  const handleDragStart = (e, item) => {
     const children = list
-      .filter((n) => n.parent_id === note.id)
+      .filter((n) => n.parent_id === item.id)
       .sort((a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id)
       .map((n) => ({ id: n.id, text: n.text }));
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(
-      'application/x-planner-note',
-      JSON.stringify({ id: note.id, text: note.text, parent_id: note.parent_id, children })
+      'application/x-planner-ongoing',
+      JSON.stringify({ id: item.id, text: item.text, parent_id: item.parent_id, children })
     );
   };
 
-  const incomingExternal = (e) => {
+  const incoming = (e) => {
     const types = Array.from(e.dataTransfer.types);
     if (types.includes('application/x-planner-task')) return 'task';
-    if (types.includes('application/x-planner-ongoing')) return 'ongoing';
+    if (types.includes('application/x-planner-note')) return 'note';
     return null;
   };
 
   const handleDragOver = (e) => {
-    if (!incomingExternal(e)) return;
+    if (!incoming(e)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (!dragOver) setDragOver(true);
@@ -236,15 +235,15 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
     setDragOver(false);
   };
   const handleDrop = (e) => {
-    const kind = incomingExternal(e);
+    const kind = incoming(e);
     setDragOver(false);
     if (!kind) return;
     e.preventDefault();
-    const mime = kind === 'task' ? 'application/x-planner-task' : 'application/x-planner-ongoing';
+    const mime = kind === 'task' ? 'application/x-planner-task' : 'application/x-planner-note';
     try {
       const payload = JSON.parse(e.dataTransfer.getData(mime));
       if (kind === 'task') onDropTask && onDropTask(payload);
-      else onDropOngoing && onDropOngoing(payload);
+      else onDropNote && onDropNote(payload);
     } catch (_) {}
   };
 
@@ -255,16 +254,16 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
   const childrenOf = (parentId) =>
     list.filter((n) => n.parent_id === parentId).sort(byOrder);
 
-  const indent = async (noteId) => {
-    const idx = topLevel.findIndex((n) => n.id === noteId);
+  const indent = async (itemId) => {
+    const idx = topLevel.findIndex((n) => n.id === itemId);
     if (idx <= 0) return;
     const newParent = topLevel[idx - 1];
-    const updated = await updateNote(noteId, { parent_id: newParent.id });
+    const updated = await updateOngoing(itemId, { parent_id: newParent.id });
     handlePatch(updated);
   };
 
-  const unindent = async (noteId) => {
-    const updated = await updateNote(noteId, { parent_id: null });
+  const unindent = async (itemId) => {
+    const updated = await updateOngoing(itemId, { parent_id: null });
     handlePatch(updated);
   };
 
@@ -291,7 +290,7 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
       const idx = newIds.indexOf(n.id);
       return idx >= 0 ? { ...n, order_index: idx } : n;
     }));
-    try { await reorderNotes(newIds); } catch (err) { console.error('reorderNotes failed', err); }
+    try { await reorderOngoing(newIds); } catch (err) { console.error('reorderOngoing failed', err); }
   };
 
   return (
@@ -315,7 +314,7 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
         borderBottom: '1px solid #2D3436',
         fontWeight: 500,
       }}>
-        Tasks
+        Ongoing
       </div>
       {topLevel.map((n) => {
         const kids = childrenOf(n.id);
@@ -324,34 +323,33 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
           : 0;
         return (
           <Fragment key={n.id}>
-            <NoteRow
-              note={n}
+            <OngoingRow
+              item={n}
               isChild={false}
               onPatch={handlePatch}
               onDelete={handleDelete}
               onIndent={indent}
               onUnindent={unindent}
               onAddChild={handleAddChild}
-              onDragStart={handleNoteDragStart}
+              onDragStart={handleDragStart}
               onReorder={handleReorder}
             />
             {kids.map((child) => (
-              <NoteRow
+              <OngoingRow
                 key={child.id}
-                note={child}
+                item={child}
                 isChild={true}
                 onPatch={handlePatch}
                 onDelete={handleDelete}
                 onIndent={indent}
                 onUnindent={unindent}
                 onAddChild={handleAddChild}
-                onDragStart={handleNoteDragStart}
+                onDragStart={handleDragStart}
                 onReorder={handleReorder}
               />
             ))}
             {addingChildOf === n.id ? (
               <NewChildRow
-                dateISO={dateISO}
                 parentId={n.id}
                 siblingOrderStart={nextOrder}
                 onCreate={handleCreate}
@@ -361,7 +359,7 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
           </Fragment>
         );
       })}
-      <NewNoteRow dateISO={dateISO} onCreate={handleCreate} />
+      <NewOngoingRow onCreate={handleCreate} />
     </div>
   );
 }
