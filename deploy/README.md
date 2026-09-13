@@ -13,22 +13,48 @@ port 80). The Planner is deployed **alongside** it, fully isolated:
 IP with no signup. It exists so Google OAuth has a real HTTPS host to redirect to (Google
 rejects raw-IP / plain-HTTP redirect URIs).
 
-No application code is modified - only env vars and these deploy files.
+## Day-to-day redeploy (source-only)
 
-## One-time / redeploy steps
+The Mac repo (`~/Documents/Planner`, git) is the source of truth. The server checkout at
+`~/apps/planner` is a plain copy with no git. **Never rsync the whole tree**: the server's
+`backend/.env` (live HTTPS/OAuth config) and `backend/planner.db` (real data) must never be
+overwritten by the Mac copies. Push only the files you changed.
+
+```bash
+# 1. Mac: push the changed source files (and delete removed ones by name)
+bash deploy/push.sh backend/server.js frontend/src/pages/DailyView.jsx
+bash deploy/push.sh --delete frontend/src/components/Old.jsx
+
+# 2. Server: install deps only when a package.json changed
+ssh gamelkin@70.42.223.139 'cd ~/apps/planner/backend  && npm ci --omit=dev'
+ssh gamelkin@70.42.223.139 'cd ~/apps/planner/frontend && npm ci'
+
+# 3. Server: build the frontend and publish it (web root is user-owned, no sudo,
+#    no nginx reload; rsync INTO the existing dir so SELinux context is inherited)
+ssh gamelkin@70.42.223.139 '
+  cd ~/apps/planner/frontend && REACT_APP_API_URL=/api npm run build \
+  && rsync -a --delete build/ /var/www/planner/build/
+'
+
+# 4. Server: restart the backend (only if backend files changed) and smoke-test
+ssh gamelkin@70.42.223.139 'pm2 restart planner-backend && bash ~/apps/planner/backend/scripts/smoke.sh'
+
+# 5. Verify the live bundle changed
+curl -s https://70-42-223-139.sslip.io/index.html | grep -o 'main\.[a-z0-9]*\.js'
+```
+
+Rollback = `git checkout <previous commit> -- <files>` on the Mac, then the same push.
+
+## First-time install
+
+Steps 3 to 6 below were run once on 2026-06-20 and do not need repeating. They are kept
+for rebuilding the box from scratch. Copy the source with `deploy/push.sh` (or a
+`rsync --exclude` list that excludes `backend/.env` and `backend/planner.db*`), then create
+`backend/.env` on the server by hand from `backend/.env.example`.
 
 ```bash
 # 0. (first time) SSH key
 ssh-copy-id gamelkin@70.42.223.139
-
-# 1. Stop local app + checkpoint the SQLite WAL so all data is in planner.db
-bash ~/Documents/Planner/stop.sh
-sqlite3 ~/Documents/Planner/backend/planner.db "PRAGMA wal_checkpoint(TRUNCATE);"
-
-# 2. Sync code + db + .env (NOT node_modules/build - native module rebuilds on the box)
-rsync -az --delete --exclude node_modules --exclude logs --exclude .git \
-      --exclude build --exclude 'planner.db-wal' --exclude 'planner.db-shm' \
-      ~/Documents/Planner/ gamelkin@70.42.223.139:/home/gamelkin/apps/planner/
 
 # 3. Install + build on the server (Node 20)
 ssh gamelkin@70.42.223.139 '
@@ -36,15 +62,15 @@ ssh gamelkin@70.42.223.139 '
   cd ~/apps/planner/frontend && npm install && REACT_APP_API_URL=/api npm run build
 '
 
-# 4. Backend env (server values vs local):
+# 4. Backend env (server values):
 #    backend/.env -> FRONTEND_URL=https://70-42-223-139.sslip.io
 #                    BACKEND_URL=https://70-42-223-139.sslip.io
 #                    GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET = the Personal Planner client
 
-# 5. Publish build + nginx + pm2 + firewall (sudo)
+# 5. Publish build + nginx + pm2 + firewall (sudo; needs an interactive password)
 ssh gamelkin@70.42.223.139 '
-  sudo rm -rf /var/www/planner/build && sudo mkdir -p /var/www/planner
-  sudo cp -r ~/apps/planner/frontend/build /var/www/planner/build
+  sudo mkdir -p /var/www/planner/build && sudo chown -R gamelkin:gamelkin /var/www/planner
+  rsync -a ~/apps/planner/frontend/build/ /var/www/planner/build/
   sudo restorecon -Rv /var/www/planner
   sudo cp ~/apps/planner/deploy/nginx-planner.conf /etc/nginx/conf.d/planner.conf
   sudo nginx -t && sudo systemctl reload nginx
