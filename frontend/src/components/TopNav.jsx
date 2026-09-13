@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { shiftISO, todayISO } from '../utils/dayInfo';
 import NavLinks from './NavLinks';
+import { COLORS, navButton } from '../styles';
 
 export default function TopNav({ dateISO }) {
   const navigate = useNavigate();
@@ -10,29 +11,18 @@ export default function TopNav({ dateISO }) {
     if (e.target.value) navigate(`/day/${e.target.value}`);
   };
 
-  const linkStyle = {
-    color: 'white',
-    textDecoration: 'none',
-    border: '1px solid white',
-    padding: '4px 12px',
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: 0.5,
-    borderRadius: 2,
-    background: 'transparent',
-  };
-
-  const arrowStyle = { ...linkStyle, padding: '4px 10px' };
+  const linkStyle = navButton;
+  const arrowStyle = { ...navButton, padding: '4px 10px' };
 
   return (
     <div style={{
-      background: '#2D3436',
+      background: COLORS.ink,
       color: 'white',
       display: 'flex',
       alignItems: 'center',
       gap: 8,
       padding: '10px 16px',
-      borderBottom: '4px double #C9BB9A',
+      borderBottom: `4px double ${COLORS.hairline}`,
     }}>
       <div className="serif" style={{ fontSize: 22, fontWeight: 500, letterSpacing: 1, marginRight: 16 }}>Planner</div>
       <Link to={`/day/${shiftISO(dateISO, -1)}`} style={arrowStyle}>◀ Prev</Link>

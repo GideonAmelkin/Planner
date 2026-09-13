@@ -2,6 +2,7 @@ import React from 'react';
 import { getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { dateToISO, isoToDate, monthGrid } from '../utils/dayInfo';
+import { COLORS } from '../styles';
 
 const cellSize = 22;
 
@@ -17,7 +18,7 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
 
   const labelStyle = {
     fontSize: compact ? 9 : 10,
-    color: '#6B5B40',
+    color: COLORS.muted,
     fontWeight: 600,
     textAlign: 'center',
     width: compact ? cellSize - 6 : cellSize,
@@ -32,11 +33,11 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: c.inMonth ? '#2D3436' : '#B5A88A',
+    color: c.inMonth ? COLORS.ink : COLORS.faint,
     fontWeight: c.isToday ? 700 : (c.inMonth ? 500 : 400),
-    background: c.isToday ? '#2D3436' : 'transparent',
+    background: c.isToday ? COLORS.ink : 'transparent',
     borderRadius: c.isToday ? '50%' : 0,
-    boxShadow: c.isToday ? 'inset 0 0 0 1px #2D3436' : 'none',
+    boxShadow: c.isToday ? `inset 0 0 0 1px ${COLORS.ink}` : 'none',
   });
 
   return (

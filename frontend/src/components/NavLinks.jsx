@@ -1,19 +1,10 @@
 import React, { useState } from 'react';
 import SettingsPanel from './SettingsPanel';
 import RecapPanel from './RecapPanel';
+import { COLORS, navButton } from '../styles';
 
-const baseStyle = {
-  color: 'white',
-  textDecoration: 'none',
-  border: '1px solid white',
-  padding: '4px 12px',
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: 0.5,
-  borderRadius: 2,
-  background: 'transparent',
-};
-const activeStyle = { ...baseStyle, background: 'white', color: '#2D3436' };
+const baseStyle = navButton;
+const activeStyle = { ...baseStyle, background: 'white', color: COLORS.ink };
 
 export default function NavLinks() {
   const [showSettings, setShowSettings] = useState(false);

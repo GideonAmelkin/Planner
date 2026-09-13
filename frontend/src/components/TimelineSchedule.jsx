@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createAppointment, updateAppointment, deleteAppointment } from '../services/api';
+import { COLORS, outlineButton, sectionHeader } from '../styles';
 
 const START_HOUR = 7;
 const END_HOUR = 20;          // 8 PM marker
@@ -7,9 +8,9 @@ const HOURS = END_HOUR - START_HOUR; // 13
 const PX_PER_HOUR = 60;
 
 const PROVIDER_STYLES = {
-  google:  { bar: '#1565C0', bg: '#E3F2FD', text: '#0D3B66' },
-  outlook: { bar: '#00695C', bg: '#E0F2F1', text: '#003D33' },
-  manual:  { bar: '#2D3436', bg: '#FBF6E7', text: '#2D3436' },
+  google:  { bar: COLORS.google, bg: '#E3F2FD', text: '#0D3B66' },
+  outlook: { bar: COLORS.outlook, bg: '#E0F2F1', text: '#003D33' },
+  manual:  { bar: COLORS.ink, bg: COLORS.paper, text: COLORS.ink },
 };
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -116,13 +117,13 @@ function ManualEditor({ block, dateISO, onSave, onDelete, onCancel }) {
       alignItems: 'center',
       padding: '4px 6px',
       background: 'white',
-      border: '1px solid #2D3436',
+      border: `1px solid ${COLORS.ink}`,
       borderRadius: 3,
     }}>
       <input type="time" value={start} onChange={(e) => setStart(e.target.value)} step="900"
-        style={{ fontSize: 12, padding: '2px 4px', border: '1px solid #C9BB9A' }} />
+        style={{ fontSize: 12, padding: '2px 4px', border: `1px solid ${COLORS.hairline}` }} />
       <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} step="900"
-        style={{ fontSize: 12, padding: '2px 4px', border: '1px solid #C9BB9A' }} />
+        style={{ fontSize: 12, padding: '2px 4px', border: `1px solid ${COLORS.hairline}` }} />
       <input
         autoFocus
         value={text}
@@ -132,29 +133,15 @@ function ManualEditor({ block, dateISO, onSave, onDelete, onCancel }) {
           if (e.key === 'Enter') { e.preventDefault(); submit(); }
           if (e.key === 'Escape') onCancel();
         }}
-        style={{ fontSize: 13, padding: '4px 6px', border: '1px solid #C9BB9A' }}
+        style={{ fontSize: 13, padding: '4px 6px', border: `1px solid ${COLORS.hairline}` }}
       />
       <div style={{ display: 'flex', gap: 4 }}>
-        <button onClick={submit} style={btnStyle()}>Save</button>
-        {block.id ? <button onClick={onDelete} style={btnStyle('#C62828')}>Delete</button> : null}
-        <button onClick={onCancel} style={btnStyle('#6B5B40')}>Cancel</button>
+        <button onClick={submit} style={outlineButton(COLORS.ink, { small: true })}>Save</button>
+        {block.id ? <button onClick={onDelete} style={outlineButton(COLORS.danger, { small: true })}>Delete</button> : null}
+        <button onClick={onCancel} style={outlineButton(COLORS.muted, { small: true })}>Cancel</button>
       </div>
     </div>
   );
-}
-
-function btnStyle(color = '#2D3436') {
-  return {
-    border: `1px solid ${color}`,
-    background: 'white',
-    color,
-    fontSize: 11,
-    padding: '3px 8px',
-    cursor: 'pointer',
-    borderRadius: 2,
-    fontWeight: 600,
-    letterSpacing: 0.3,
-  };
 }
 
 function ExternalBlock({ ev, top, height, leftPct, widthPct }) {
@@ -225,8 +212,8 @@ function ManualBlock({ appt, top, height, leftPct, widthPct, onClick }) {
 function AllDayPills({ events }) {
   if (events.length === 0) return null;
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 4px', borderBottom: '1px dashed #C9BB9A' }}>
-      <span style={{ fontSize: 11, color: '#6B5B40', alignSelf: 'center', marginRight: 4 }}>All-day:</span>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 4px', borderBottom: `1px dashed ${COLORS.hairline}` }}>
+      <span style={{ fontSize: 11, color: COLORS.muted, alignSelf: 'center', marginRight: 4 }}>All-day:</span>
       {events.map((ev) => {
         const s = PROVIDER_STYLES[ev.provider] || PROVIDER_STYLES.manual;
         return (
@@ -319,20 +306,12 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
 
   return (
     <div>
-      <div style={{
-        fontStyle: 'italic',
-        fontSize: 13,
-        color: '#2D3436',
-        textAlign: 'center',
-        padding: '4px 0',
-        borderBottom: '1px solid #2D3436',
-        fontWeight: 500,
-      }}>
+      <div style={sectionHeader}>
         Appointment Schedule
       </div>
 
       {calendarErrors && calendarErrors.length > 0 ? (
-        <div style={{ background: '#FFEBEE', color: '#C62828', fontSize: 11, padding: '4px 8px', borderBottom: '1px solid #EF9A9A' }}>
+        <div style={{ background: COLORS.dangerBg, color: COLORS.danger, fontSize: 11, padding: '4px 8px', borderBottom: '1px solid #EF9A9A' }}>
           {calendarErrors.map((e, i) => (
             <div key={i}>
               {e.provider ? `${e.provider}: ` : ''}{e.email ? `(${e.email}) ` : ''}{e.message} — Disconnect and reconnect from Settings.
@@ -344,7 +323,7 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
       <AllDayPills events={allDay} />
 
       {editing ? (
-        <div style={{ padding: '6px 0', borderBottom: '1px dashed #C9BB9A' }}>
+        <div style={{ padding: '6px 0', borderBottom: `1px dashed ${COLORS.hairline}` }}>
           <ManualEditor
             block={editing.block}
             dateISO={dateISO}
@@ -372,9 +351,9 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
             <div key={i} style={{
               position: 'absolute',
               top: i * PX_PER_HOUR, left: 0, right: 0,
-              borderTop: i === 0 ? 'none' : '1px solid #C9BB9A',
+              borderTop: i === 0 ? 'none' : `1px solid ${COLORS.hairline}`,
               fontSize: 11,
-              color: '#6B5B40',
+              color: COLORS.muted,
               paddingLeft: 4,
               paddingTop: 2,
               pointerEvents: 'none',

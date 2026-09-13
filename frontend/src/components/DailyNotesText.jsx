@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { saveNotesText } from '../services/api';
+import { COLORS, sectionHeader } from '../styles';
 
 export default function DailyNotesText({ dateISO, value, onChange }) {
   const [text, setText] = useState(value || '');
@@ -15,16 +16,8 @@ export default function DailyNotesText({ dateISO, value, onChange }) {
   };
 
   return (
-    <div style={{ borderBottom: '1px solid #2D3436', marginTop: 28 }}>
-      <div style={{
-        fontStyle: 'italic',
-        fontSize: 13,
-        color: '#2D3436',
-        textAlign: 'center',
-        padding: '4px 0',
-        borderBottom: '1px solid #2D3436',
-        fontWeight: 500,
-      }}>
+    <div style={{ borderBottom: `1px solid ${COLORS.ink}`, marginTop: 28 }}>
+      <div style={sectionHeader}>
         Notes
       </div>
       <textarea
@@ -40,7 +33,7 @@ export default function DailyNotesText({ dateISO, value, onChange }) {
           fontSize: 14,
           lineHeight: '1.6em',
           resize: 'vertical',
-          color: '#2D3436',
+          color: COLORS.ink,
         }}
       />
     </div>

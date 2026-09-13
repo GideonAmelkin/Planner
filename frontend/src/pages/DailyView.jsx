@@ -11,6 +11,7 @@ import QuoteHeader from '../components/QuoteHeader';
 import MasterTaskList from './MasterTaskList';
 import MonthlyCalendar from './MonthlyCalendar';
 import { dayInfo } from '../utils/dayInfo';
+import { COLORS, uppercaseHeading } from '../styles';
 import {
   getDay, pullForwardDay,
   createTask, deleteTask,
@@ -97,7 +98,7 @@ export default function DailyView() {
     return (
       <div>
         <TopNav dateISO={date} />
-        <div style={{ padding: 32, color: '#C62828' }}>Error: {error}</div>
+        <div style={{ padding: 32, color: COLORS.danger }}>Error: {error}</div>
       </div>
     );
   }
@@ -106,7 +107,7 @@ export default function DailyView() {
     return (
       <div>
         <TopNav dateISO={date} />
-        <div style={{ padding: 32, color: '#6B5B40' }}>Loading…</div>
+        <div style={{ padding: 32, color: COLORS.muted }}>Loading…</div>
       </div>
     );
   }
@@ -114,10 +115,10 @@ export default function DailyView() {
   const info = dayInfo(date);
 
   const cellBase = {
-    background: '#FBF6E7',
+    background: COLORS.paper,
     padding: '18px 18px',
   };
-  const cellLeftBorder = { borderRight: '1px dashed #B5A88A' };
+  const cellLeftBorder = { borderRight: `1px dashed ${COLORS.faint}` };
 
   return (
     <div>
@@ -134,14 +135,7 @@ export default function DailyView() {
         {/* Top-left: single-line date + mini-calendar */}
         <div style={{ ...cellBase, ...cellLeftBorder, paddingBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
-            <div style={{
-              fontSize: 22,
-              fontWeight: 700,
-              letterSpacing: 1,
-              paddingTop: 4,
-              lineHeight: 1.2,
-              textTransform: 'uppercase',
-            }}>
+            <div style={uppercaseHeading}>
               {info.headlineDate}
             </div>
             <MiniCalendar dateISO={date} />

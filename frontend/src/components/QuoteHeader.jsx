@@ -1,5 +1,6 @@
 import React from 'react';
 import { dayInfo, ordinal } from '../utils/dayInfo';
+import { COLORS } from '../styles';
 
 export default function QuoteHeader({ dateISO, quote }) {
   return (
@@ -10,16 +11,16 @@ export default function QuoteHeader({ dateISO, quote }) {
       alignItems: 'flex-start',
       padding: '4px 4px',
     }}>
-      <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontSize: 14, lineHeight: 1.4, color: '#2D3436' }}>
+      <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontSize: 14, lineHeight: 1.4, color: COLORS.ink }}>
         {quote ? (
           <>
             <div>{quote.text}</div>
-            <div style={{ marginTop: 6, fontStyle: 'normal', fontSize: 14, color: '#2D3436' }}>
+            <div style={{ marginTop: 6, fontStyle: 'normal', fontSize: 14, color: COLORS.ink }}>
               — {quote.author || 'Unknown'}
             </div>
           </>
         ) : (
-          <span style={{ color: '#A89368' }}>Loading quote…</span>
+          <span style={{ color: COLORS.accent }}>Loading quote…</span>
         )}
       </div>
       <DayInfoBadge dateISO={dateISO} />
@@ -34,7 +35,7 @@ export function DayInfoBadge({ dateISO }) {
       display: 'flex',
       gap: 14,
       fontSize: 12,
-      color: '#6B5B40',
+      color: COLORS.muted,
       fontVariantNumeric: 'tabular-nums',
       letterSpacing: 0.4,
       whiteSpace: 'nowrap',

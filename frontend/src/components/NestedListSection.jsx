@@ -1,7 +1,8 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { sortByOrder } from '../utils/dayInfo';
-
-const INDENT_PX = 24;
+import {
+  COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionHeader,
+} from '../styles';
 
 // A one-level nested list (parent rows with optional child rows) with inline
 // editing, Tab/Shift+Tab indent, drag-to-reorder within a level, and drops
@@ -82,8 +83,7 @@ function Row({ item, isChild, mime, api, onPatch, onDelete, onIndent, onUnindent
         display: 'grid',
         gridTemplateColumns: isChild ? '1fr' : '1fr 24px',
         alignItems: 'flex-start',
-        borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
-        borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
+        ...dropZoneBorders(dropZone),
         minHeight: 30,
         paddingLeft: isChild ? INDENT_PX : 0,
         cursor: 'grab',
@@ -91,19 +91,14 @@ function Row({ item, isChild, mime, api, onPatch, onDelete, onIndent, onUnindent
     >
       <div style={{ display: 'flex', alignItems: 'center' }}>
         {isChild ? (
-          <span style={{ color: '#A89368', fontSize: 14, paddingLeft: 4, paddingRight: 4 }}>-</span>
+          <span style={childDash}>-</span>
         ) : null}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
           onKeyDown={onKeyDown}
-          style={{
-            border: 'none', background: 'transparent',
-            padding: '4px 8px', fontSize: 14,
-            width: '100%',
-            color: '#2D3436',
-          }}
+          style={rowInput}
         />
       </div>
       {!isChild ? (
@@ -111,12 +106,7 @@ function Row({ item, isChild, mime, api, onPatch, onDelete, onIndent, onUnindent
           type="button"
           onClick={() => onAddChild(item.id)}
           title="Add sub-item"
-          style={{
-            border: 'none', background: 'transparent',
-            color: '#A89368', fontSize: 16, cursor: 'pointer',
-            padding: 0, lineHeight: 1,
-            alignSelf: 'center',
-          }}
+          style={addChildButton}
         >+</button>
       ) : null}
     </div>
@@ -145,15 +135,9 @@ function NewChildRow({ api, dateISO, parentId, siblingOrderStart, onCreate, onCa
   };
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '1fr',
-      alignItems: 'center',
-      borderBottom: '1px solid #C9BB9A',
-      background: '#FBF6E7',
-      paddingLeft: INDENT_PX,
-    }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: INDENT_PX }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#A89368', fontSize: 14, paddingLeft: 4, paddingRight: 4 }}>-</span>
+        <span style={childDash}>-</span>
         <input
           ref={inputRef}
           value={text}
@@ -164,11 +148,7 @@ function NewChildRow({ api, dateISO, parentId, siblingOrderStart, onCreate, onCa
             else if (e.key === 'Escape') { setText(''); onCancel(); }
           }}
           placeholder="Add sub-item..."
-          style={{
-            border: 'none', background: 'transparent',
-            padding: '6px 8px', fontSize: 14, width: '100%',
-            color: '#2D3436',
-          }}
+          style={newRowInput}
         />
       </div>
     </div>
@@ -189,12 +169,7 @@ function NewRow({ api, dateISO, placeholder, onCreate }) {
   };
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 28px',
-      alignItems: 'center',
-      borderBottom: '1px solid #C9BB9A',
-      background: '#FBF6E7',
-    }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr 28px' }}>
       <input
         ref={inputRef}
         value={text}
@@ -202,12 +177,9 @@ function NewRow({ api, dateISO, placeholder, onCreate }) {
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
         placeholder={placeholder}
-        style={{
-          border: 'none', background: 'transparent', padding: '6px 8px', fontSize: 14, width: '100%',
-          color: '#2D3436',
-        }}
+        style={newRowInput}
       />
-      <div style={{ color: '#A89368', textAlign: 'center', fontSize: 16 }}>+</div>
+      <div style={{ color: COLORS.accent, textAlign: 'center', fontSize: 16 }}>+</div>
     </div>
   );
 }
@@ -322,21 +294,13 @@ export default function NestedListSection({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
-        borderBottom: '1px solid #2D3436',
+        borderBottom: `1px solid ${COLORS.ink}`,
         marginTop: 28,
         background: dragOver ? 'rgba(201, 187, 154, 0.18)' : 'transparent',
         transition: 'background 100ms',
       }}
     >
-      <div style={{
-        fontStyle: 'italic',
-        fontSize: 13,
-        color: '#2D3436',
-        textAlign: 'center',
-        padding: '4px 0',
-        borderBottom: '1px solid #2D3436',
-        fontWeight: 500,
-      }}>
+      <div style={sectionHeader}>
         {title}
       </div>
       {topLevel.map((n) => {

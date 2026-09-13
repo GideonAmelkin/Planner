@@ -4,6 +4,7 @@ import {
 } from '../services/api';
 import CheckMark from '../components/CheckMark';
 import { sortByOrder } from '../utils/dayInfo';
+import { COLORS, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../styles';
 
 function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
   const [text, setText] = useState('');
@@ -16,8 +17,8 @@ function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragSt
   };
 
   return (
-    <div style={{ borderRight: title === 'Personal' ? '1px solid #2D3436' : 'none' }}>
-      <div style={{ fontStyle: 'italic', fontSize: 13, color: '#6B5B40', textAlign: 'center', padding: '4px 0', borderBottom: '1px solid #2D3436' }}>
+    <div style={{ borderRight: title === 'Personal' ? `1px solid ${COLORS.ink}` : 'none' }}>
+      <div style={{ fontStyle: 'italic', fontSize: 13, color: COLORS.muted, textAlign: 'center', padding: '4px 0', borderBottom: `1px solid ${COLORS.ink}` }}>
         {title}
       </div>
       <div>
@@ -26,21 +27,21 @@ function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragSt
         ))}
         <div style={{
           display: 'grid', gridTemplateColumns: '28px 1fr',
-          alignItems: 'center', borderTop: '1px solid #C9BB9A',
-          background: '#FBF6E7',
+          alignItems: 'center', borderTop: `1px solid ${COLORS.hairline}`,
+          background: COLORS.paper,
         }}>
-          <div style={{ textAlign: 'center', color: '#A89368' }}>+</div>
+          <div style={{ textAlign: 'center', color: COLORS.accent }}>+</div>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={submit}
             onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
             placeholder="Add item..."
-            style={{ border: 'none', background: 'transparent', padding: '6px 8px', fontSize: 14, width: '100%', color: '#2D3436' }}
+            style={newRowInput}
           />
         </div>
         {Array.from({ length: Math.max(0, rowTarget - items.length) }).map((_, i) => (
-          <div key={`pad-${i}`} style={{ borderTop: '1px solid #C9BB9A', minHeight: 26 }} />
+          <div key={`pad-${i}`} style={{ borderTop: `1px solid ${COLORS.hairline}`, minHeight: 26 }} />
         ))}
       </div>
     </div>
@@ -95,8 +96,7 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
       onDrop={handleDrop}
       style={{
         display: 'grid', gridTemplateColumns: '1fr 28px', alignItems: 'flex-start',
-        borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
-        borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
+        ...dropZoneBorders(dropZone),
         minHeight: 30,
         cursor: 'grab',
       }}
@@ -107,10 +107,9 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
         style={{
-          border: 'none', background: 'transparent', padding: '4px 8px', fontSize: 14, width: '100%',
-          color: '#2D3436',
+          ...rowInput,
           textDecoration: item.status === 'done' ? 'line-through' : 'none',
-          textDecorationColor: '#6B5B40',
+          textDecorationColor: COLORS.muted,
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
@@ -180,19 +179,12 @@ export default function MasterTaskList({ year, month }) {
   };
 
   const sheet = (
-    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 24px', background: '#FBF6E7', border: '1px solid #C9BB9A', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 24px', background: COLORS.paper, border: `1px solid ${COLORS.hairline}`, boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
       <div style={{ padding: '18px 0 12px 0' }}>
-        <div style={{
-          fontSize: 22,
-          fontWeight: 700,
-          letterSpacing: 1,
-          paddingTop: 4,
-          lineHeight: 1.2,
-          textTransform: 'uppercase',
-        }}>Monthly Goals</div>
+        <div style={uppercaseHeading}>Monthly Goals</div>
       </div>
-      {error && <div style={{ padding: 16, color: '#C62828' }}>{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #2D3436', borderBottom: '1px solid #2D3436' }}>
+      {error && <div style={{ padding: 16, color: COLORS.danger }}>{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${COLORS.ink}`, borderBottom: `1px solid ${COLORS.ink}` }}>
         <Column title="Personal" items={personal} rowTarget={Math.max(personal.length, business.length) + 4} onCreate={handleCreate('personal')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
         <Column title="Business" items={business} rowTarget={Math.max(personal.length, business.length) + 4} onCreate={handleCreate('business')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
       </div>

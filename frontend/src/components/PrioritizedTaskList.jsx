@@ -2,8 +2,17 @@ import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { createTask, updateTask, deleteTask, reorderTasks } from '../services/api';
 import { sortByOrder } from '../utils/dayInfo';
 import CheckMark from './CheckMark';
+import {
+  COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionTitle,
+} from '../styles';
 
-const INDENT_PX = 24;
+// Row input that greys out and strikes through once the task is done.
+const doneInput = (done) => ({
+  ...rowInput,
+  color: done ? COLORS.muted : COLORS.ink,
+  textDecoration: done ? 'line-through' : 'none',
+  textDecorationColor: COLORS.muted,
+});
 
 function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUnindent, onAddChild, onReorder }) {
   const [text, setText] = useState(task.text);
@@ -77,28 +86,20 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
           display: 'grid',
           gridTemplateColumns: '1fr 28px',
           alignItems: 'flex-start',
-          borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
-          borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
+          ...dropZoneBorders(dropZone),
           minHeight: 30,
           paddingLeft: INDENT_PX,
           cursor: 'grab',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ color: '#A89368', fontSize: 14, paddingLeft: 4, paddingRight: 4 }}>-</span>
+          <span style={childDash}>-</span>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={commitText}
             onKeyDown={onKeyDown}
-            style={{
-              border: 'none', background: 'transparent',
-              padding: '4px 8px', fontSize: 14,
-              width: '100%',
-              color: done ? '#6B5B40' : '#2D3436',
-              textDecoration: done ? 'line-through' : 'none',
-              textDecorationColor: '#6B5B40',
-            }}
+            style={doneInput(done)}
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
@@ -119,8 +120,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
         display: 'grid',
         gridTemplateColumns: '1fr 28px 24px',
         alignItems: 'flex-start',
-        borderTop: dropZone === 'above' ? '2px solid #2D3436' : 'none',
-        borderBottom: dropZone === 'below' ? '2px solid #2D3436' : '1px solid #C9BB9A',
+        ...dropZoneBorders(dropZone),
         minHeight: 30,
         cursor: 'grab',
       }}
@@ -130,14 +130,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
         onChange={(e) => setText(e.target.value)}
         onBlur={commitText}
         onKeyDown={onKeyDown}
-        style={{
-          border: 'none', background: 'transparent',
-          padding: '4px 8px', fontSize: 14,
-          width: '100%',
-          color: done ? '#6B5B40' : '#2D3436',
-          textDecoration: done ? 'line-through' : 'none',
-          textDecorationColor: '#6B5B40',
-        }}
+        style={doneInput(done)}
       />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
         <CheckMark done={done} onClick={toggleDone} />
@@ -146,12 +139,7 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
         type="button"
         onClick={() => onAddChild(task.id)}
         title="Add sub-item"
-        style={{
-          border: 'none', background: 'transparent',
-          color: '#A89368', fontSize: 16, cursor: 'pointer',
-          padding: 0, lineHeight: 1,
-          alignSelf: 'center',
-        }}
+        style={addChildButton}
       >+</button>
     </div>
   );
@@ -179,15 +167,9 @@ function NewChildTaskRow({ dateISO, parentId, siblingOrderStart, onCreate, onCan
   };
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '1fr',
-      alignItems: 'center',
-      borderBottom: '1px solid #C9BB9A',
-      background: '#FBF6E7',
-      paddingLeft: INDENT_PX,
-    }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: INDENT_PX }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <span style={{ color: '#A89368', fontSize: 14, paddingLeft: 4, paddingRight: 4 }}>-</span>
+        <span style={childDash}>-</span>
         <input
           ref={inputRef}
           value={text}
@@ -198,11 +180,7 @@ function NewChildTaskRow({ dateISO, parentId, siblingOrderStart, onCreate, onCan
             else if (e.key === 'Escape') { setText(''); onCancel(); }
           }}
           placeholder="Add sub-item..."
-          style={{
-            border: 'none', background: 'transparent',
-            padding: '6px 8px', fontSize: 14, width: '100%',
-            color: '#2D3436',
-          }}
+          style={newRowInput}
         />
       </div>
     </div>
@@ -223,12 +201,7 @@ function NewTaskRow({ dateISO, onCreate }) {
   };
 
   return (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '1fr 28px',
-      alignItems: 'center',
-      borderBottom: '1px solid #C9BB9A',
-      background: '#FBF6E7',
-    }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr 28px' }}>
       <input
         ref={inputRef}
         value={text}
@@ -236,12 +209,9 @@ function NewTaskRow({ dateISO, onCreate }) {
         onBlur={commit}
         onKeyDown={(e) => { if (e.key === 'Enter') commit(); }}
         placeholder="Add task..."
-        style={{
-          border: 'none', background: 'transparent', padding: '6px 8px', fontSize: 14, width: '100%',
-          color: '#2D3436',
-        }}
+        style={newRowInput}
       />
-      <div style={{ color: '#A89368', textAlign: 'center', fontSize: 16 }}>+</div>
+      <div style={{ color: COLORS.accent, textAlign: 'center', fontSize: 16 }}>+</div>
     </div>
   );
 }
@@ -357,7 +327,7 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
-        borderBottom: '1px solid #2D3436',
+        borderBottom: `1px solid ${COLORS.ink}`,
         background: dragOver ? 'rgba(201, 187, 154, 0.18)' : 'transparent',
         transition: 'background 100ms',
       }}
@@ -367,16 +337,10 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
         gridTemplateColumns: '1fr auto 1fr',
         alignItems: 'center',
         padding: '4px 0',
-        borderBottom: '1px solid #2D3436',
+        borderBottom: `1px solid ${COLORS.ink}`,
       }}>
         <span />
-        <span style={{
-          fontStyle: 'italic',
-          fontSize: 13,
-          color: '#2D3436',
-          textAlign: 'center',
-          fontWeight: 500,
-        }}>
+        <span style={sectionTitle}>
           Action Items
         </span>
         <button
@@ -387,7 +351,7 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
             justifySelf: 'end',
             border: 'none',
             background: 'transparent',
-            color: '#6B5B40',
+            color: COLORS.muted,
             fontSize: 11,
             cursor: 'pointer',
             padding: '0 6px',
@@ -402,9 +366,9 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
           padding: '3px 8px',
           fontSize: 11,
           fontStyle: 'italic',
-          color: pullStatus.error ? '#C62828' : '#6B5B40',
-          background: pullStatus.error ? '#FFEBEE' : '#FBF6E7',
-          borderBottom: '1px solid #C9BB9A',
+          color: pullStatus.error ? COLORS.danger : COLORS.muted,
+          background: pullStatus.error ? COLORS.dangerBg : COLORS.paper,
+          borderBottom: `1px solid ${COLORS.hairline}`,
         }}>
           {pullStatus.message}
         </div>
