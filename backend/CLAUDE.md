@@ -1,104 +1,85 @@
 # Backend
 
-Express 5 + `sqlite3`, port **5002**. One process, no nodemon (avoids restart-window ECONNREFUSED). Loaded by `start.sh`.
+Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT100
+(`deploy/ecosystem.config.js`). `npm start` is plain `node server.js`.
 
 ## Files
 
 | File | Role |
 |---|---|
-| `server.js` | The Express app — every route lives here, ~500 lines. |
-| `db.js` | SQLite open + `CREATE TABLE IF NOT EXISTS` schema + `ALTER TABLE ADD COLUMN` migrations + a `db.serialize` rebuild for the legacy `appointments.hour NOT NULL` constraint. Exports `run / get / all / exec` promise wrappers. |
-| `rollover.js` | `pullForward(sourceDate)` — duplicate-with-dedup logic for the **Pull forward →** button. |
-| `quoteService.js` | `getQuoteForDate(date)` — ZenQuotes random + UNIQUE-index dedup + fallback list. |
-| `calendarService.js` | OAuth and event-fetching for Google Calendar (`googleapis`) and Microsoft Graph (`node-fetch`). |
-| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets. **Gitignored.** Use `.env.example` as a template. |
-| `planner.db` | SQLite WAL-mode database. **Gitignored.** Lost data = run the app, type stuff in. |
+| `server.js` | Setup, mounts every router under `/api`, error middleware, `startScheduler()`. |
+| `routes/day.js` | `GET /api/day/:date` (the whole spread in one payload) and pull-forward. |
+| `routes/tasks.js`, `notes.js`, `ongoing.js`, `appointments.js`, `masterTasks.js` | CRUD per resource. Each declares its full `/api/...` paths. |
+| `routes/summaries.js` | `GET /api/month/:y/:m` counts and `GET /api/recap`. |
+| `routes/calendar.js` | Accounts list/disconnect plus connect/callback for every provider in the registry. |
+| `queries.js` | Priority ordering expression, column lists, month and recap aggregations. |
+| `lib/http.js` | `asyncHandler`, `isDate`/`isDateTime`/`isYearMonth`, and the generic `patchRow`, `reorderRows`, `deleteRow` handlers. |
+| `lib/dates.js` | `localISO`, `nextDayISO`, `toLocalDateTime`, `dayWindow`, `monthPrefix`. Everything is local time. |
+| `db.js` | Opens `planner.db`, creates tables, applies best-effort `ALTER TABLE` migrations. Exports `run / get / all`. |
+| `rollover.js` | `pullForward(sourceDate)`: copy open tasks and notes to the next day with dedup. |
+| `autoRollover.js` | Nightly 23:59 run, startup and hourly catch-up, `pull_forward_runs` bookkeeping. |
+| `quoteService.js` | `getQuoteForDate(date)`: ZenQuotes + UNIQUE-index dedup + fallback list. |
+| `calendarService.js` | `providers.{google,outlook}` registry plus provider-agnostic account storage, token refresh and per-day fetch. |
+| `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
+| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets. Gitignored; the server copy is the live one. |
+| `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
-## Schema
+## Schema (10 tables)
 
 ```
-tasks                  -- Action Items (the priority A/B/C list)
-                          parent_id allows 1-level sub-items
-                          forwarded_from / forwarded_to historical only
-                          (no longer used for idempotency since the dedup
-                           refactor — kept for human inspection)
-
-appointments           -- Manual appointments on the timeline (start_at / end_at
-                          ISO strings 'YYYY-MM-DDTHH:MM' — local time, no TZ).
-                          Legacy `hour` column kept; nullable.
-
-daily_note_entries     -- Tasks/Notes section on the right page.
-                          parent_id for sub-items. forwarded_to historical only.
-
-daily_notes            -- Free-form per-date textarea (the lined "Notes" block
-                          at the bottom of the right page). One row per date.
-
-daily_tracker          -- Older tracker textarea per date. Kept as a column
-                          but the UI has folded it into Daily Notes.
-
-master_tasks           -- Per-month Personal/Business running list.
-
-quotes                 -- ZenQuotes cache. PRIMARY KEY date, UNIQUE index on
-                          text — the latter is what enforces "one quote per
-                          date, never repeated across the whole planner".
-
-calendar_accounts      -- One row per connected Google or Outlook account.
-                          provider, email, access_token, refresh_token,
-                          expires_at (epoch ms). Tokens refreshed lazily.
+tasks                Action Items: priority A/B/C + number, status in_process|completed|forwarded,
+                     parent_id for one level of sub-items. forwarded_from/forwarded_to are legacy.
+appointments         Manual timeline blocks, start_at/end_at as 'YYYY-MM-DDTHH:MM' local. hour is legacy.
+daily_note_entries   The "Tasks" section rows, per date, parent_id for sub-items.
+daily_notes          Free-form textarea per date ("Notes").
+ongoing_items        The "Ongoing" section: nested items with no date.
+master_tasks         Monthly Goals, category personal|business, status open|done.
+quotes               PRIMARY KEY date, UNIQUE(text).
+calendar_accounts    One row per connected account: provider, email, tokens, expires_at (epoch ms).
+pull_forward_runs    Which dates were pulled forward and by what trigger (manual|auto).
+daily_tracker        Legacy; no route reads or writes it.
 ```
 
-## API surface
+## API
 
-| Method | Path | Purpose |
+| Method | Path | Notes |
 |---|---|---|
 | GET | `/api/health` | `{status:"ok"}` |
-| GET | `/api/day/:date` | Full day payload — tasks, appointments, notes, notes_text, tracker, quote, external_events, calendar_errors |
-| POST | `/api/day/:date/pull-forward` | Duplicate incomplete tasks and all notes from `:date` to `:date + 1` (dedup by text+parent) |
-| POST/PATCH/DELETE | `/api/tasks[/:id]` | CRUD; PATCH accepts `text/priority/priority_num/status/order_index/parent_id` |
-| POST | `/api/tasks/reorder` | `{ids: [int]}` → writes `order_index = i` for each id |
-| POST/PATCH/DELETE | `/api/notes[/:id]` | Same shape, against `daily_note_entries` |
-| POST | `/api/notes/reorder` | as above |
-| POST/PATCH/DELETE | `/api/appointments[/:id]` | start_at / end_at, hour 7..20 legacy |
-| PUT | `/api/notes-text/:date` | upsert into `daily_notes` |
-| PUT | `/api/tracker/:date` | upsert into `daily_tracker` |
-| GET/POST/PATCH/DELETE | `/api/master-tasks[/:id]` | category: `personal` \| `business` |
-| GET | `/api/month/:year/:month` | per-day counts for the calendar grid (excludes `forwarded`) |
+| GET | `/api/day/:date` | `{date, tasks, appointments, notes, ongoing, notes_text, quote, external_events, calendar_errors}` |
+| POST | `/api/day/:date/pull-forward` | `{rolledTasks, movedNotes, targetDate}`; records a manual run |
+| POST / PATCH / DELETE | `/api/tasks[/:id]` | PATCH allows text, priority, priority_num, status, order_index, parent_id |
+| POST | `/api/tasks/reorder` | `{ids}` -> `order_index = position`, one UPDATE |
+| POST / PATCH / DELETE | `/api/notes[/:id]` | DELETE cascades to children |
+| POST | `/api/notes/reorder` | |
+| PUT | `/api/notes-text/:date` | upsert `daily_notes` |
+| POST / PATCH / DELETE | `/api/ongoing[/:id]` | DELETE cascades to children |
+| POST | `/api/ongoing/reorder` | |
+| POST / PATCH / DELETE | `/api/appointments[/:id]` | start_at and end_at validated as local datetimes |
+| GET / POST / PATCH / DELETE | `/api/master-tasks[/:id]` | `?year=&month=` on GET |
+| POST | `/api/master-tasks/reorder` | |
+| GET | `/api/month/:year/:month` | per-day task and appointment counts |
+| GET | `/api/recap` | completed tasks grouped by date, newest first |
 | GET | `/api/calendar/accounts` | `{accounts, providers: {google, outlook}}` |
-| DELETE | `/api/calendar/accounts/:id` | drop a connected account |
-| GET | `/api/calendar/{google\|outlook}/connect` | 302 → provider consent URL |
-| GET | `/api/calendar/{google\|outlook}/callback` | exchanges code → stores account → 302 → frontend `?connected=...` |
+| DELETE | `/api/calendar/accounts/:id` | |
+| GET | `/api/calendar/{google\|outlook}/connect` | 302 to the provider consent page |
+| GET | `/api/calendar/{google\|outlook}/callback` | registered with Google and Microsoft; never rename |
 
-## Pull-forward logic (`rollover.js`)
+Errors are always `{error}` JSON. Anything thrown inside an `asyncHandler` becomes a 500 via
+the middleware in `server.js`.
 
-`pullForward(sourceDate)` is the source-of-truth for the **Pull forward →** button. It runs `pushTasksForward` and `pushNotesForward` in series. Each:
+## Pull-forward (`rollover.js`)
 
-1. Pulls eligible source rows on `sourceDate` (`status != 'completed' AND status != 'forwarded'` for tasks; everything for notes).
-2. Pre-fetches existing rows on `targetDate` (`sourceDate + 1`) and builds a `\`${text}|${parent_id ?? 'null'}\`` lookup map.
-3. For each candidate (parents-first ordering so children's `parent_id` can be re-mapped via an `idMap`), checks the lookup; **inserts only when the key is missing**. The newly-inserted id is added to the lookup so subsequent same-key candidates also dedupe.
-4. Returns the count of rows actually inserted (so the toast reports `0/0` honestly when nothing was missing).
+`pullForward(sourceDate)` runs `pushTasksForward` then `pushNotesForward`. Each reads the
+eligible source rows (tasks: status not completed or forwarded; notes: all), builds a
+`text|parent_id` lookup of what already exists on the target day, and inserts only missing
+keys, parents first so children re-parent onto the new (or pre-existing) target parent.
+Returns the number of rows actually inserted.
 
-Sub-item integrity: when a parent already exists on the target, the lookup hit still records `idMap[oldParent.id] = existingTargetParent.id`, so children re-parent under the existing target parent rather than creating an orphan.
+## Calendars (`calendarService.js`)
 
-## Calendar service (`calendarService.js`)
-
-Provider-agnostic shape returned to the UI:
-
-```ts
-{ id, provider: 'google'|'outlook', account_id, calendar_email,
-  title, location, start_at, end_at, all_day, organizer, link }
-```
-
-`listEventsForDate(dateISO)` calls all stored accounts in parallel via `Promise.allSettled`. Per-account failures populate a `calendar_errors[]` array on the day payload (the UI renders a per-account reconnect banner) without breaking other accounts.
-
-Token refresh is lazy: a getter wraps each provider's API client and refreshes 60s before `expires_at`. Updated tokens are written back to the row in place.
-
-Google: `googleapis` library, `events.list({ calendarId: 'primary', singleEvents: true, orderBy: 'startTime' })`. Outlook: raw `fetch` to `/v1.0/me/calendarView`, sending `Prefer: outlook.timezone="<local IANA>"` so times come back in the user's timezone.
-
-## Quote pipeline (`quoteService.js`)
-
-`getQuoteForDate(date)`:
-1. SELECT the date row — return if found.
-2. Else fetch `https://zenquotes.io/api/random`. INSERT; UNIQUE-on-text index aborts dupes — retry up to 5x.
-3. On exhaustion / network failure, return one of `FALLBACK_QUOTES` (a small embedded stoic/business list) without inserting, so a future request still tries the live API.
-
-This means: refreshing the page never changes the quote, and no quote ever appears twice across the whole planner's lifetime.
+Each provider implements `configured`, `authUrl`, `exchangeCode`, `refresh`, `fetchEvents`.
+`connectAccount` upserts on `(provider, email)`. `freshAccessToken` refreshes when the token
+has under a minute left and writes the new credentials back. `listEventsForDate` fetches every
+account in parallel with `Promise.allSettled`; one account's failure lands in
+`calendar_errors` without blocking the rest. Events are normalized to
+`{id, provider, account_id, calendar_email, title, location, start_at, end_at, all_day, organizer, link}`.

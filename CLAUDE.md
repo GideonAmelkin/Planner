@@ -1,103 +1,93 @@
 # Planner
 
-A local two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper book. Single user, runs entirely on `localhost`, persists to SQLite. Pulls events from Google Calendar and Outlook so the daily timeline shows your real meetings alongside whatever you typed by hand.
+A two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper
+book. Single user, persists to SQLite, pulls events from Google Calendar and Outlook so the
+daily timeline shows real meetings next to whatever was typed by hand.
 
-## CRITICAL: Use Node 20
+## Where it runs
 
-`react-scripts 5.0.1` hangs silently on Node 24. Node 20 is installed at `/Users/gideonamelkin/.local/bin/node` and should already be first on PATH on the dev machine — no prefix needed.
+The app lives on RT100 and that is where all work happens. There is no localhost workflow.
 
-## Quick start
+- Live: `https://70-42-223-139.sslip.io/` (nginx + Let's Encrypt). Fallback `http://70.42.223.139:8080/`.
+- Server checkout: `~/apps/planner` on `gamelkin@70.42.223.139` (plain copy, no git).
+- Backend: pm2 process `planner-backend`, port 5002, proxied at `/api/` by nginx.
+- Frontend: static build served from `/var/www/planner/build`.
+- Source of truth: this Mac repo (git, `origin` on GitHub). Push files with
+  `deploy/push.sh`, build and restart on the server. Runbook: [deploy/README.md](deploy/README.md).
+- Never copy `backend/.env` or `backend/planner.db` to the server; the server's copies hold
+  the live OAuth config and the real data.
 
-```bash
-bash ~/Documents/Planner/start.sh   # backend (5002) + frontend (3001), both backgrounded
-bash ~/Documents/Planner/stop.sh
-# open http://localhost:3001 — redirects to today's spread
+Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
+
+## What is on the page
+
+One route, `/day/:date` (`/` and anything else redirect to today). Three stacked sections,
+referred to by these names:
+
+1. **Planner**: the daily spread. Date headline + mini calendar, quote + day-info badge,
+   Appointment Schedule timeline, and the right-hand column of Action Items, Tasks,
+   Ongoing and free-form Notes. The dark bar above it (Prev / Today / Next / date picker /
+   Recap / Settings) is the header, not part of the spread.
+2. **Monthly Goals**: Personal | Business running lists for the month (`MonthlyGoals.jsx`).
+3. **Calendar**: the month grid; clicking a day opens that day's spread (`CalendarSection.jsx`).
+
+Recap and Settings are modals opened from the header.
+
+## Architecture
+
+```
+ZenQuotes (random)    Google Calendar    Microsoft Graph
+        |                    |                 |
++-------v--------------------v-----------------v--------+
+|  Express backend (port 5002)                          |
+|    server.js        setup, mounts, error middleware   |
+|    routes/*.js      one file per resource             |
+|    queries.js       shared SQL fragments + aggregates |
+|    lib/http.js      asyncHandler, patch/reorder/delete|
+|    lib/dates.js     local-day helpers                 |
+|    rollover.js      pull-forward with dedup           |
+|    autoRollover.js  nightly + catch-up scheduler      |
+|    quoteService.js  one unique quote per date         |
+|    calendarService.js  provider registry (google/outlook)
+|    planner.db (SQLite, WAL)                           |
++----------------------------^--------------------------+
+                             | axios, retry-once
++----------------------------v--------------------------+
+|  React 19 frontend (react-scripts build)              |
+|    pages/DailyView.jsx      the single page           |
+|    components/*             sections and widgets      |
+|    styles.js                design tokens             |
++-------------------------------------------------------+
 ```
 
-Logs at `logs/backend.log` and `logs/frontend.log`. Both servers exit cleanly via `stop.sh` (kills pidfiles + anything left on the ports).
+Details: [backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/CLAUDE.md).
 
-Calendar OAuth is optional. The Settings panel (cog icon, top-right) has Connect buttons that stay disabled until `backend/.env` has the credentials. See [CALENDAR_SETUP.md](CALENDAR_SETUP.md) for the one-time Google Cloud Console + Azure portal walkthrough.
+## Two invariants worth knowing
 
-## Architecture (one-pager)
-
-```
-                 ZenQuotes (random)
-                       |
-                       v
-+------------------------------------------------+
-|  Express backend (port 5002, Node 20)          |
-|                                                 |
-|  routes -- server.js                            |
-|  rollover -- rollover.js (pull-forward dedup)   |
-|  quotes  -- quoteService.js (unique per date)   |
-|  calendars -- calendarService.js (Google + MS)  |
-|                                                 |
-|  +---------------------+                        |
-|  |  planner.db (SQLite)|                        |
-|  +---------------------+                        |
-+------------------------------------------------+
-                       ^
-                       | REST + axios + retry-once
-                       |
-+------------------------------------------------+
-|  React 19 frontend (port 3001, react-scripts)   |
-|                                                 |
-|  /day/:date      -> DailyView                   |
-|  /master/:y/:m   -> MasterTaskList              |
-|  /calendar/:y/:m -> MonthlyCalendar             |
-+------------------------------------------------+
-```
-
-## Routes (frontend)
-
-| Path | Component | What it shows |
-|---|---|---|
-| `/` | redirect → `/day/{today}` | |
-| `/day/:date` | `pages/DailyView.jsx` | Two-page spread — date + mini calendar + appointment timeline on the left; quote + day-info badge + Action Items + Tasks/Notes + free-form notes on the right |
-| `/master/:year/:month` | `pages/MasterTaskList.jsx` | Personal \| Business two-column running list for a month |
-| `/calendar/:year/:month` | `pages/MonthlyCalendar.jsx` | Month grid; click a day → DailyView |
-
-Settings is a modal opened from `TopNav.jsx` — manages connected Google / Outlook calendars.
-
-## Endpoints (backend, port 5002)
-
-Day payload, tasks, notes, appointments, master tasks, calendar — all under `/api/...`. Full table in [backend/CLAUDE.md](backend/CLAUDE.md). Two endpoints worth flagging here:
-
-- **`GET /api/day/:date`** — returns everything that renders on the daily spread, including external_events from connected calendars (parallel-fetched, errors quarantined per account so one bad token doesn't block the day).
-- **`POST /api/day/:date/pull-forward`** — duplicates incomplete tasks and all notes onto `:date + 1` day. Idempotent via duplicate detection (skips when an item with the same `text` and effective `parent_id` already exists on the target). Completed tasks are never copied.
-
-## Schema
-
-8 tables in `backend/planner.db` (gitignored). Full details in [backend/CLAUDE.md](backend/CLAUDE.md). Two non-obvious invariants:
-
-- **`quotes.text` has a UNIQUE index.** ZenQuotes can return duplicates over time; the unique index is what prevents the same quote landing on two dates. The fetch retries up to 5 times on collision before falling back to a small bundled list.
-- **`tasks.parent_id` and `daily_note_entries.parent_id`** support 1-level nesting (sub-items). The pull-forward logic re-parents children to the new copy of their parent on the target day, so the hierarchy survives.
+- **`quotes.text` has a UNIQUE index.** That index, not application logic, guarantees a quote
+  never repeats. The fetch retries ZenQuotes a few times on collision, then falls back to a
+  bundled list. Once a date has a quote it is locked (`date` is the primary key).
+- **Pull-forward is idempotent by content.** `POST /api/day/:date/pull-forward` copies open
+  tasks and all notes to the next day, skipping any row whose `(text, parent)` already exists
+  there. The nightly scheduler in `autoRollover.js` runs the same function at 23:59 local and
+  catches up missed days on startup and hourly; `pull_forward_runs` records what was done.
 
 ## Conventions
 
-- **All styling is inline JS objects.** Tailwind is *not* in the dep tree. The two design tokens that really matter: ink `#2D3436`, page surface `#FBF6E7`, page background `#F0EAD6`, hairlines `#C9BB9A`. Provider colors for calendar events: Google blue `#1565C0`, Outlook teal `#00695C`, manual cream/black.
-- **Auto-save on blur for inputs, debounced 800ms for textareas.** Patterns repeated in `PrioritizedTaskList`, `DailyNotes`, `DailyNotesText`, `AppointmentSchedule` / `TimelineSchedule`.
-- **Axios interceptor retries network errors once after 1.5s.** Lets backend restarts mid-edit not flash an error in the UI. See `frontend/src/services/api.js`.
-- **Drag-and-drop uses `application/x-planner-task` and `application/x-planner-note` MIME types** to distinguish source. Cross-section drop converts (task → note or vice versa). Within-section drop reorders by writing new `order_index` values.
+- Styling is inline JS objects; tokens and shared objects live in `frontend/src/styles.js`.
+- Inputs save on blur, textareas after an 800 ms debounce.
+- Drag-and-drop uses four MIME types (`application/x-planner-task`, `-note`, `-ongoing`,
+  `-master-task`). A row accepts its own type to reorder; a section accepts the other
+  sections' types to move an item across.
+- No em dashes in code, copy, or docs.
 
 ## Folder map
 
 ```
 Planner/
-  CLAUDE.md                 ← you are here
-  CALENDAR_SETUP.md         ← Google Cloud + Azure setup walkthrough
-  start.sh / stop.sh        ← service control
-  logs/                     ← gitignored runtime logs
-  backend/                  ← see backend/CLAUDE.md
-  frontend/                 ← see frontend/CLAUDE.md
+  CLAUDE.md               this file
+  CALENDAR_SETUP.md       Google Cloud + Azure one-time setup
+  deploy/                 push.sh, README.md runbook, nginx + pm2 configs
+  backend/                Express API, see backend/CLAUDE.md
+  frontend/               React app, see frontend/CLAUDE.md
 ```
-
-## Reviewing the code
-
-If a future agent picks this up: the most "load-bearing" files are
-`backend/server.js` (one Express app, ~500 lines), `backend/rollover.js`
-(pull-forward dedup), `backend/calendarService.js` (OAuth + Graph/Calendar
-fetchers), `frontend/src/pages/DailyView.jsx` (cell layout for the spread),
-`frontend/src/components/PrioritizedTaskList.jsx` and
-`frontend/src/components/DailyNotes.jsx` (drag, sub-items, reorder),
-`frontend/src/components/TimelineSchedule.jsx` (time-block calendar grid).

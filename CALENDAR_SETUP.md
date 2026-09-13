@@ -21,17 +21,15 @@ This is a one-time setup. The provider buttons in **Settings** stay disabled unt
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**
    - Name: "Personal Planner"
-   - Authorized redirect URIs:
-     - Server (RT100): `https://70-42-223-139.sslip.io/api/calendar/google/callback`
-     - Local dev (optional): `http://localhost:5002/api/calendar/google/callback`
+   - Authorized redirect URI: `https://70-42-223-139.sslip.io/api/calendar/google/callback`
    - Create
 5. Copy the **Client ID** and **Client secret** values.
-6. Open `~/Documents/Planner/backend/.env` and set:
+6. On the server, open `~/apps/planner/backend/.env` and set:
    ```
    GOOGLE_CLIENT_ID=<paste client id>
    GOOGLE_CLIENT_SECRET=<paste client secret>
    ```
-7. Restart the backend: `bash ~/Documents/Planner/stop.sh && bash ~/Documents/Planner/start.sh`
+7. Restart the backend: `pm2 restart planner-backend`
 8. In the app: **Settings → + Connect Google** → consent → you'll be returned to the planner with the Google calendar connected.
 
 > **Heads-up:** while the OAuth consent screen is in "Testing" mode, refresh tokens issued to test users expire after **7 days**. You'll be prompted to reconnect once a week. To skip that, you can submit the app for verification (more steps), but for personal use the weekly reconnect is usually fine.
@@ -44,9 +42,8 @@ This is a one-time setup. The provider buttons in **Settings** stay disabled unt
 2. **App registrations → New registration**:
    - Name: "Personal Planner"
    - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (the "common" tenant — accepts work, school, and `outlook.com`)
-   - Redirect URI: select **Web**, then enter the server URI
+   - Redirect URI: select **Web**, then enter
      `https://70-42-223-139.sslip.io/api/calendar/outlook/callback`
-     (add `http://localhost:5002/api/calendar/outlook/callback` too for local dev)
    - Register
 3. On the new app's overview page, copy the **Application (client) ID**.
 4. **Certificates & secrets → Client secrets → New client secret**:
@@ -58,12 +55,12 @@ This is a one-time setup. The provider buttons in **Settings** stay disabled unt
    - `User.Read`
    - `offline_access`
    - Add. (No admin consent needed for personal accounts; for work tenants the first sign-in will prompt.)
-6. Open `~/Documents/Planner/backend/.env` and set:
+6. On the server, open `~/apps/planner/backend/.env` and set:
    ```
    MS_CLIENT_ID=<paste application (client) id>
    MS_CLIENT_SECRET=<paste secret value from step 4>
    ```
-7. Restart the backend.
+7. Restart the backend: `pm2 restart planner-backend`.
 8. In the app: **Settings → + Connect Outlook** → sign in with whichever account you want → consent → connected.
 
 You can connect multiple accounts of either provider (e.g. one personal Gmail + one work Microsoft 365). Each shows up as its own row in Settings, with its own colored events on the timeline.
