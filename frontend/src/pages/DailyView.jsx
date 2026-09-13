@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import MiniCalendar from '../components/MiniCalendar';
@@ -17,6 +17,9 @@ import {
   createNote, deleteNote,
   createOngoing, deleteOngoing,
 } from '../services/api';
+
+const PULL_STATUS_MS = 2500;
+const SPREAD_MAX_WIDTH = 1500;
 
 export default function DailyView() {
   const { date } = useParams();
@@ -60,85 +63,34 @@ export default function DailyView() {
       console.error('Pull forward failed:', err);
       setPullStatus({ message: `Pull forward failed: ${err.message || err}`, error: true });
     }
-    setTimeout(() => setPullStatus(null), 2500);
+    setTimeout(() => setPullStatus(null), PULL_STATUS_MS);
   }, [date]);
 
-  const handleDropNoteOnTasks = useCallback(async ({ id, text, children }) => {
-    const parent = await createTask({ date, text });
-    for (const c of (children || [])) {
-      await createTask({ date, text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteNote(c.id);
-    }
-    await deleteNote(id);
-    const fresh = await getDay(date);
-    setData(fresh);
-  }, [date]);
-
-  const handleDropTaskOnNotes = useCallback(async ({ id, text, children }) => {
-    const parent = await createNote({ date, text });
-    for (const c of (children || [])) {
-      await createNote({ date, text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteTask(c.id);
-    }
-    await deleteTask(id);
-    const fresh = await getDay(date);
-    setData(fresh);
-  }, [date]);
-
-  const handleDropTaskOnOngoing = useCallback(async ({ id, text, children }) => {
-    const parent = await createOngoing({ text });
-    for (const c of (children || [])) {
-      await createOngoing({ text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteTask(c.id);
-    }
-    await deleteTask(id);
-    const fresh = await getDay(date);
-    setData(fresh);
-  }, [date]);
-
-  const handleDropNoteOnOngoing = useCallback(async ({ id, text, children }) => {
-    const parent = await createOngoing({ text });
-    for (const c of (children || [])) {
-      await createOngoing({ text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteNote(c.id);
-    }
-    await deleteNote(id);
-    const fresh = await getDay(date);
-    setData(fresh);
-  }, [date]);
-
-  const handleDropOngoingOnTasks = useCallback(async ({ id, text, children }) => {
-    const parent = await createTask({ date, text });
-    for (const c of (children || [])) {
-      await createTask({ date, text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteOngoing(c.id);
-    }
-    await deleteOngoing(id);
-    const fresh = await getDay(date);
-    setData(fresh);
-  }, [date]);
-
-  const handleDropOngoingOnNotes = useCallback(async ({ id, text, children }) => {
-    const parent = await createNote({ date, text });
-    for (const c of (children || [])) {
-      await createNote({ date, text: c.text, parent_id: parent.id });
-    }
-    for (const c of (children || [])) {
-      await deleteOngoing(c.id);
-    }
-    await deleteOngoing(id);
-    const fresh = await getDay(date);
-    setData(fresh);
+  // Moving a row between sections = recreate it (and its children) in the
+  // target section, delete the originals, then reload the day.
+  const movers = useMemo(() => {
+    const move = (createFn, deleteFn) => async ({ id, text, children }) => {
+      const parent = await createFn({ text });
+      for (const c of (children || [])) {
+        await createFn({ text: c.text, parent_id: parent.id });
+      }
+      for (const c of (children || [])) {
+        await deleteFn(c.id);
+      }
+      await deleteFn(id);
+      const fresh = await getDay(date);
+      setData(fresh);
+    };
+    const task = (p) => createTask({ date, ...p });
+    const note = (p) => createNote({ date, ...p });
+    return {
+      noteToTasks: move(task, deleteNote),
+      ongoingToTasks: move(task, deleteOngoing),
+      taskToNotes: move(note, deleteTask),
+      ongoingToNotes: move(note, deleteOngoing),
+      taskToOngoing: move(createOngoing, deleteTask),
+      noteToOngoing: move(createOngoing, deleteNote),
+    };
   }, [date]);
 
   if (error) {
@@ -175,7 +127,7 @@ export default function DailyView() {
         gridTemplateColumns: '1fr 1fr',
         gridTemplateRows: 'auto 1fr',
         gap: 0,
-        maxWidth: 1500,
+        maxWidth: SPREAD_MAX_WIDTH,
         margin: '0 auto',
         padding: '32px 24px 0 24px',
       }}>
@@ -219,22 +171,22 @@ export default function DailyView() {
             tasks={data.tasks}
             onChange={setTasks}
             onPullForward={handlePullForward}
-            onDropNote={handleDropNoteOnTasks}
-            onDropOngoing={handleDropOngoingOnTasks}
+            onDropNote={movers.noteToTasks}
+            onDropOngoing={movers.ongoingToTasks}
             pullStatus={pullStatus}
           />
           <DailyNotes
             dateISO={date}
             notes={data.notes}
             onChange={setNotes}
-            onDropTask={handleDropTaskOnNotes}
-            onDropOngoing={handleDropOngoingOnNotes}
+            onDropTask={movers.taskToNotes}
+            onDropOngoing={movers.ongoingToNotes}
           />
           <Ongoing
             ongoing={data.ongoing || []}
             onChange={setOngoing}
-            onDropTask={handleDropTaskOnOngoing}
-            onDropNote={handleDropNoteOnOngoing}
+            onDropTask={movers.taskToOngoing}
+            onDropNote={movers.noteToOngoing}
           />
           <DailyNotesText
             dateISO={date}
@@ -244,10 +196,10 @@ export default function DailyView() {
         </div>
       </div>
 
-      <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 0 24px' }}>
+      <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 0 24px' }}>
         <MasterTaskList year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
-      <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
+      <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
         <MonthlyCalendar year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
     </div>
