@@ -1,18 +1,12 @@
 const { all, get, run } = require('./db');
 const { pullForward } = require('./rollover');
+const { localISO } = require('./lib/dates');
 
 // How far back the catch-up sweep looks. Covers a weekend (or a few nights) of
 // the Mac being asleep at 11:59 PM without cascading deep history on first run.
 const WINDOW_DAYS = 3;
-
-// Format a Date to YYYY-MM-DD in the process local timezone (same construction
-// as rollover.js:nextDayISO). This is what "11:59 PM local time" / "today" key off.
-function localISO(dt = new Date()) {
-  const y = dt.getFullYear();
-  const m = String(dt.getMonth() + 1).padStart(2, '0');
-  const d = String(dt.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
+const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 async function alreadyRun(date) {
   const row = await get('SELECT 1 FROM pull_forward_runs WHERE date = ?', [date]);
@@ -45,7 +39,7 @@ async function processDueRollovers({ includeToday = false } = {}) {
   running = true;
   try {
     const today = localISO();
-    const cutoff = localISO(new Date(Date.now() - WINDOW_DAYS * 86400000));
+    const cutoff = localISO(new Date(Date.now() - WINDOW_DAYS * DAY_MS));
 
     // Candidate source days = those with at least one incomplete task ("items not
     // checked as completed"). A fully-completed day is not auto-rolled even if it
@@ -101,7 +95,7 @@ function scheduleNightly() {
 //  - the on-time 23:59 fire that also rolls the day currently ending.
 function startScheduler() {
   processDueRollovers({ includeToday: false });
-  setInterval(() => processDueRollovers({ includeToday: false }), 60 * 60 * 1000);
+  setInterval(() => processDueRollovers({ includeToday: false }), HOUR_MS);
   scheduleNightly();
 }
 

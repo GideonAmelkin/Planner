@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const { google } = require('googleapis');
 const { all, run } = require('./db');
+const { toLocalDateTime, dayWindow } = require('./lib/dates');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5002';
@@ -171,22 +172,6 @@ function localTzName() {
   }
 }
 
-function toLocalIso(dt) {
-  if (!dt) return null;
-  const d = typeof dt === 'string' ? new Date(dt) : dt;
-  if (isNaN(d.getTime())) return null;
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function dayWindow(dateISO) {
-  // Build local-day boundaries in this server's TZ.
-  const [y, m, d] = dateISO.split('-').map(Number);
-  const start = new Date(y, m - 1, d, 0, 0, 0);
-  const end = new Date(y, m - 1, d + 1, 0, 0, 0);
-  return { start, end };
-}
-
 async function fetchGoogleEventsForDate(account, dateISO) {
   const oauth2 = await refreshGoogleIfNeeded(account);
   const cal = google.calendar({ version: 'v3', auth: oauth2 });
@@ -202,8 +187,8 @@ async function fetchGoogleEventsForDate(account, dateISO) {
   const items = res.data.items || [];
   return items.map((ev) => {
     const allDay = !!(ev.start && ev.start.date);
-    const startAt = allDay ? `${ev.start.date}T00:00` : toLocalIso(ev.start.dateTime);
-    const endAt = allDay ? `${ev.end.date}T00:00` : toLocalIso(ev.end.dateTime);
+    const startAt = allDay ? `${ev.start.date}T00:00` : toLocalDateTime(ev.start.dateTime);
+    const endAt = allDay ? `${ev.end.date}T00:00` : toLocalDateTime(ev.end.dateTime);
     return {
       id: `g-${ev.id}`,
       provider: 'google',
@@ -250,8 +235,8 @@ async function fetchMicrosoftEventsForDate(account, dateISO) {
       calendar_email: account.email,
       title: ev.subject || '(no title)',
       location: (ev.location && ev.location.displayName) || null,
-      start_at: toLocalIso(ev.start && ev.start.dateTime),
-      end_at: toLocalIso(ev.end && ev.end.dateTime),
+      start_at: toLocalDateTime(ev.start && ev.start.dateTime),
+      end_at: toLocalDateTime(ev.end && ev.end.dateTime),
       all_day: allDay,
       organizer: (ev.organizer && ev.organizer.emailAddress && ev.organizer.emailAddress.name) || null,
       link: ev.webLink || null,

@@ -6,6 +6,7 @@ const { getQuoteForDate } = require('./quoteService');
 const { pullForward } = require('./rollover');
 const { recordRun, startScheduler } = require('./autoRollover');
 const calendarService = require('./calendarService');
+const { monthPrefix } = require('./lib/dates');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
@@ -448,8 +449,7 @@ app.get('/api/month/:year/:month', async (req, res) => {
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
     return res.status(400).json({ error: 'invalid year/month' });
   }
-  const mm = String(month).padStart(2, '0');
-  const prefix = `${year}-${mm}-%`;
+  const prefix = monthPrefix(year, month);
   try {
     const taskRows = await all(
       `SELECT date, COUNT(*) AS n FROM tasks
