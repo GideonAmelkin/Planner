@@ -1,10 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import {
-  addDays, endOfMonth, format, getDate, isSameDay, isSameMonth,
-  startOfMonth, startOfWeek,
-} from 'date-fns';
-import { dateToISO } from '../utils/dayInfo';
+import { format, getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
+import { dateToISO, monthGrid } from '../utils/dayInfo';
 
 // Per-day task/appointment markers were intentionally removed (planned to
 // rebuild later). When re-adding, restore the `summary` state + `getMonth`
@@ -15,21 +12,8 @@ export default function MonthlyCalendar({ year, month }) {
   const m = Number(month);
 
   const monthStart = startOfMonth(new Date(y, m - 1, 1));
-  const monthEnd = endOfMonth(monthStart);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const today = new Date();
-
-  const rows = [];
-  let cursor = gridStart;
-  while (cursor <= monthEnd || rows.length < 6) {
-    const week = [];
-    for (let d = 0; d < 7; d++) {
-      week.push(cursor);
-      cursor = addDays(cursor, 1);
-    }
-    rows.push(week);
-    if (rows.length >= 6) break;
-  }
+  const rows = monthGrid(monthStart, { minRows: 6 });
 
   const monthLabel = format(monthStart, 'MMMM yyyy');
   const sheet = (

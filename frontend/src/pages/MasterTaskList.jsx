@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
 } from '../services/api';
-import { CheckMark } from '../components/PrioritizedTaskList';
+import CheckMark from '../components/CheckMark';
+import { sortByOrder } from '../utils/dayInfo';
 
 function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
   const [text, setText] = useState('');
@@ -134,7 +135,6 @@ export default function MasterTaskList({ year, month }) {
     return () => { alive = false; };
   }, [y, m]);
 
-  const sortByOrder = (a, b) => (a.order_index || 0) - (b.order_index || 0) || a.id - b.id;
   const personal = items.filter((i) => i.category === 'personal').sort(sortByOrder);
   const business = items.filter((i) => i.category === 'business').sort(sortByOrder);
 

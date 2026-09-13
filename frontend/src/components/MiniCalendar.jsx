@@ -1,32 +1,19 @@
 import React from 'react';
-import {
-  endOfMonth, getDate, isSameDay, isSameMonth,
-  startOfMonth, startOfWeek, addDays,
-} from 'date-fns';
+import { getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { dateToISO, isoToDate } from '../utils/dayInfo';
+import { dateToISO, isoToDate, monthGrid } from '../utils/dayInfo';
 
 const cellSize = 22;
 
 function MonthGrid({ monthDate, todayDate, compact = false }) {
   const monthStart = startOfMonth(monthDate);
-  const monthEnd = endOfMonth(monthDate);
-  const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-
-  const rows = [];
-  let cursor = gridStart;
-  for (let w = 0; w < 6; w++) {
-    const cells = [];
-    for (let d = 0; d < 7; d++) {
-      const inMonth = isSameMonth(cursor, monthStart);
-      const isToday = isSameDay(cursor, todayDate);
-      const iso = dateToISO(cursor);
-      cells.push({ date: cursor, inMonth, isToday, iso, day: getDate(cursor) });
-      cursor = addDays(cursor, 1);
-    }
-    rows.push(cells);
-    if (cursor > monthEnd && w >= 4) break;
-  }
+  const rows = monthGrid(monthDate, { minRows: 5 }).map((week) => week.map((d) => ({
+    date: d,
+    inMonth: isSameMonth(d, monthStart),
+    isToday: isSameDay(d, todayDate),
+    iso: dateToISO(d),
+    day: getDate(d),
+  })));
 
   const labelStyle = {
     fontSize: compact ? 9 : 10,

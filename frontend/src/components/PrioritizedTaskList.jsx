@@ -1,41 +1,9 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { createTask, updateTask, deleteTask, reorderTasks } from '../services/api';
+import { sortByOrder } from '../utils/dayInfo';
+import CheckMark from './CheckMark';
 
 const INDENT_PX = 24;
-
-export function CheckMark({ done, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={done ? 'Mark not done' : 'Mark done'}
-      style={{
-        width: 22, height: 22,
-        border: 'none', background: 'transparent',
-        padding: 0,
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-        <circle
-          cx="10" cy="10" r="9"
-          fill={done ? '#2E7D32' : 'transparent'}
-          stroke={done ? '#2E7D32' : '#A89368'}
-          strokeWidth="1.5"
-        />
-        <path
-          d="M5.6 10.4 L8.6 13.4 L14.4 7.2"
-          fill="none"
-          stroke={done ? 'white' : '#A89368'}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={done ? 1 : 0.55}
-        />
-      </svg>
-    </button>
-  );
-}
 
 function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUnindent, onAddChild, onReorder }) {
   const [text, setText] = useState(task.text);
@@ -298,9 +266,6 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
     if ((a.priority_num || 99) !== (b.priority_num || 99)) return (a.priority_num || 99) - (b.priority_num || 99);
     return (a.order_index || 0) - (b.order_index || 0) || a.id - b.id;
   };
-  const sortByOrder = (a, b) =>
-    (a.order_index || 0) - (b.order_index || 0) || a.id - b.id;
-
   const topLevel = visible.filter((t) => !t.parent_id).sort(sortByPriority);
   const childrenOf = (parentId) =>
     visible.filter((t) => t.parent_id === parentId).sort(sortByOrder);

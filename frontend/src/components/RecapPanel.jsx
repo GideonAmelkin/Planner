@@ -1,24 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { parseISO, format } from 'date-fns';
 import { getRecap } from '../services/api';
-
-// Static "done" check, mirroring CheckMark's done state in PrioritizedTaskList.jsx.
-function DoneCheck() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
-      <circle cx="10" cy="10" r="9" fill="#2E7D32" stroke="#2E7D32" strokeWidth="1.5" />
-      <path d="M5.6 10.4 L8.6 13.4 L14.4 7.2" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function dateLabel(iso) {
-  try {
-    return format(parseISO(iso), 'EEEE, MMMM do yyyy');
-  } catch (_) {
-    return iso;
-  }
-}
+import { longDate } from '../utils/dayInfo';
+import CheckMark from './CheckMark';
 
 export default function RecapPanel({ onClose }) {
   const [groups, setGroups] = useState([]);
@@ -94,12 +77,12 @@ export default function RecapPanel({ onClose }) {
                     paddingBottom: 4, marginBottom: 8,
                   }}
                 >
-                  {dateLabel(g.date)}
+                  {longDate(g.date)}
                   <span style={{ color: '#A89368', fontWeight: 400, fontSize: 12 }}> · {g.items.length}</span>
                 </div>
                 {g.items.map((it) => (
                   <div key={it.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '3px 0' }}>
-                    <DoneCheck />
+                    <CheckMark done size={18} />
                     {it.priority ? (
                       <span style={{ fontSize: 11, fontWeight: 700, color: '#A89368', minWidth: 16, marginTop: 1 }}>
                         {it.priority}{it.priority_num != null ? it.priority_num : ''}

@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
+import { sortByOrder } from '../utils/dayInfo';
 
 const INDENT_PX = 24;
 
@@ -211,9 +212,6 @@ function NewRow({ api, dateISO, placeholder, onCreate }) {
   );
 }
 
-const byOrder = (a, b) =>
-  (a.order_index || 0) - (b.order_index || 0) || a.id - b.id;
-
 export default function NestedListSection({
   title, items, onChange, api, mime, dateISO, placeholder = 'Add item...', externalDrops = {},
 }) {
@@ -229,7 +227,7 @@ export default function NestedListSection({
   const handleDragStart = (e, item) => {
     const children = list
       .filter((n) => n.parent_id === item.id)
-      .sort(byOrder)
+      .sort(sortByOrder)
       .map((n) => ({ id: n.id, text: n.text }));
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData(
@@ -264,9 +262,9 @@ export default function NestedListSection({
     } catch (_) {}
   };
 
-  const topLevel = list.filter((n) => !n.parent_id).sort(byOrder);
+  const topLevel = list.filter((n) => !n.parent_id).sort(sortByOrder);
   const childrenOf = (parentId) =>
-    list.filter((n) => n.parent_id === parentId).sort(byOrder);
+    list.filter((n) => n.parent_id === parentId).sort(sortByOrder);
 
   const indent = async (itemId) => {
     const idx = topLevel.findIndex((n) => n.id === itemId);
