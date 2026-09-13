@@ -21,7 +21,9 @@ This is a one-time setup. The provider buttons in **Settings** stay disabled unt
 4. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
    - Application type: **Web application**
    - Name: "Personal Planner"
-   - Authorized redirect URI: `http://localhost:5002/api/calendar/google/callback`
+   - Authorized redirect URIs:
+     - Server (RT100): `https://70-42-223-139.sslip.io/api/calendar/google/callback`
+     - Local dev (optional): `http://localhost:5002/api/calendar/google/callback`
    - Create
 5. Copy the **Client ID** and **Client secret** values.
 6. Open `~/Documents/Planner/backend/.env` and set:
@@ -42,7 +44,9 @@ This is a one-time setup. The provider buttons in **Settings** stay disabled unt
 2. **App registrations → New registration**:
    - Name: "Personal Planner"
    - Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (the "common" tenant — accepts work, school, and `outlook.com`)
-   - Redirect URI: select **Web**, then enter `http://localhost:5002/api/calendar/outlook/callback`
+   - Redirect URI: select **Web**, then enter the server URI
+     `https://70-42-223-139.sslip.io/api/calendar/outlook/callback`
+     (add `http://localhost:5002/api/calendar/outlook/callback` too for local dev)
    - Register
 3. On the new app's overview page, copy the **Application (client) ID**.
 4. **Certificates & secrets → Client secrets → New client secret**:

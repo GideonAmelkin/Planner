@@ -8,6 +8,8 @@ import DailyNotes from '../components/DailyNotes';
 import Ongoing from '../components/Ongoing';
 import DailyNotesText from '../components/DailyNotesText';
 import QuoteHeader from '../components/QuoteHeader';
+import MasterTaskList from './MasterTaskList';
+import MonthlyCalendar from './MonthlyCalendar';
 import { dayInfo } from '../utils/dayInfo';
 import {
   getDay, pullForwardDay,
@@ -175,7 +177,7 @@ export default function DailyView() {
         gap: 0,
         maxWidth: 1500,
         margin: '0 auto',
-        padding: '24px 24px 64px 24px',
+        padding: '32px 24px 0 24px',
       }}>
         {/* Top-left: single-line date + mini-calendar */}
         <div style={{ ...cellBase, ...cellLeftBorder, paddingBottom: 12 }}>
@@ -241,6 +243,13 @@ export default function DailyView() {
           />
         </div>
       </div>
+
+      <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 0 24px' }}>
+        <MasterTaskList embedded year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+      </section>
+      <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
+        <MonthlyCalendar embedded year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+      </section>
     </div>
   );
 }

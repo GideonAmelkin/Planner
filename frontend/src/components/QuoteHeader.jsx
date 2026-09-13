@@ -10,11 +10,11 @@ export default function QuoteHeader({ dateISO, quote }) {
       alignItems: 'flex-start',
       padding: '4px 4px',
     }}>
-      <div className="serif" style={{ fontStyle: 'italic', fontSize: 16, lineHeight: 1.4, color: '#2D3436' }}>
+      <div style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif", fontStyle: 'normal', fontSize: 14, lineHeight: 1.4, color: '#2D3436' }}>
         {quote ? (
           <>
             <div>{quote.text}</div>
-            <div style={{ marginTop: 6, fontStyle: 'normal', fontVariant: 'small-caps', fontSize: 13, letterSpacing: 0.5 }}>
+            <div style={{ marginTop: 6, fontStyle: 'normal', fontSize: 14, color: '#2D3436' }}>
               — {quote.author || 'Unknown'}
             </div>
           </>

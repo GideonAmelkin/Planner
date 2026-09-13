@@ -4,6 +4,7 @@ const cors = require('cors');
 const { run, get, all } = require('./db');
 const { getQuoteForDate } = require('./quoteService');
 const { pullForward } = require('./rollover');
+const { recordRun, startScheduler } = require('./autoRollover');
 const calendarService = require('./calendarService');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -69,6 +70,8 @@ app.post('/api/day/:date/pull-forward', async (req, res) => {
   if (!isDate(date)) return res.status(400).json({ error: 'invalid date' });
   try {
     const result = await pullForward(date);
+    // Mark the day as handled so the nightly auto-rollover skips it.
+    await recordRun(date, 'manual');
     res.json(result);
   } catch (err) {
     console.error('POST /api/day/:date/pull-forward error:', err);
@@ -447,6 +450,21 @@ app.delete('/api/master-tasks/:id', async (req, res) => {
   }
 });
 
+app.post('/api/master-tasks/reorder', async (req, res) => {
+  const { ids } = req.body || {};
+  if (!Array.isArray(ids) || !ids.every((x) => Number.isInteger(x))) {
+    return res.status(400).json({ error: 'ids must be an array of integers' });
+  }
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await run('UPDATE master_tasks SET order_index = ? WHERE id = ?', [i, ids[i]]);
+    }
+    res.json({ ok: true, count: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/month/:year/:month', async (req, res) => {
   const year = Number(req.params.year);
   const month = Number(req.params.month);
@@ -475,6 +493,35 @@ app.get('/api/month/:year/:month', async (req, res) => {
       summary[r.date].appts = r.n;
     }
     res.json({ year, month, days: summary });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Recap: all completed action items grouped by date, most recent date first.
+app.get('/api/recap', async (req, res) => {
+  try {
+    const rows = await all(
+      `SELECT id, date, text, priority, priority_num, order_index
+         FROM tasks
+        WHERE status = 'completed'
+        ORDER BY date DESC,
+                 CASE priority WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 ELSE 4 END,
+                 priority_num, order_index, id`,
+      []
+    );
+    // rows are already date-DESC, so first-seen order preserves the grouping order.
+    const groups = [];
+    const byDate = new Map();
+    for (const r of rows) {
+      if (!byDate.has(r.date)) {
+        const g = { date: r.date, items: [] };
+        byDate.set(r.date, g);
+        groups.push(g);
+      }
+      byDate.get(r.date).items.push(r);
+    }
+    res.json(groups);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -563,4 +610,5 @@ app.use((err, req, res, _next) => {
 
 app.listen(PORT, () => {
   console.log(`Planner backend listening on ${PORT}`);
+  startScheduler();
 });

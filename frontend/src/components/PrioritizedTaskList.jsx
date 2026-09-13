@@ -3,7 +3,7 @@ import { createTask, updateTask, deleteTask, reorderTasks } from '../services/ap
 
 const INDENT_PX = 24;
 
-function CheckMark({ done, onClick }) {
+export function CheckMark({ done, onClick }) {
   return (
     <button
       type="button"

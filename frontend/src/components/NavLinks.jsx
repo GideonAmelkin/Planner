@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { isoToDate, todayISO } from '../utils/dayInfo';
 import SettingsPanel from './SettingsPanel';
+import RecapPanel from './RecapPanel';
 
 const baseStyle = {
   color: 'white',
@@ -16,21 +15,20 @@ const baseStyle = {
 };
 const activeStyle = { ...baseStyle, background: 'white', color: '#2D3436' };
 
-export default function NavLinks({ dateISO }) {
+export default function NavLinks() {
   const [showSettings, setShowSettings] = useState(false);
-  const location = useLocation();
-  const d = isoToDate(dateISO || todayISO());
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1;
-
-  const isActive = (prefix) => location.pathname.startsWith(prefix);
+  const [showRecap, setShowRecap] = useState(false);
   const styleFor = (active) => active ? activeStyle : baseStyle;
 
   return (
     <>
-      <Link to={`/day/${todayISO()}`} style={styleFor(isActive('/day/'))}>Agenda</Link>
-      <Link to={`/master/${year}/${month}`} style={styleFor(isActive('/master/'))}>Goals</Link>
-      <Link to={`/calendar/${year}/${month}`} style={styleFor(isActive('/calendar/'))}>Calendar</Link>
+      <button
+        type="button"
+        onClick={() => setShowRecap(true)}
+        style={{ ...styleFor(showRecap), cursor: 'pointer' }}
+      >
+        Recap
+      </button>
       <button
         type="button"
         onClick={() => setShowSettings(true)}
@@ -38,6 +36,7 @@ export default function NavLinks({ dateISO }) {
       >
         Settings
       </button>
+      {showRecap ? <RecapPanel onClose={() => setShowRecap(false)} /> : null}
       {showSettings ? <SettingsPanel onClose={() => setShowSettings(false)} /> : null}
     </>
   );

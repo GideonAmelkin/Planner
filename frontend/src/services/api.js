@@ -49,8 +49,11 @@ export const getMasterTasks = (year, month) =>
 export const createMasterTask = (payload) => api.post('/master-tasks', payload).then((r) => r.data);
 export const updateMasterTask = (id, patch) => api.patch(`/master-tasks/${id}`, patch).then((r) => r.data);
 export const deleteMasterTask = (id) => api.delete(`/master-tasks/${id}`).then((r) => r.data);
+export const reorderMasterTasks = (ids) => api.post('/master-tasks/reorder', { ids }).then((r) => r.data);
 
 export const getMonth = (year, month) => api.get(`/month/${year}/${month}`).then((r) => r.data);
+
+export const getRecap = () => api.get('/recap').then((r) => r.data);
 
 export const getCalendarAccounts = () => api.get('/calendar/accounts').then((r) => r.data);
 export const disconnectCalendarAccount = (id) => api.delete(`/calendar/accounts/${id}`).then((r) => r.data);
