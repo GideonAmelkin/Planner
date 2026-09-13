@@ -8,8 +8,8 @@ import DailyNotes from '../components/DailyNotes';
 import Ongoing from '../components/Ongoing';
 import DailyNotesText from '../components/DailyNotesText';
 import QuoteHeader from '../components/QuoteHeader';
-import MasterTaskList from './MasterTaskList';
-import MonthlyCalendar from './MonthlyCalendar';
+import MonthlyGoals from '../components/MonthlyGoals';
+import CalendarSection from '../components/CalendarSection';
 import { dayInfo } from '../utils/dayInfo';
 import { COLORS, uppercaseHeading } from '../styles';
 import {
@@ -191,10 +191,10 @@ export default function DailyView() {
       </div>
 
       <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 0 24px' }}>
-        <MasterTaskList year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+        <MonthlyGoals year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
       <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
-        <MonthlyCalendar year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+        <CalendarSection year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
     </div>
   );

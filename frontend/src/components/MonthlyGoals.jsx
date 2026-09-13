@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
 } from '../services/api';
-import CheckMark from '../components/CheckMark';
+import CheckMark from './CheckMark';
 import { sortByOrder } from '../utils/dayInfo';
 import { COLORS, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../styles';
 
@@ -119,7 +119,8 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
   );
 }
 
-export default function MasterTaskList({ year, month }) {
+// The "Monthly Goals" section: Personal | Business running lists for the month.
+export default function MonthlyGoals({ year, month }) {
   const y = Number(year);
   const m = Number(month);
   const [items, setItems] = useState([]);

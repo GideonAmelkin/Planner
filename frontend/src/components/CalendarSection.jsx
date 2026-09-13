@@ -8,7 +8,8 @@ import { COLORS, uppercaseHeading } from '../styles';
 // rebuild later). When re-adding, restore the `summary` state + `getMonth`
 // fetch and read counts per `iso`.
 
-export default function MonthlyCalendar({ year, month }) {
+// The "Calendar" section: month grid; clicking a day opens that day's spread.
+export default function CalendarSection({ year, month }) {
   const y = Number(year);
   const m = Number(month);
 
