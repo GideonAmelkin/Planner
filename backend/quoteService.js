@@ -1,5 +1,11 @@
 const fetch = require('node-fetch');
-const { get, run } = require('./db');
+const { all, get, run } = require('./db');
+
+// ZenQuotes can repeat itself; quotes.text is UNIQUE, so retry a few times
+// before falling back to the bundled list.
+const FETCH_ATTEMPTS = 5;
+const RETRY_DELAY_MS = 600;
+const FETCH_TIMEOUT_MS = 8000;
 
 const FALLBACK_QUOTES = [
   { text: 'The vitality of thought is in adventure. Ideas won’t keep. Something must be done about them.', author: 'Alfred North Whitehead' },
@@ -27,7 +33,7 @@ const FALLBACK_QUOTES = [
 async function fetchRandomFromZenQuotes() {
   const res = await fetch('https://zenquotes.io/api/random', {
     headers: { 'User-Agent': 'PersonalPlanner/1.0' },
-    timeout: 8000,
+    timeout: FETCH_TIMEOUT_MS,
   });
   if (!res.ok) throw new Error(`ZenQuotes HTTP ${res.status}`);
   const data = await res.json();
@@ -38,11 +44,8 @@ async function fetchRandomFromZenQuotes() {
 }
 
 async function pickFallback() {
-  const used = await new Promise((resolve) => {
-    require('./db').all('SELECT text FROM quotes', [], (err, rows) => {
-      if (err) resolve(new Set()); else resolve(new Set(rows.map(r => r.text)));
-    });
-  });
+  const rows = await all('SELECT text FROM quotes').catch(() => []);
+  const used = new Set(rows.map((r) => r.text));
   for (const q of FALLBACK_QUOTES) {
     if (!used.has(q.text)) return q;
   }
@@ -53,7 +56,7 @@ async function getQuoteForDate(date) {
   const existing = await get('SELECT date, text, author FROM quotes WHERE date = ?', [date]);
   if (existing) return existing;
 
-  for (let attempt = 0; attempt < 5; attempt++) {
+  for (let attempt = 0; attempt < FETCH_ATTEMPTS; attempt++) {
     try {
       const q = await fetchRandomFromZenQuotes();
       try {
@@ -70,14 +73,14 @@ async function getQuoteForDate(date) {
       }
     } catch (err) {
       console.warn(`[quote] fetch attempt ${attempt + 1} failed:`, err.message);
-      await new Promise(r => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
     }
   }
 
   const fb = await pickFallback();
   try {
     await run('INSERT INTO quotes (date, text, author) VALUES (?, ?, ?)', [date, fb.text, fb.author]);
-  } catch (_) {}
+  } catch (_) { /* another request may have stored a quote for this date first */ }
   return { date, text: fb.text, author: fb.author, fallback: true };
 }
 

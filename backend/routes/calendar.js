@@ -1,68 +1,52 @@
-// Calendar accounts and the OAuth connect/callback pairs. The callback paths
-// are registered with Google and Microsoft; do not rename them.
+// Calendar accounts and the OAuth connect/callback pair for each provider.
+// The callback paths are registered with Google and Microsoft; do not rename.
 const { Router } = require('express');
-const calendarService = require('../calendarService');
+const { providers, connectAccount, listAccounts, disconnectAccount } = require('../calendarService');
 const { asyncHandler, idParam } = require('../lib/http');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
+const ENV_HINT = {
+  google: 'Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env.',
+  outlook: 'Set MS_CLIENT_ID and MS_CLIENT_SECRET in backend/.env.',
+};
 
 const router = Router();
 
 router.get('/calendar/accounts', asyncHandler(async (req, res) => {
-  res.json({
-    accounts: await calendarService.listAccounts(),
-    providers: {
-      google: calendarService.googleConfigured(),
-      outlook: calendarService.microsoftConfigured(),
-    },
-  });
+  const configured = {};
+  for (const [name, p] of Object.entries(providers)) configured[name] = p.configured();
+  res.json({ accounts: await listAccounts(), providers: configured });
 }));
 
 router.delete('/calendar/accounts/:id', asyncHandler(async (req, res) => {
   const id = idParam(req);
   if (id === null) return res.status(400).json({ error: 'invalid id' });
-  await calendarService.disconnectAccount(id);
+  await disconnectAccount(id);
   res.json({ ok: true });
 }));
 
-router.get('/calendar/google/connect', (req, res) => {
-  if (!calendarService.googleConfigured()) {
-    return res.status(400).json({ error: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env.' });
-  }
-  res.redirect(calendarService.startGoogleAuth());
-});
+const toFrontend = (res, query) => res.redirect(`${FRONTEND_URL}/?${query}`);
 
-router.get('/calendar/google/callback', async (req, res) => {
-  const { code, error } = req.query;
-  if (error) return res.redirect(`${FRONTEND_URL}/?calendar_error=${encodeURIComponent(error)}`);
-  if (!code) return res.status(400).json({ error: 'Missing code' });
-  try {
-    await calendarService.finishGoogleAuth(String(code));
-    res.redirect(`${FRONTEND_URL}/?connected=google`);
-  } catch (err) {
-    console.error('Google callback error:', err);
-    res.redirect(`${FRONTEND_URL}/?calendar_error=${encodeURIComponent(err.message || 'google_auth_failed')}`);
-  }
-});
+for (const [name, p] of Object.entries(providers)) {
+  router.get(`/calendar/${name}/connect`, (req, res) => {
+    if (!p.configured()) {
+      return res.status(400).json({ error: `${name} OAuth not configured. ${ENV_HINT[name]}` });
+    }
+    res.redirect(p.authUrl());
+  });
 
-router.get('/calendar/outlook/connect', (req, res) => {
-  if (!calendarService.microsoftConfigured()) {
-    return res.status(400).json({ error: 'Microsoft OAuth not configured. Set MS_CLIENT_ID and MS_CLIENT_SECRET in backend/.env.' });
-  }
-  res.redirect(calendarService.startMicrosoftAuth());
-});
-
-router.get('/calendar/outlook/callback', async (req, res) => {
-  const { code, error } = req.query;
-  if (error) return res.redirect(`${FRONTEND_URL}/?calendar_error=${encodeURIComponent(error)}`);
-  if (!code) return res.status(400).json({ error: 'Missing code' });
-  try {
-    await calendarService.finishMicrosoftAuth(String(code));
-    res.redirect(`${FRONTEND_URL}/?connected=outlook`);
-  } catch (err) {
-    console.error('Outlook callback error:', err);
-    res.redirect(`${FRONTEND_URL}/?calendar_error=${encodeURIComponent(err.message || 'outlook_auth_failed')}`);
-  }
-});
+  router.get(`/calendar/${name}/callback`, async (req, res) => {
+    const { code, error } = req.query;
+    if (error) return toFrontend(res, `calendar_error=${encodeURIComponent(error)}`);
+    if (!code) return res.status(400).json({ error: 'Missing code' });
+    try {
+      await connectAccount(name, String(code));
+      toFrontend(res, `connected=${name}`);
+    } catch (err) {
+      console.error(`${name} callback error:`, err);
+      toFrontend(res, `calendar_error=${encodeURIComponent(err.message || `${name}_auth_failed`)}`);
+    }
+  });
+}
 
 module.exports = router;
