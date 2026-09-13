@@ -19,18 +19,13 @@ app.use(express.json({ limit: '2mb' }));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const isDate = (s) => typeof s === 'string' && ISO_DATE.test(s);
 
-app.use('/api/calendar', (req, res, next) => {
-  console.log(`[calendar] ${req.method} ${req.originalUrl}`);
-  next();
-});
-
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 app.get('/api/day/:date', async (req, res) => {
   const { date } = req.params;
   if (!isDate(date)) return res.status(400).json({ error: 'invalid date' });
   try {
-    const [tasks, appointments, notes, ongoing, notesTextRow, trackerRow, quote, calendarResult] = await Promise.all([
+    const [tasks, appointments, notes, ongoing, notesTextRow, quote, calendarResult] = await Promise.all([
       all(`SELECT * FROM tasks WHERE date = ? ORDER BY
              CASE priority WHEN 'A' THEN 1 WHEN 'B' THEN 2 WHEN 'C' THEN 3 ELSE 4 END,
              priority_num,
@@ -40,7 +35,6 @@ app.get('/api/day/:date', async (req, res) => {
       all('SELECT id, date, text, order_index, parent_id FROM daily_note_entries WHERE date = ? ORDER BY order_index, id', [date]),
       all('SELECT id, text, order_index, parent_id FROM ongoing_items ORDER BY order_index, id'),
       get('SELECT content FROM daily_notes WHERE date = ?', [date]),
-      get('SELECT content FROM daily_tracker WHERE date = ?', [date]),
       getQuoteForDate(date),
       calendarService.listEventsForDate(date).catch((err) => ({
         events: [],
@@ -54,7 +48,6 @@ app.get('/api/day/:date', async (req, res) => {
       notes,
       ongoing,
       notes_text: notesTextRow ? notesTextRow.content : '',
-      tracker: trackerRow ? trackerRow.content : '',
       quote,
       external_events: calendarResult.events,
       calendar_errors: calendarResult.errors,
@@ -352,22 +345,6 @@ app.put('/api/notes-text/:date', async (req, res) => {
   try {
     await run(
       `INSERT INTO daily_notes (date, content) VALUES (?, ?)
-       ON CONFLICT(date) DO UPDATE SET content = excluded.content, updated_at = CURRENT_TIMESTAMP`,
-      [date, content]
-    );
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/tracker/:date', async (req, res) => {
-  const { date } = req.params;
-  if (!isDate(date)) return res.status(400).json({ error: 'invalid date' });
-  const content = typeof req.body.content === 'string' ? req.body.content : '';
-  try {
-    await run(
-      `INSERT INTO daily_tracker (date, content) VALUES (?, ?)
        ON CONFLICT(date) DO UPDATE SET content = excluded.content, updated_at = CURRENT_TIMESTAMP`,
       [date, content]
     );

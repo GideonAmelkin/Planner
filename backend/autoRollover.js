@@ -61,7 +61,6 @@ async function processDueRollovers({ includeToday = false } = {}) {
     let days = 0;
     let items = 0;
     for (const { date } of rows) {
-      if (date > today) continue;
       if (date === today && !includeToday) continue;
       const res = await autoRollDate(date);
       if (res) {
@@ -106,4 +105,4 @@ function startScheduler() {
   scheduleNightly();
 }
 
-module.exports = { processDueRollovers, autoRollDate, recordRun, startScheduler };
+module.exports = { recordRun, startScheduler };

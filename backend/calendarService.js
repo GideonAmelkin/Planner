@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 const { google } = require('googleapis');
-const { all, get, run } = require('./db');
+const { all, run } = require('./db');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5002';

@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { format } from 'date-fns';
 import {
   getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
 } from '../services/api';
-import NavLinks from '../components/NavLinks';
 import { CheckMark } from '../components/PrioritizedTaskList';
 
 function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
@@ -122,13 +119,11 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
   );
 }
 
-export default function MasterTaskList({ year: yearProp, month: monthProp, embedded = false }) {
-  const params = useParams();
-  const y = embedded ? Number(yearProp) : Number(params.year);
-  const m = embedded ? Number(monthProp) : Number(params.month);
+export default function MasterTaskList({ year, month }) {
+  const y = Number(year);
+  const m = Number(month);
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
-
   useEffect(() => {
     let alive = true;
     setItems([]);
@@ -184,35 +179,18 @@ export default function MasterTaskList({ year: yearProp, month: monthProp, embed
     try { await reorderMasterTasks(newIds); } catch (err) { console.error('reorderMasterTasks failed', err); }
   };
 
-  const monthLabel = format(new Date(y, m - 1, 1), 'MMMM yyyy');
-
-  const navBtn = {
-    border: '1px solid white', color: 'white', background: 'transparent',
-    padding: '4px 12px', fontSize: 12, fontWeight: 600, letterSpacing: 0.5, borderRadius: 2,
-  };
-
-  const prevMonth = m === 1 ? { y: y - 1, m: 12 } : { y, m: m - 1 };
-  const nextMonth = m === 12 ? { y: y + 1, m: 1 } : { y, m: m + 1 };
-
   const sheet = (
-    <div style={{ maxWidth: embedded ? '100%' : 1100, margin: embedded ? '0 auto' : '24px auto', padding: '0 24px', background: '#FBF6E7', border: '1px solid #C9BB9A', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
-      {embedded ? (
-        <div style={{ padding: '18px 0 12px 0' }}>
-          <div style={{
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: 1,
-            paddingTop: 4,
-            lineHeight: 1.2,
-            textTransform: 'uppercase',
-          }}>Monthly Goals</div>
-        </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '20px 0 8px 0' }}>
-          <div className="serif" style={{ fontSize: 22, fontWeight: 500 }}>{monthLabel}</div>
-          <div className="serif" style={{ fontSize: 16, fontStyle: 'italic', color: '#6B5B40' }}>Master Task List</div>
-        </div>
-      )}
+    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 24px', background: '#FBF6E7', border: '1px solid #C9BB9A', boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
+      <div style={{ padding: '18px 0 12px 0' }}>
+        <div style={{
+          fontSize: 22,
+          fontWeight: 700,
+          letterSpacing: 1,
+          paddingTop: 4,
+          lineHeight: 1.2,
+          textTransform: 'uppercase',
+        }}>Monthly Goals</div>
+      </div>
       {error && <div style={{ padding: 16, color: '#C62828' }}>{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: '1px solid #2D3436', borderBottom: '1px solid #2D3436' }}>
         <Column title="Personal" items={personal} rowTarget={Math.max(personal.length, business.length) + 4} onCreate={handleCreate('personal')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
@@ -222,18 +200,5 @@ export default function MasterTaskList({ year: yearProp, month: monthProp, embed
     </div>
   );
 
-  if (embedded) return sheet;
-
-  return (
-    <div>
-      <div style={{ background: '#2D3436', color: 'white', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '4px double #C9BB9A' }}>
-        <div className="serif" style={{ fontSize: 22, fontWeight: 500, letterSpacing: 1, marginRight: 16 }}>Planner</div>
-        <Link to={`/master/${prevMonth.y}/${prevMonth.m}`} style={navBtn}>◀ Prev</Link>
-        <Link to={`/master/${nextMonth.y}/${nextMonth.m}`} style={navBtn}>Next ▶</Link>
-        <div style={{ flex: 1 }} />
-        <NavLinks dateISO={`${y}-${String(m).padStart(2, '0')}-01`} />
-      </div>
-      {sheet}
-    </div>
-  );
+  return sheet;
 }

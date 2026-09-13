@@ -200,11 +200,4 @@ const all = (sql, params = []) => new Promise((resolve, reject) => {
   });
 });
 
-const exec = (sql) => new Promise((resolve, reject) => {
-  db.exec(sql, (err) => {
-    if (err) reject(err);
-    else resolve();
-  });
-});
-
-module.exports = { db, run, get, all, exec };
+module.exports = { run, get, all };

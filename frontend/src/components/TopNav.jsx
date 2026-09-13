@@ -53,7 +53,7 @@ export default function TopNav({ dateISO }) {
         }}
       />
       <div style={{ flex: 1 }} />
-      <NavLinks dateISO={dateISO} />
+      <NavLinks />
     </div>
   );
 }

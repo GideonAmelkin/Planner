@@ -245,10 +245,10 @@ export default function DailyView() {
       </div>
 
       <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 0 24px' }}>
-        <MasterTaskList embedded year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+        <MasterTaskList year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
       <section style={{ maxWidth: 1500, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
-        <MonthlyCalendar embedded year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
+        <MonthlyCalendar year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
       </section>
     </div>
   );

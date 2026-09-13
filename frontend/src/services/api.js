@@ -42,7 +42,6 @@ export const updateOngoing = (id, patch) => api.patch(`/ongoing/${id}`, patch).t
 export const deleteOngoing = (id) => api.delete(`/ongoing/${id}`).then((r) => r.data);
 export const reorderOngoing = (ids) => api.post('/ongoing/reorder', { ids }).then((r) => r.data);
 export const saveNotesText = (date, content) => api.put(`/notes-text/${date}`, { content }).then((r) => r.data);
-export const saveTracker = (date, content) => api.put(`/tracker/${date}`, { content }).then((r) => r.data);
 
 export const getMasterTasks = (year, month) =>
   api.get('/master-tasks', { params: { year, month } }).then((r) => r.data);
@@ -50,8 +49,6 @@ export const createMasterTask = (payload) => api.post('/master-tasks', payload).
 export const updateMasterTask = (id, patch) => api.patch(`/master-tasks/${id}`, patch).then((r) => r.data);
 export const deleteMasterTask = (id) => api.delete(`/master-tasks/${id}`).then((r) => r.data);
 export const reorderMasterTasks = (ids) => api.post('/master-tasks/reorder', { ids }).then((r) => r.data);
-
-export const getMonth = (year, month) => api.get(`/month/${year}/${month}`).then((r) => r.data);
 
 export const getRecap = () => api.get('/recap').then((r) => r.data);
 
