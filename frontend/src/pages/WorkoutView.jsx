@@ -308,20 +308,20 @@ export default function WorkoutView() {
           />
         </div>
       </div>
-      <div style={{ background: COLORS.calloutBg, borderRadius: 12, padding: '14px 20px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 10, minWidth: 0 }}>
+      <div style={{ background: COLORS.calloutBg, borderRadius: 12, padding: '12px 20px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: COLORS.calloutText }}>
           <span style={sectionDot(SECTION_DOTS.ongoing)} />
           Body Weight
         </div>
         {latestWeight || profile.current_weight_kg ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '12px 24px', alignItems: 'center' }}>
-            <div style={{ ...tileGrid(96), gap: '10px 18px' }}>
-              <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${shortDate(latestWeight.date)}` : null} />
+            <div style={{ ...tileGrid(96), gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px 12px' }}>
+              <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${new Date(`${latestWeight.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null} />
               <WorkoutTile label="Target" value={num(toUnit(profile.target_weight_kg, unit), 1)} unit={unit} />
               <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" sub={profile.bmi ? `BMI ${num(profile.bmi, 1)}` : null} />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <WeightChart weights={weights} unit={unit} height={64} />
+              <WeightChart weights={weights} unit={unit} height={48} />
             </div>
           </div>
         ) : (
