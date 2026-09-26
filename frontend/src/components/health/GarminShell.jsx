@@ -40,7 +40,7 @@ const subItem = (active) => ({
   whiteSpace: 'nowrap',
 });
 
-// The sidebar tree, a copy of connect.garmin.com's, with our Agenda / Workout App at the top.
+// The sidebar tree, a copy of connect.garmin.com's, with our Agenda / Workout at the top.
 function Sidebar({ dateISO, activeSlug, onNavigate }) {
   const [open, setOpen] = useState(() => loadOpen() || {});
   const activeGroup = groupOf(activeSlug);
