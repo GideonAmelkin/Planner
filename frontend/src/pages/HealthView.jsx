@@ -91,7 +91,7 @@ export default function HealthView() {
 
   const shell = (inner) => (
     <div>
-      <TopNav dateISO={date} section="health" />
+      <TopNav dateISO={date} section="health" theme="garmin" />
       <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '32px min(24px, 4vw) 64px min(24px, 4vw)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
           <div>
