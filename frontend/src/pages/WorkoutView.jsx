@@ -11,11 +11,12 @@ import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot, sectionHeader } from '../styles';
 
 const RANGES = [
-  { key: 'lifetime', label: 'Lifetime', days: 3660, sub: 'lifetime' },
-  { key: 'y365', label: '365 days', days: 365, sub: 'last 365 days' },
-  { key: 'd180', label: '180 days', days: 180, sub: 'last 180 days' },
-  { key: 'd90', label: '90 days', days: 90, sub: 'last 90 days' },
+  { key: 'd7', label: '7 days', days: 7, sub: 'last 7 days' },
   { key: 'd30', label: '30 days', days: 30, sub: 'last 30 days' },
+  { key: 'd90', label: '90 days', days: 90, sub: 'last 90 days' },
+  { key: 'd180', label: '180 days', days: 180, sub: 'last 180 days' },
+  { key: 'y365', label: '365 days', days: 365, sub: 'last 365 days' },
+  { key: 'lifetime', label: 'Lifetime', days: 3660, sub: 'lifetime' },
   { key: 'custom', label: 'Custom', days: null, sub: 'custom range' },
 ];
 const MAX_RANGE_DAYS = 3660;
@@ -241,7 +242,7 @@ export default function WorkoutView() {
   useEffect(() => { setDay(null); load(); }, [load]);
 
   // The Summary range: fixed windows end on the shown date; Custom uses its own dates.
-  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[1];
+  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[4];
   const customValid = rangeKey !== 'custom' || (customFrom && customTo && customFrom <= customTo);
   const rangeEnd = rangeKey === 'custom' ? customTo : date;
   const rangeDays = rangeKey === 'custom'
