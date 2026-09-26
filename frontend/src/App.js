@@ -45,9 +45,9 @@ function BootRedirectToToday() {
   React.useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    const m = window.location.pathname.match(/^\/(agenda|health|workout)\/(\d{4}-\d{2}-\d{2})$/);
+    const m = window.location.pathname.match(/^\/(agenda|health|workout)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+)?$/);
     if (m && m[2] !== todayISO()) {
-      navigate(`/${m[1]}/${todayISO()}`, { replace: true });
+      navigate(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
     }
   }, [navigate]);
   return null;
@@ -62,6 +62,7 @@ export default function App() {
         <Route path="/" element={<TodayRedirect />} />
         <Route path="/agenda/:date" element={<Dated section="agenda"><DailyView /></Dated>} />
         <Route path="/health/:date" element={<Dated section="health"><HealthView /></Dated>} />
+        <Route path="/health/:date/:page" element={<Dated section="health"><HealthView /></Dated>} />
         <Route path="/workout/:date" element={<Dated section="workout"><WorkoutView /></Dated>} />
         <Route path="/day/:date" element={<LegacyDayRedirect />} />
         <Route path="*" element={<TodayRedirect />} />
