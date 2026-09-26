@@ -108,7 +108,7 @@ function RangeBars({ sessions, startISO, endISO }) {
     : shortDate(shiftISO(endISO, -(Number(k) * 7 + 6) < 0 ? 0 : -(Number(k) * 7 + 6))));
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 2 : 6, alignItems: 'end', height: H, marginTop: 30 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 2 : 6, alignItems: 'end', height: H, marginTop: 24 }}>
         {values.map((c, i) => (
           <div key={keys[i]} title={`${c} session${c === 1 ? '' : 's'}`} style={{
             position: 'relative',
@@ -300,7 +300,7 @@ export default function WorkoutView() {
             <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} sub="all time" />
             <WorkoutTile label="Last workout" value={lastInRange ? shortDate(lastInRange.date) : null} size={16} sub={lastInRange ? `${lastInRange.title} · ${secondsToHm(lastInRange.duration_s) || '-'}` : null} />
           </div>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ paddingTop: 16 }}>
             {customValid ? <RangeBars sessions={rangeSessions} startISO={rangeStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
           </div>
           <button
