@@ -57,6 +57,13 @@ def combo(rowids):
          'DB_RowId': r, 'DB_TableName': 'workout_action'} for r in rowids]})
 
 
+def set_combo(rowids):
+    """An action row's roundList: pointers at its own workout_action_set rows."""
+    return json.dumps({'DB_Type': 'DB_Type_Combo', 'DB_Value': [
+        {'DB_PKeyValue': {'rowid': str(r)}, 'DB_Type': 'DB_Type_Model', 'DB_Class': 'GymActionSetModel',
+         'DB_RowId': r, 'DB_TableName': 'workout_action_set'} for r in rowids]})
+
+
 def b64(obj):
     return base64.b64encode(json.dumps(obj).encode('utf-8')).decode('ascii')
 
@@ -101,20 +108,25 @@ class Fixture:
 
     def template(self, wid, title, name, actions, sets_per=2, deleted=0):
         """actions: list of action ids. Writes an older, superseded action row for the
-        first one (the app leaves those behind) plus the referenced rows."""
+        first one with its own stale set (the app leaves both behind), then the referenced
+        rows, each pointing at its sets through roundList the way the app does."""
         rowids = []
+        stale_set = self.lk.execute(
+            "INSERT INTO workout_action_set(actionId,workoutId,isWeightChanged,isFinished,isRepsColorChange,weight,originWeight,isRepsChanged,isFocus,reps,isWeightColorChange) VALUES(?,?,0,0,0,?,?,0,0,?,0)",
+            (actions[0], wid, 40.0, 40.0, 99)).lastrowid
         stale = self.lk.execute(
             "INSERT INTO workout_action(unit,workoutId,isFocus,orderIndex,roundList,actionId,isOpening) VALUES('',?,0,0,?,?,0)",
-            (wid, LK_JSON_EMPTY, actions[0])).lastrowid
+            (wid, set_combo([stale_set]), actions[0])).lastrowid
         for i, a in enumerate(actions):
+            set_rowids = []
+            for s in range(sets_per):
+                set_rowids.append(self.lk.execute(
+                    "INSERT INTO workout_action_set(actionId,workoutId,isWeightChanged,isFinished,isRepsColorChange,weight,originWeight,isRepsChanged,isFocus,reps,isWeightColorChange) VALUES(?,?,0,0,0,?,?,0,0,?,0)",
+                    (a, wid, 60.0 + s, 60.0, 8 + s)).lastrowid)
             rid = self.lk.execute(
                 "INSERT INTO workout_action(unit,workoutId,isFocus,orderIndex,roundList,actionId,isOpening) VALUES('s',?,0,?,?,?,0)",
-                (wid, i, LK_JSON_EMPTY, a)).lastrowid
+                (wid, i, set_combo(set_rowids), a)).lastrowid
             rowids.append(rid)
-            for s in range(sets_per):
-                self.lk.execute(
-                    "INSERT INTO workout_action_set(actionId,workoutId,isWeightChanged,isFinished,isRepsColorChange,weight,originWeight,isRepsChanged,isFocus,reps,isWeightColorChange) VALUES(?,?,0,0,0,?,?,0,0,?,0)",
-                    (a, wid, 60.0 + s, 60.0, 8 + s))
         self.lk.execute(
             "INSERT INTO gym_workout(workoutId,isDeleted,title,name,detailName,is5X5Workout,updateTime,editedByUser,exercises,orderIndex) VALUES(?,?,?,?,?,0,?,0,?,?)",
             (wid, deleted, title, name, name, T_MS, combo(rowids), wid))
@@ -204,11 +216,12 @@ class ExportTest(unittest.TestCase):
         # 3 stale rows (one per template) + 5 referenced + 3 session rows
         self.assertEqual(c['workout_action'], 11)
         self.assertEqual(c['workout_action_unreferenced'], 11 - 4)
-        # template sets 3*2 + 1*5, deleted template 1*2 (unattached),
-        # live session 2*3, deleted session 1*3 (unattached)
-        self.assertEqual(c['workout_action_set'], 6 + 5 + 2 + 6 + 3)
+        # template sets 3*2 + 1*5 plus one stale-generation set per template (3, unattached),
+        # deleted template 1*2 + 1 stale (unattached), live session 2*3, deleted session 1*3 (unattached)
+        self.assertEqual(c['workout_action_set'], 6 + 5 + 2 + 3 + 6 + 3)
         self.assertEqual(c['sets_attached'], 6 + 5 + 6)
-        self.assertEqual(c['sets_unattached'], 2 + 3)
+        self.assertEqual(c['sets_unattached'], 2 + 3 + 3)
+        self.assertEqual(c['set_pointers_missing'], 0)
         self.assertEqual(c['plan_days'], 2)
         self.assertEqual(c['unresolved_names'], 0)
 
@@ -236,6 +249,8 @@ class ExportTest(unittest.TestCase):
         t = {x['id']: x for x in snap['templates']}
         self.assertEqual(sorted(t), [101, 112])
         self.assertEqual([e['name'] for e in t[101]['exercises']], ["Dumbbell Farmer's Carry", 'Barbell Deadlift', 'Bench Press · Barbell'])
+        # Only the round-listed sets: the stale generation's 99-rep set under the same
+        # (workoutId, actionId) must not leak in.
         self.assertEqual(t[101]['exercises'][0]['sets'], [{'reps': 8, 'weight_kg': 60.0, 'finished': False}, {'reps': 9, 'weight_kg': 61.0, 'finished': False}])
         self.assertEqual(len(t[112]['exercises'][0]['sets']), 5)
 

@@ -180,37 +180,71 @@ class Names:
 
 # Extractors -------------------------------------------------------------------
 
-def read_sets(lk):
-    """(workoutId, actionId) -> [sets], preserving row order."""
-    index = {}
-    total = 0
-    for r in rows(lk, 'SELECT * FROM workout_action_set ORDER BY rowid'):
-        total += 1
-        index.setdefault((r['workoutId'], str(r['actionId'])), []).append({
+class SetStore:
+    """Every workout_action_set row, by rowid and by (workoutId, actionId), plus the
+    rowids the export actually attached (for the reconciliation)."""
+
+    def __init__(self):
+        self.by_rowid = {}
+        self.by_key = {}
+        self.total = 0
+        self.used = set()
+        self.missing_pointers = 0
+
+    def add(self, r):
+        self.total += 1
+        item = {
             'reps': to_int(r['reps']),
             'weight_kg': to_float(r['weight']),
             'finished': bool(r['isFinished']),
-        })
-    return index, total
+        }
+        self.by_rowid[r['rowid']] = item
+        self.by_key.setdefault((r['workoutId'], str(r['actionId'])), []).append((r['rowid'], item))
+
+    def for_action(self, action):
+        """The sets an action row owns. The app rewrites action rows and leaves the old
+        generations' sets behind under the same (workoutId, actionId), so the row's own
+        roundList pointers win; the key index is only the fallback for rows with an empty
+        round list."""
+        pointers = lk_value(action.get('roundList')) or []
+        rowids = [p.get('DB_RowId') for p in pointers
+                  if isinstance(p, dict) and p.get('DB_TableName') == 'workout_action_set']
+        if rowids:
+            found = []
+            for rid in rowids:
+                if rid in self.by_rowid:
+                    found.append((rid, self.by_rowid[rid]))
+                else:
+                    self.missing_pointers += 1
+            pairs = found
+        else:
+            pairs = self.by_key.get((action['workoutId'], str(action['actionId'])), [])
+        self.used.update(rid for rid, _ in pairs)
+        return [dict(item) for _, item in pairs]
 
 
-def exercise_from_action(action, sets_index, names, order):
-    key = (action['workoutId'], str(action['actionId']))
+def read_sets(lk):
+    store = SetStore()
+    for r in rows(lk, 'SELECT rowid, * FROM workout_action_set ORDER BY rowid'):
+        store.add(r)
+    return store
+
+
+def exercise_from_action(action, sets, names, order):
     return {
         'action_id': str(action['actionId']),
         'name': names.get(action['actionId']),
         'order': order,
         'unit': action.get('unit') or '',
-        'sets': list(sets_index.get(key, [])),
+        'sets': sets.for_action(action),
     }
 
 
-def read_templates(lk, names, sets_index, counts):
+def read_templates(lk, names, sets, counts):
     templates = []
-    actions_by_rowid = {a['rowid']: a for a in rows(lk, 'SELECT * FROM workout_action')}
+    actions_by_rowid = {a['rowid']: a for a in rows(lk, 'SELECT rowid, * FROM workout_action')}
     counts['workout_action'] = len(actions_by_rowid)
     used_action_rowids = set()
-    used_set_keys = set()
     deleted = 0
     for t in rows(lk, 'SELECT *, workoutId AS wid FROM gym_workout ORDER BY orderIndex, workoutId'):
         if t.get('isDeleted'):
@@ -224,8 +258,7 @@ def read_templates(lk, names, sets_index, counts):
             if action is None:
                 raise ExportError('template %s points at workout_action rowid %r which does not exist' % (t['wid'], rid))
             used_action_rowids.add(rid)
-            used_set_keys.add((action['workoutId'], str(action['actionId'])))
-            exercises.append(exercise_from_action(action, sets_index, names, i))
+            exercises.append(exercise_from_action(action, sets, names, i))
         templates.append({
             'id': t['wid'],
             'name': t.get('title') or t.get('name'),
@@ -242,15 +275,16 @@ def read_templates(lk, names, sets_index, counts):
     counts['template_exercises'] = sum(len(t['exercises']) for t in templates)
     # Superseded action rows: the app rewrites templates and leaves old rows behind.
     counts['workout_action_unreferenced'] = len(actions_by_rowid) - len(used_action_rowids)
-    return templates, used_set_keys
+    return templates
 
 
-def read_gym_sessions(lk, names, sets_index, counts):
+def read_gym_sessions(lk, names, sets, counts):
     """workout_record rows -> sessions. Exercises come from workout_action rows whose
     workoutId equals the record's timeStamp (verified against a restored backup;
-    counts.gym_sessions_without_exercises says how many found none)."""
+    counts.gym_sessions_without_exercises says how many found none). When the app has
+    rewritten an action row, the newest row (highest rowid) is the one that counts."""
     actions_by_workout = {}
-    for a in rows(lk, 'SELECT * FROM workout_action ORDER BY orderIndex, rowid'):
+    for a in rows(lk, 'SELECT rowid, * FROM workout_action ORDER BY orderIndex, rowid'):
         actions_by_workout.setdefault(a['workoutId'], []).append(a)
     sessions = []
     deleted = 0
@@ -261,14 +295,14 @@ def read_gym_sessions(lk, names, sets_index, counts):
             continue
         started = epoch_to_dt(r.get('startTime') or r.get('timeStamp'), 'workout_record.startTime')
         acts = actions_by_workout.get(r['timeStamp'], [])
-        seen = set()
-        exercises = []
+        newest = {}
         for a in acts:
             k = str(a['actionId'])
-            if k in seen:
-                continue
-            seen.add(k)
-            exercises.append(exercise_from_action(a, sets_index, names, len(exercises)))
+            if k not in newest or a['rowid'] > newest[k]['rowid']:
+                newest[k] = a
+        exercises = []
+        for a in sorted(newest.values(), key=lambda x: (x.get('orderIndex') or 0, x['rowid'])):
+            exercises.append(exercise_from_action(a, sets, names, len(exercises)))
         if not exercises:
             without += 1
         sessions.append({
@@ -479,7 +513,7 @@ def app_version(bundle):
 
 # Reconciliation ---------------------------------------------------------------
 
-def reconcile(counts, sets_total, attached_set_keys, sets_index):
+def reconcile(counts, sets):
     """Every source row is emitted or counted as excluded; anything else fails."""
     checks = [
         ('workout_record', counts['workout_record'], counts['gym_sessions'] + counts['gym_sessions_deleted']),
@@ -491,12 +525,14 @@ def reconcile(counts, sets_total, attached_set_keys, sets_index):
     for name, read, emitted in checks:
         if read != emitted:
             problems.append('%s: read %d, emitted %d' % (name, read, emitted))
-    attached = sum(len(sets_index.get(k, [])) for k in attached_set_keys)
-    counts['workout_action_set'] = sets_total
+    attached = len(sets.used)
+    counts['workout_action_set'] = sets.total
     counts['sets_attached'] = attached
-    counts['sets_unattached'] = sets_total - attached
-    if attached > sets_total:
-        problems.append('workout_action_set: attached %d exceeds rows %d' % (attached, sets_total))
+    # Older generations of rewritten action rows, and deleted templates' sets.
+    counts['sets_unattached'] = sets.total - attached
+    counts['set_pointers_missing'] = sets.missing_pointers
+    if attached > sets.total:
+        problems.append('workout_action_set: attached %d exceeds rows %d' % (attached, sets.total))
     if problems:
         raise ExportError('reconciliation failed: ' + '; '.join(problems))
 
@@ -513,9 +549,9 @@ def build_snapshot(container, bundle):
     try:
         lk = open_ro(lkdb_path, tmpdir)
         plan_db = open_ro(plan_path, tmpdir)
-        sets_index, sets_total = read_sets(lk)
-        templates, template_set_keys = read_templates(lk, names, sets_index, counts)
-        gym = read_gym_sessions(lk, names, sets_index, counts)
+        sets = read_sets(lk)
+        templates = read_templates(lk, names, sets, counts)
+        gym = read_gym_sessions(lk, names, sets, counts)
         home = read_home_sessions(lk, names, counts)
         weights = read_weights(lk, counts)
         plan = read_plan(lk, plan_db, names, counts)
@@ -524,11 +560,7 @@ def build_snapshot(container, bundle):
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
-    session_set_keys = set()
-    for s in gym:
-        for e in s['exercises']:
-            session_set_keys.add((int(s['id'].split(':')[1]), e['action_id']))
-    reconcile(counts, sets_total, template_set_keys | session_set_keys, sets_index)
+    reconcile(counts, sets)
 
     prefs = read_prefs(container)
     state = read_user_state(container)
