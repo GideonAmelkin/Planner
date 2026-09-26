@@ -7,6 +7,8 @@ const path = require('path');
 
 const STATE_DIR = process.env.WORKOUT_STATE_DIR || path.join(__dirname, 'workout-state');
 const SNAPSHOT = path.join(STATE_DIR, 'home_workouts.json');
+const MEDIA_DIR = path.join(STATE_DIR, 'media');
+const MEDIA_KINDS = { video: { dir: 'videos', ext: '.mp4' }, thumb: { dir: 'thumbs', ext: '.jpg' } };
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 let cache = { mtimeMs: null, snapshot: null };
@@ -25,6 +27,32 @@ function load() {
   snapshot.snapshot_mtime_ms = st.mtimeMs;
   cache = { mtimeMs: st.mtimeMs, snapshot };
   return snapshot;
+}
+
+// Exercise clips and thumbnails the Mac has shipped, by action id. Read per request:
+// the directory changes on its own schedule, unrelated to the JSON's mtime.
+function media() {
+  const list = (kind) => {
+    const { dir, ext } = MEDIA_KINDS[kind];
+    try {
+      return fs.readdirSync(path.join(MEDIA_DIR, dir))
+        .filter((f) => f.endsWith(ext) && /^\d+\./.test(f))
+        .map((f) => f.slice(0, -ext.length))
+        .sort((a, b) => Number(a) - Number(b));
+    } catch (err) {
+      if (err.code === 'ENOENT') return [];
+      throw err;
+    }
+  };
+  return { videos: list('video'), thumbs: list('thumb') };
+}
+
+// Absolute path of one media file, or null when it is not there. `id` is digits only.
+function mediaPath(kind, id) {
+  const spec = MEDIA_KINDS[kind];
+  if (!spec || !/^\d{1,12}$/.test(String(id))) return null;
+  const p = path.join(MEDIA_DIR, spec.dir, `${id}${spec.ext}`);
+  return fs.existsSync(p) ? p : null;
 }
 
 const withoutSets = (s) => ({ ...s, exercises: undefined, exercise_count: (s.exercises || []).length });
@@ -80,4 +108,5 @@ function day(snap, date) {
   };
 }
 
-module.exports = { SNAPSHOT, load, status, day, recent, sessionsForDate };
+module.exports = {
+  media, mediaPath, SNAPSHOT, load, status, day, recent, sessionsForDate };

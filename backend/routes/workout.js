@@ -36,7 +36,16 @@ router.get('/workout/recent', asyncHandler(async (req, res) => {
 router.get('/workout/catalog', asyncHandler(async (req, res) => {
   const snap = workout.load();
   if (!snap) return notAvailable(res);
-  res.json({ templates: snap.templates || [], plan: snap.plan || null, exported_at: snap.exported_at });
+  res.json({ templates: snap.templates || [], plan: snap.plan || null, media: workout.media(), exported_at: snap.exported_at });
 }));
+
+// The app's own exercise clip / thumbnail for an action id, shipped by the Mac's
+// sync into workout-state/media. sendFile answers Range requests, so <video> can seek.
+router.get('/workout/media/:kind/:id', (req, res) => {
+  if (req.params.kind !== 'video' && req.params.kind !== 'thumb') return res.status(404).json({ error: 'unknown media kind' });
+  const file = workout.mediaPath(req.params.kind, req.params.id);
+  if (!file) return res.status(404).json({ error: `no ${req.params.kind} for exercise ${req.params.id}` });
+  res.sendFile(file, { headers: { 'Cache-Control': 'private, max-age=86400' } });
+});
 
 module.exports = router;

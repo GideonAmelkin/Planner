@@ -5,13 +5,19 @@ Planner backend on RT100.
 Runs from launchd every 6 hours (com.gideon.planner.homeworkouts.plist) and
 by hand:  python3 tools/homeworkouts/sync.py
 
+Besides the JSON it ships the app's own exercise clips and thumbnails (the app
+downloads a clip the first time an exercise is started, into its cache, named by
+action id) to backend/workout-state/media/{videos,thumbs}/ on the server.
+
 The transport is rsync over the existing SSH key. There is no push endpoint on
 the server (its API has no auth), so the server only ever reads a file. This is
 a Python entry point on purpose: launchd runs python3 directly, so python3 is
 the one binary that needs Full Disk Access to read the app container and this
 repo under ~/Documents (both are guarded for background processes).
 """
+import glob
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -24,6 +30,45 @@ REMOTE_DIR = '/home/gamelkin/apps/planner/backend/workout-state'
 STATE_DIR = os.path.expanduser('~/Library/Application Support/PlannerHomeWorkouts')
 SNAPSHOT = os.path.join(STATE_DIR, 'home_workouts.json')
 LOG = os.path.join(STATE_DIR, 'sync.log')
+# The app keeps every exercise clip it has downloaded (only after the exercise was
+# started in the app) and the thumbnails of exercises it has shown, both named by
+# action id. They are staged under STATE_DIR/media and shipped next to the snapshot.
+MEDIA_STAGE = os.path.join(STATE_DIR, 'media')
+CLIPS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'cacheImv', 'mg', 'tl')
+THUMBS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'Caches', 'Images')
+
+
+def stage_media():
+    """Copy new or changed clips and thumbnails into the staging dir. Returns (clips, thumbs)."""
+    videos = os.path.join(MEDIA_STAGE, 'videos')
+    thumbs = os.path.join(MEDIA_STAGE, 'thumbs')
+    os.makedirs(videos, exist_ok=True)
+    os.makedirs(thumbs, exist_ok=True)
+
+    def copy_if_changed(src, dst):
+        try:
+            st = os.stat(src)
+        except OSError:
+            return False
+        try:
+            dt = os.stat(dst)
+            if dt.st_size == st.st_size and int(dt.st_mtime) == int(st.st_mtime):
+                return False
+        except OSError:
+            pass
+        shutil.copy2(src, dst)
+        return True
+
+    n_clips = n_thumbs = 0
+    for src in glob.glob(os.path.join(CLIPS_DIR, '*.mp4')):
+        stem = os.path.basename(src)[:-4]
+        if stem.isdigit() and copy_if_changed(src, os.path.join(videos, stem + '.mp4')):
+            n_clips += 1
+    for src in glob.glob(os.path.join(THUMBS_DIR, '*_thumb')):
+        stem = os.path.basename(src)[:-len('_thumb')]
+        if stem.isdigit() and copy_if_changed(src, os.path.join(thumbs, stem + '.jpg')):
+            n_thumbs += 1
+    return n_clips, n_thumbs
 
 
 def main():
@@ -40,8 +85,16 @@ def main():
         return rc
     sys.stderr.flush()
     try:
-        subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', HOST, "mkdir -p '%s'" % REMOTE_DIR], check=True, timeout=60)
+        new_clips, new_thumbs = stage_media()
+        print('== %s media staged: %d new clip(s), %d new thumbnail(s)' % (stamp(), new_clips, new_thumbs))
+    except OSError as e:
+        print('== %s media staging skipped: %s' % (stamp(), e))
+    try:
+        subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', HOST, "mkdir -p '%s/media'" % REMOTE_DIR], check=True, timeout=60)
         subprocess.run(['rsync', '-a', '--timeout=60', SNAPSHOT, '%s:%s/home_workouts.json' % (HOST, REMOTE_DIR)], check=True, timeout=120)
+        # Clips are only ever added, so no --delete: nothing outside media/ is touched.
+        if os.path.isdir(MEDIA_STAGE):
+            subprocess.run(['rsync', '-a', '--timeout=300', MEDIA_STAGE + '/', '%s:%s/media/' % (HOST, REMOTE_DIR)], check=True, timeout=1800)
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
         print('== %s sync failed: %s' % (stamp(), e))
         return 1

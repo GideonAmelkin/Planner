@@ -35,6 +35,7 @@ check garmin-status     200 GET  /garmin/status
 check garmin-endpoints  200 GET  /garmin/endpoints
 check garmin-unknown    404 GET  /garmin/no_such_endpoint
 check garmin-bad-date   400 GET  /garmin/day/not-a-date
+check workout-media-missing 404 GET /workout/media/video/999999999
 check workout-status    200 GET  /workout/status
 check workout-bad-date  400 GET  /workout/day/not-a-date
 check workout-bad-days  400 GET  "/workout/recent?days=0"
