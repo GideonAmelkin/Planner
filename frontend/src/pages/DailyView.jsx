@@ -108,6 +108,7 @@ export default function DailyView() {
   }
 
   const columnCard = { ...card, display: 'flex', flexDirection: 'column' };
+  const sectionDivider = { borderTop: `1px solid ${COLORS.hairline}`, margin: '18px 0' };
 
   return shell(
     <>
@@ -134,43 +135,38 @@ export default function DailyView() {
           />
         </div>
 
-        {/* Right: one card per list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
-          <div style={columnCard}>
-            <PrioritizedTaskList
-              dateISO={date}
-              tasks={data.tasks}
-              onChange={setTasks}
-              onPullForward={handlePullForward}
-              onDropNote={movers.noteToTasks}
-              onDropOngoing={movers.ongoingToTasks}
-              pullStatus={pullStatus}
-            />
-          </div>
-          <div style={columnCard}>
-            <DailyNotes
-              dateISO={date}
-              notes={data.notes}
-              onChange={setNotes}
-              onDropTask={movers.taskToNotes}
-              onDropOngoing={movers.ongoingToNotes}
-            />
-          </div>
-          <div style={columnCard}>
-            <Ongoing
-              ongoing={data.ongoing || []}
-              onChange={setOngoing}
-              onDropTask={movers.taskToOngoing}
-              onDropNote={movers.noteToOngoing}
-            />
-          </div>
-          <div style={columnCard}>
-            <DailyNotesText
-              dateISO={date}
-              value={data.notes_text}
-              onChange={setNotesText}
-            />
-          </div>
+        {/* Right: one card holding the four lists */}
+        <div style={columnCard}>
+          <PrioritizedTaskList
+            dateISO={date}
+            tasks={data.tasks}
+            onChange={setTasks}
+            onPullForward={handlePullForward}
+            onDropNote={movers.noteToTasks}
+            onDropOngoing={movers.ongoingToTasks}
+            pullStatus={pullStatus}
+          />
+          <div style={sectionDivider} />
+          <DailyNotes
+            dateISO={date}
+            notes={data.notes}
+            onChange={setNotes}
+            onDropTask={movers.taskToNotes}
+            onDropOngoing={movers.ongoingToNotes}
+          />
+          <div style={sectionDivider} />
+          <Ongoing
+            ongoing={data.ongoing || []}
+            onChange={setOngoing}
+            onDropTask={movers.taskToOngoing}
+            onDropNote={movers.noteToOngoing}
+          />
+          <div style={sectionDivider} />
+          <DailyNotesText
+            dateISO={date}
+            value={data.notes_text}
+            onChange={setNotesText}
+          />
         </div>
       </div>
 

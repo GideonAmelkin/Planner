@@ -39,7 +39,8 @@ The Agenda is white cards on a warm grey canvas, in three parts referred to by t
 1. **Planner**: the daily spread. A header card across the top (`DateCard`: headline
    "Saturday, September 26", Prev / Today / Next + date field, the day pills, the quote in an
    indigo callout, the mini calendar), then the Appointment Schedule card on the left and one
-   card each for Action Items, Tasks, Ongoing and free-form Notes on the right.
+   card on the right holding Action Items, Tasks, Ongoing and free-form Notes, separated by
+   hairlines.
 2. **Monthly Goals**: Personal | Business cards for the month (`MonthlyGoals.jsx`).
 3. **Calendar**: the month grid card; clicking a day opens that day's spread (`CalendarSection.jsx`).
 

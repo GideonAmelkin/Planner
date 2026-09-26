@@ -17,7 +17,7 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 
 | File | Role |
 |---|---|
-| `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, renders `AgendaRail` + main, the `DateCard` across the top, the schedule card and one card per list, then Monthly Goals and Calendar side by side. Owns the cross-section movers (`movers.noteToTasks` etc.). |
+| `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, renders `AgendaRail` + main, the `DateCard` across the top, the schedule card and one card holding the four lists (hairline dividers between sections), then Monthly Goals and Calendar side by side. Owns the cross-section movers (`movers.noteToTasks` etc.). |
 | `components/AgendaRail.jsx` | The Agenda's 240px sticky left rail: wordmark, the `TABS` from TopNav as stacked links, `NavLinks direction="column"` at the bottom. Exports `RAIL_WIDTH`. The round button hides it to a 44px strip; remembered in localStorage `plannerNavCollapsed`, shared with the Garmin sidebar. |
 | `components/DateCard.jsx` | The Agenda's header card: `headlineLong` date, Prev / Today / Next + date field (navigate within `/agenda/`), `DayInfoBadge` pills, `QuoteCallout`, `MiniCalendar`. |
 | `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards inside `GarminShell`, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
