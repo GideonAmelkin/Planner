@@ -3,7 +3,8 @@ import { COLORS, card, pill, sectionDot, sectionHeader } from '../../styles';
 
 // One card in the Workout App grid, in the Agenda's card look: dotted title,
 // optional aside as a pill. `span` lets a card take the full row.
-export default function WorkoutCard({ title, dot = COLORS.workout, children, span = 1, aside = null, empty = false, emptyText = 'Nothing on this day.' }) {
+// `aside` is a pill on the right; `actions` are controls rendered next to it.
+export default function WorkoutCard({ title, dot = COLORS.workout, children, span = 1, aside = null, actions = null, empty = false, emptyText = 'Nothing on this day.' }) {
   return (
     <div style={{
       ...card,
@@ -15,7 +16,10 @@ export default function WorkoutCard({ title, dot = COLORS.workout, children, spa
           <span style={sectionDot(dot)} />
           {title}
         </span>
-        {aside ? <span style={pill}>{aside}</span> : null}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {aside ? <span style={pill}>{aside}</span> : null}
+          {actions}
+        </span>
       </div>
       {empty ? <div style={{ color: COLORS.muted, fontSize: 13 }}>{emptyText}</div> : children}
     </div>

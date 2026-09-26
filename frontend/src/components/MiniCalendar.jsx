@@ -6,7 +6,7 @@ import { COLORS } from '../styles';
 
 const cellSize = 22;
 
-function MonthGrid({ monthDate, todayDate, compact = false }) {
+function MonthGrid({ monthDate, todayDate, compact = false, section = 'agenda', marks = null }) {
   const monthStart = startOfMonth(monthDate);
   const rows = monthGrid(monthDate, { minRows: 5 }).map((week) => week.map((d) => ({
     date: d,
@@ -14,6 +14,7 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
     isToday: isSameDay(d, todayDate),
     iso: dateToISO(d),
     day: getDate(d),
+    marked: !!(marks && marks.has(dateToISO(d))),
   })));
 
   const labelStyle = {
@@ -54,10 +55,17 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
             {row.map((c, ci) => (
               <td key={ci} style={{ padding: 0, textAlign: 'center' }}>
                 <Link
-                  to={`/agenda/${c.iso}`}
-                  style={{ ...cellStyle(c), textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
+                  to={`/${section}/${c.iso}`}
+                  title={c.marked ? 'Workout logged' : undefined}
+                  style={{ ...cellStyle(c), position: 'relative', textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
                 >
                   {c.day}
+                  {c.marked ? (
+                    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style={{ position: 'absolute', top: -2, right: -2 }}>
+                      <circle cx="5" cy="5" r="5" fill={COLORS.done} />
+                      <path d="M2.8 5.2 L4.3 6.7 L7.3 3.5" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : null}
                 </Link>
               </td>
             ))}
@@ -68,7 +76,9 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
   );
 }
 
-export default function MiniCalendar({ dateISO }) {
+// `section` is the route the day links open; `marks` is a Set of ISO dates that
+// get a small green check (the Workout tab uses it for days with a session).
+export default function MiniCalendar({ dateISO, section = 'agenda', marks = null }) {
   const today = isoToDate(dateISO);
-  return <MonthGrid monthDate={today} todayDate={today} />;
+  return <MonthGrid monthDate={today} todayDate={today} section={section} marks={marks} />;
 }
