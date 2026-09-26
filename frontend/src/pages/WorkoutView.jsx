@@ -8,7 +8,7 @@ import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableL
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../services/api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
-import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
+import { COLORS, SECTION_DOTS, card, navButton, pill } from '../styles';
 import { templateBanner, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
 
 const RANGES = [
