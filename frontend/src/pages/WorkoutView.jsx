@@ -8,7 +8,8 @@ import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableL
 import { getWorkoutStatus, getWorkoutDay, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
-import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot, sectionHeader } from '../styles';
+import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
+import { TEMPLATE_ART, templateBanner, templateHeader, templateThumb, planDayThumb, focusTile, PLAN_HERO, titleLines, APP_BLUE, APP_BLUE_WASH, APP_GREEN, POPPINS } from '../workoutArt';
 
 const RANGES = [
   { key: 'd7', label: '7 days', days: 7, sub: 'last 7 days' },
@@ -55,6 +56,16 @@ const setsText = (sets, unit) => {
   if (!sets || !sets.length) return '-';
   return sets.map((s) => `${s.reps || 0} x ${num(toUnit(s.weight_kg, unit), 0) || 0}`).join(', ');
 };
+
+// Thumbnail for a session row: the template's thumb, else the plan day's image, else a focus tile.
+const sessionThumb = (s) => {
+  if (TEMPLATE_ART[s.title]) return templateThumb(s.title);
+  if (s.day_index !== null && s.day_index !== undefined) return planDayThumb(Number(s.day_index) + 1);
+  return focusTile('full body');
+};
+const Thumb = ({ src, w = 36, h = 36, radius = 10 }) => (src ? <img src={src} alt="" style={{ width: w, height: h, borderRadius: radius, objectFit: 'cover', flexShrink: 0, display: 'block' }} /> : null);
+const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
+const weekOf = (day) => Math.floor((day - 1) / 7) + 1;
 
 // Ink-on-paper line of body weight over time; labels carry the unit.
 function WeightChart({ weights, unit, height = 64 }) {
@@ -137,7 +148,8 @@ function SessionBlock({ session: s, unit }) {
   const vol = volumeKg(s);
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <Thumb src={sessionThumb(s)} />
         <span style={{ fontWeight: 700, fontSize: 15 }}>{s.title}</span>
         <span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{kindLabel(s)}</span>
         <span style={{ fontSize: 12, color: COLORS.muted }}>
@@ -170,36 +182,6 @@ function SessionBlock({ session: s, unit }) {
   );
 }
 
-function Templates({ catalog, unit }) {
-  const [open, setOpen] = useState(null);
-  const templates = (catalog && catalog.templates) || [];
-  if (!templates.length) return <div style={{ color: COLORS.muted, fontSize: 12 }}>No templates in the snapshot.</div>;
-  return (
-    <div>
-      {templates.map((t) => (
-        <div key={t.id} style={{ borderBottom: `1px solid ${COLORS.hairline}` }}>
-          <button type="button" onClick={() => setOpen(open === t.id ? null : t.id)} style={{ width: '100%', background: 'transparent', border: 'none', padding: '8px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: COLORS.ink, cursor: 'pointer', fontSize: 13 }}>
-            <span style={{ fontWeight: 600 }}>{t.name}</span>
-            <span style={{ fontSize: 11, color: COLORS.muted }}>{t.exercises.length} exercises <span style={{ color: COLORS.accent }}>{open === t.id ? '▾' : '▸'}</span></span>
-          </button>
-          {open === t.id ? (
-            <div style={{ ...tableWrap, paddingBottom: 10 }}>
-              <table style={table}>
-                <thead><tr style={headRow}><th style={th}>Exercise</th><th style={th}>Default sets (reps x {unit})</th></tr></thead>
-                <tbody>
-                  {t.exercises.map((e) => (
-                    <tr key={`${e.action_id}-${e.order}`}><td style={td}>{exerciseName(e)}</td><td style={tdNum}>{setsText(e.sets, unit)}</td></tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function WorkoutView() {
   const { date } = useParams();
   const navigate = useNavigate();
@@ -212,7 +194,8 @@ export default function WorkoutView() {
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [openDay, setOpenDay] = useState(null);
+  const [openTemplate, setOpenTemplate] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -232,12 +215,13 @@ export default function WorkoutView() {
       setDay(d);
       setRecent(r);
       setMonthRecent(m);
+      if (!catalog) getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
     } catch (err) {
       setError(err.message || String(err));
     } finally {
       setLoading(false);
     }
-  }, [date, monthEnd]);
+  }, [date, monthEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setDay(null); load(); }, [load]);
 
@@ -259,11 +243,6 @@ export default function WorkoutView() {
     return () => { alive = false; };
   }, [rangeEnd, rangeDays, customValid]);
 
-  useEffect(() => {
-    if (!showTemplates || catalog) return;
-    getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
-  }, [showTemplates, catalog]);
-
   const available = status && status.available;
   const profile = (status && status.profile) || {};
   const awards = (status && status.awards) || {};
@@ -283,6 +262,12 @@ export default function WorkoutView() {
   const lastInRange = rangeSessions.length ? rangeSessions[0] : null;
   const latestWeight = weights.length ? weights[weights.length - 1] : null;
   const plan = (catalog && catalog.plan) || null;
+  const templatesList = (catalog && catalog.templates) || [];
+  const currentDay = plan ? (plan.current_day_index || 0) + 1 : 1;
+  const planDone = plan ? plan.days.filter((x) => x.done_at).length : 0;
+  const nextDay = plan ? (plan.days[currentDay - 1] || plan.days[0]) : null;
+  const planWeeks = plan ? Array.from({ length: Math.ceil(plan.days.length / 7) }, (_, i) => i + 1) : [];
+  const shownDay = openDay === null ? currentDay : openDay;
 
   const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
   const controlStyle = { ...navButton, fontSize: 12, padding: '4px 8px', cursor: 'pointer' };
@@ -405,12 +390,13 @@ export default function WorkoutView() {
             <table style={table}>
               <thead>
                 <tr style={headRow}>
-                  {['Date', 'Workout', 'Type', 'Duration', 'Calories', `Lifted (${unit})`, 'Exercises'].map((h) => <th key={h} style={th}>{h}</th>)}
+                  {['', 'Date', 'Workout', 'Type', 'Duration', 'Calories', `Lifted (${unit})`, 'Exercises'].map((h, i) => <th key={i} style={th}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {history.map((s) => (
                   <tr key={s.id}>
+                    <td style={{ ...td, width: 44 }}><Thumb src={sessionThumb(s)} /></td>
                     <td style={tdNum}><Link to={`/workout/${s.date}`} style={tableLink}>{shortDate(s.date)}</Link></td>
                     <td style={td}>{s.title}</td>
                     <td style={td}>{kindLabel(s)}</td>
@@ -424,56 +410,120 @@ export default function WorkoutView() {
             </table>
           </div>
         </WorkoutCard>
-      </div>
 
-      <section style={card}>
-        <button
-          type="button"
-          onClick={() => setShowTemplates((s) => !s)}
-          style={{ ...sectionHeader, padding: 0, width: '100%', background: 'transparent', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-        >
-          <span style={{ display: 'flex', alignItems: 'center' }}>
-            <span style={sectionDot(SECTION_DOTS.notes)} />
-            Plan and Templates
-          </span>
-          <span style={{ color: COLORS.accent, fontSize: 14 }}>{showTemplates ? '▾' : '▸'}</span>
-        </button>
-        {showTemplates ? (
-          <div style={{ marginTop: 14 }}>
-            {!catalog ? <div style={{ color: COLORS.muted, fontSize: 12 }}>Loading...</div> : (
-              <>
-                {plan ? (
-                  <div style={{ marginBottom: 18 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 8 }}>{plan.total_days}-day plan</div>
-                    <div style={tileGrid(100)}>
-                      <WorkoutTile label="Done" value={plan.finish_days} sub={`of ${plan.total_days} days`} />
-                      <WorkoutTile label="Current day" value={plan.current_day_index !== null && plan.current_day_index !== undefined ? plan.current_day_index + 1 : null} />
-                      <WorkoutTile label="Updated" value={plan.updated_at ? shortDate(plan.updated_at.slice(0, 10)) : null} size={16} />
+      {plan ? (
+        <WorkoutCard title="Plan" dot={APP_BLUE} aside={`Day ${currentDay} of ${plan.total_days}`}>
+          <div style={{ position: 'relative', height: 120, borderRadius: 12, overflow: 'hidden', background: `url(${PLAN_HERO}) center / cover, ${COLORS.ink}` }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.05) 60%)' }} />
+            <div style={{ position: 'absolute', left: 20, bottom: 14, color: '#FFFFFF', fontFamily: POPPINS }}>
+              <div style={{ fontWeight: 800, fontSize: 22, lineHeight: 1, textTransform: 'uppercase' }}>{plan.total_days} Day Plan</div>
+              <div style={{ fontWeight: 500, fontSize: 12, marginTop: 6, opacity: 0.95 }}>
+                {plan.days.length} workouts{nextDay ? ` · up next Day ${currentDay}, ${nextDay.name}` : ''}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0 4px', fontSize: 12, color: COLORS.muted }}>
+            <span>{planDone} / {plan.total_days} days</span>
+            <div style={{ flex: 1, height: 6, background: COLORS.page, borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${Math.max(2, (planDone / plan.total_days) * 100)}%`, background: APP_BLUE, borderRadius: 999 }} />
+            </div>
+            <span>Week {weekOf(currentDay)} of {planWeeks.length}</span>
+          </div>
+          {planWeeks.map((w) => (
+            <div key={w}>
+              <div style={{ margin: '14px 0 6px', fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, fontWeight: 700 }}>Week {w}</div>
+              {plan.days.filter((x) => weekOf(x.day) === w).map((x) => {
+                const isCurrent = x.day === currentDay;
+                const isOpen = shownDay === x.day;
+                return (
+                  <React.Fragment key={x.day}>
+                    <div
+                      className="row-hover"
+                      onClick={() => setOpenDay(isOpen ? -1 : x.day)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 10px', borderRadius: 10, cursor: 'pointer', background: isCurrent ? APP_BLUE_WASH : undefined }}
+                    >
+                      <Thumb src={planDayThumb(x.day)} w={44} h={38} />
+                      <div>
+                        <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 14 }}>Day {x.day}</div>
+                        <div style={{ fontSize: 12, color: COLORS.muted }}>{x.name}{x.exercises ? ` · ${x.exercises.length} exercises` : ''}</div>
+                      </div>
+                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {x.done_at ? <span style={{ fontSize: 11, color: COLORS.muted }}>{shortDate(x.done_at.slice(0, 10))}</span> : null}
+                        {isCurrent && !x.done_at ? (
+                          <span style={{ background: APP_BLUE, color: '#FFFFFF', borderRadius: 999, padding: '5px 14px', fontWeight: 700, fontSize: 12, fontFamily: POPPINS }}>Start</span>
+                        ) : (
+                          <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'inline-block', border: `2px solid ${x.done_at ? APP_GREEN : COLORS.hairline}`, background: x.done_at ? APP_GREEN : 'transparent' }} />
+                        )}
+                      </div>
                     </div>
-                    <div style={{ ...tableWrap, marginTop: 12 }}>
-                      <table style={table}>
-                        <thead><tr style={headRow}><th style={th}>Day</th><th style={th}>Focus</th><th style={th}>Exercises</th><th style={th}>Done</th></tr></thead>
-                        <tbody>
-                          {plan.days.map((d) => (
-                            <tr key={d.day}>
-                              <td style={tdNum}>{d.day}</td>
-                              <td style={td}>{d.name || '-'}</td>
-                              <td style={td}>{d.exercises.map(exerciseName).join(', ')}</td>
-                              <td style={tdNum}>{d.done_at ? shortDate(d.done_at.slice(0, 10)) : '-'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    {isOpen && x.exercises && x.exercises.length ? (
+                      <div style={{ margin: '4px 0 8px 66px', background: COLORS.page, borderRadius: 10, padding: '8px 12px' }}>
+                        {x.exercises.map((e, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 30, fontSize: 13 }}>
+                            <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${COLORS.faint}`, flexShrink: 0 }} />
+                            {exerciseName(e)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          ))}
+        </WorkoutCard>
+      ) : null}
+
+      <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {templatesList.map((t) => {
+            const [a, b] = titleLines(t.name);
+            const open = openTemplate === t.id;
+            const strong = /StrongLifts/.test(t.name);
+            return (
+              <React.Fragment key={t.id}>
+                <div
+                  onClick={() => setOpenTemplate(open ? null : t.id)}
+                  title={t.name}
+                  style={{
+                    position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                    background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
+                    outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
+                  }}
+                >
+                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+                    {a}<br />{b}
+                    {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
+                  </div>
+                </div>
+                {open ? (
+                  <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '200px 1fr', background: COLORS.page, borderRadius: 12, overflow: 'hidden' }}>
+                    <img src={templateHeader(t.name) || ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    <div style={{ padding: '14px 18px', minWidth: 0 }}>
+                      <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{t.name}</div>
+                      <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
+                        <span style={pill}>{t.exercises.length} exercises</span>
+                        <span style={pill}>{maxSets(t)} sets</span>
+                      </div>
+                      <div style={tableWrap}>
+                        <table style={table}>
+                          <thead><tr style={headRow}><th style={th}>Exercise</th><th style={th}>Default sets (reps x {unit})</th></tr></thead>
+                          <tbody>
+                            {t.exercises.map((e) => (
+                              <tr key={`${e.action_id}-${e.order}`}><td style={td}>{exerciseName(e)}</td><td style={tdNum}>{setsText(e.sets, unit)}</td></tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   </div>
                 ) : null}
-                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 8 }}>Gym templates</div>
-                <Templates catalog={catalog} unit={unit} />
-              </>
-            )}
-          </div>
-        ) : null}
-      </section>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </WorkoutCard>
+      </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
         Home Workouts app data, exported on the Mac and read from <code>backend/workout-state</code>. Only what the Mac copy of the app has synced is here.
       </div>
