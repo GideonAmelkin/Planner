@@ -1,7 +1,7 @@
 # Planner
 
 A two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper
-book, plus a Health tab fed by Garmin Connect. Single user, persists to SQLite, pulls events
+book, plus a Garmin tab fed by Garmin Connect. Single user, persists to SQLite, pulls events
 from Google Calendar and Outlook so the daily timeline shows real meetings next to whatever
 was typed by hand, and pulls the same day's steps, sleep, heart rate and the rest from the
 user's Garmin account.
@@ -26,7 +26,7 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 ## What is on the page
 
 Two tabs in the header, each with its own route: **Agenda** at `/agenda/:date` and
-**Health** at `/health/:date` (`/`, `/day/:date` and anything else redirect to today's
+**Garmin** at `/health/:date` (`/`, `/day/:date` and anything else redirect to today's
 agenda). Prev / Today / Next and the date picker stay inside the current tab.
 
 The Agenda has three stacked sections, referred to by these names:
@@ -41,7 +41,7 @@ The Agenda has three stacked sections, referred to by these names:
 Recap and Settings are modals opened from the header. Settings holds the calendar
 connections and the Garmin Connect sign-in.
 
-The Health tab shows the day's Garmin data as paper cards: Day Summary (steps, distance,
+The Garmin tab shows the day's Garmin data as paper cards: Day Summary (steps, distance,
 calories, floors, intensity minutes, resting HR, stress, Body Battery, active time, a
 steps-per-15-minutes chart), Sleep (duration, score, stages), Heart Rate, Stress, Body
 Battery (each with a hover sparkline), Recovery (HRV, SpO2, respiration), Training

@@ -6,7 +6,7 @@ import { COLORS, navButton } from '../styles';
 
 const TABS = [
   { section: 'agenda', label: 'Agenda' },
-  { section: 'health', label: 'Health' },
+  { section: 'health', label: 'Garmin' },
 ];
 
 // Header bar. `section` is the active tab; every date control stays inside it.

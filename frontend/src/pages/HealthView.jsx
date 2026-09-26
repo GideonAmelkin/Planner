@@ -95,7 +95,7 @@ export default function HealthView() {
       <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '32px min(24px, 4vw) 64px min(24px, 4vw)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
           <div>
-            <div style={uppercaseHeading}>Health</div>
+            <div style={uppercaseHeading}>Garmin</div>
             <div style={{ fontSize: 13, color: COLORS.muted, marginTop: 2 }}>{longDate(date)}</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: COLORS.muted }}>

@@ -20,7 +20,7 @@ Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT1
 | `autoRollover.js` | Nightly 23:59 run, startup and hourly catch-up, `pull_forward_runs` bookkeeping. |
 | `quoteService.js` | `getQuoteForDate(date)`: ZenQuotes + UNIQUE-index dedup + fallback list. |
 | `calendarService.js` | `providers.{google,outlook}` registry plus provider-agnostic account storage, token refresh and per-day fetch. |
-| `garminService.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Health bundle warm, holds the sign-in child during an MFA hand-off. |
+| `garminService.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Garmin bundle warm, holds the sign-in child during an MFA hand-off. |
 | `garmin/bridge.py` | Python 3.12 CLI over the `garminconnect` client: `status`, `login` (reads the MFA code from stdin), `logout`, `call` (a batch of registry methods, one process). Tokens in `garmin-state/garmin_tokens.json`. |
 | `garmin/registry.json` | One entry per garminconnect method: `name`, `group`, `kind` (read / write / unsupported), `params` with types. Read by both sides. |
 | `routes/garmin.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
@@ -74,7 +74,7 @@ garmin_cache         Garmin read results: (name, params JSON) -> payload, fetche
 | POST | `/api/garmin/login/mfa` | `{code}` finishes a sign-in that asked for a code |
 | POST | `/api/garmin/logout` | deletes the token file and the cache |
 | GET | `/api/garmin/endpoints` | the registry |
-| GET | `/api/garmin/day/:date` | the Health page bundle (18 endpoints, cached per endpoint); `?refresh=1` |
+| GET | `/api/garmin/day/:date` | the Garmin tab bundle (18 endpoints, cached per endpoint); `?refresh=1` |
 | POST | `/api/garmin/batch` | `{calls:[{key, name, params}], refresh}` for read endpoints |
 | GET | `/api/garmin/:name` | any read endpoint; query params are validated against the registry |
 | POST | `/api/garmin/:name` | any write endpoint; JSON body is validated against the registry |

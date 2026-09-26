@@ -54,7 +54,7 @@ export default function GarminSettings() {
   };
 
   const signOut = async () => {
-    if (!window.confirm('Sign out of Garmin Connect? The Health tab will stop updating until you sign in again.')) return;
+    if (!window.confirm('Sign out of Garmin Connect? The Garmin tab will stop updating until you sign in again.')) return;
     setBusy(true);
     try { await garminLogout(); setMessage({ text: 'Signed out.', error: false }); } catch (err) { setMessage({ text: err.message || String(err), error: true }); }
     setBusy(false);

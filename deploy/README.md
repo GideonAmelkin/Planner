@@ -93,7 +93,7 @@ Ports 80/443 are already open in firewalld; only 8080 needed adding. Auto-renewa
 `certbot-renew.timer` (verify with `sudo certbot renew --dry-run` - note it inserts a random
 delay of up to ~8 min on non-interactive runs, so give it time).
 
-## Garmin Connect (Health tab)
+## Garmin Connect (Garmin tab)
 
 One-time, done 2026-09-26. No sudo: `uv` lives in `~/.local/bin` and downloads its own
 Python 3.12 (`garminconnect` needs 3.12; the box only ships 3.9).

@@ -17,8 +17,8 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | File | Role |
 |---|---|
 | `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
-| `pages/HealthView.jsx` | The Health tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
-| `components/TopNav.jsx` | Header bar: Agenda / Health tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). |
+| `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
+| `components/TopNav.jsx` | Header bar: Agenda / Garmin tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). |
 | `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
 | `components/health/HealthCard.jsx` | Paper card with an italic title, optional `aside` text and an empty state. `span={2}` takes the full row. |
 | `components/health/StatTile.jsx` | Label + headline number + sub line; `tileGrid(min)` is the auto-fill grid the cards use. |
@@ -52,7 +52,7 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
   the other sections' types (move across, children come along). Cross-level reorder by drag is
   intentionally blocked; use the keyboard.
 - Section vocabulary in conversation: Agenda tab = Planner (the spread), Monthly Goals,
-  Calendar; Health tab = the Garmin cards.
-- Health charts are single-series ink-on-paper sparklines; sleep stages use one ink ramp
+  Calendar; Garmin tab = the Garmin cards.
+- Garmin tab charts are single-series ink-on-paper sparklines; sleep stages use one ink ramp
   (deep darkest) and are always labeled. Text never takes the series color.
 - No em dashes anywhere.
