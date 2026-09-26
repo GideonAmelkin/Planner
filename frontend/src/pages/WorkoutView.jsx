@@ -23,6 +23,19 @@ const RANGES = [
 ];
 const MAX_RANGE_DAYS = 3660;
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
+// Longest run of consecutive calendar days that each have at least one workout.
+const longestStreak = (dates) => {
+  const days = [...new Set(dates)].sort();
+  let best = 0;
+  let run = 0;
+  for (let i = 0; i < days.length; i++) {
+    run = i > 0 && daysBetween(days[i - 1], days[i]) === 1 ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+};
+// "Wed. Sep 9, 2026" for the Last workout tile.
+const tileDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '.');
 
 const MAX_WIDTH = 1500;
 const MONTH_FETCH_DAYS = 45; // covers the mini calendar's six-week grid
@@ -201,7 +214,6 @@ export default function WorkoutView() {
 
   const available = status && status.available;
   const profile = (status && status.profile) || {};
-  const awards = (status && status.awards) || {};
   const unit = weightUnit(profile);
   const weights = (monthRecent && monthRecent.weights) || [];
   const counts = (status && status.counts) || {};
@@ -211,6 +223,7 @@ export default function WorkoutView() {
   const rangeGym = rangeSessions.filter((s) => s.kind === 'gym').length;
   const activeHours = rangeSessions.reduce((t, s) => t + (s.duration_s || 0), 0) / 3600;
   const lastInRange = rangeSessions.length ? rangeSessions[0] : null;
+  const rangeStreak = longestStreak(rangeSessions.map((s) => s.date));
   // Lifetime starts the chart at the first workout instead of ten empty years back.
   const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
   const hasCalories = rangeSessions.some((s) => s.calories);
@@ -311,10 +324,10 @@ export default function WorkoutView() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
         <WorkoutCard title="Activity" dot={COLORS.accent} actions={rangeControls}>
           <div style={tileGrid(140)}>
-            <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home, ${range.sub}`} />
-            <WorkoutTile label="Active time" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" sub={range.sub} />
-            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} sub="all time" />
-            <WorkoutTile label="Last workout" value={lastInRange ? shortDate(lastInRange.date) : null} size={16} sub={lastInRange ? `${lastInRange.title} · ${secondsToHm(lastInRange.duration_s) || '-'}` : null} />
+            <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
+            <WorkoutTile label="Active time" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
+            <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} sub="consecutive days" />
+            <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
           </div>
           <div style={{ paddingTop: 16 }}>
             {customValid ? <RangeBars sessions={rangeSessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
