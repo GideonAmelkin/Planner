@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import GarminShell from '../components/health/GarminShell';
+import MetricPage, { MetricHeader } from '../components/health/MetricPage';
+import { pageFor } from '../garminNav';
 import GarminCard from '../components/health/GarminCard';
 import GarminIcon from '../components/health/GarminIcon';
 import { Headline, Stat, HeadlineRow } from '../components/health/GarminStat';
@@ -33,7 +35,10 @@ const detailsBlock = (label, node) => (
 );
 
 export default function HealthView() {
-  const { date } = useParams();
+  const { date, page: slug } = useParams();
+  const page = slug ? pageFor(slug) : null;
+  const [range, setRange] = useState('7d');
+  const [refreshToken, setRefreshToken] = useState(0);
   const [bundle, setBundle] = useState(null);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -44,15 +49,20 @@ export default function HealthView() {
     setLoading(true);
     setError(null);
     try {
-      const [s, b] = await Promise.all([getGarminStatus(), getGarminDay(date, { refresh })]);
-      setStatus(s);
-      setBundle(b);
+      if (page) {
+        setStatus(await getGarminStatus());
+        if (refresh) setRefreshToken((t) => t + 1);
+      } else {
+        const [s, b] = await Promise.all([getGarminStatus(), getGarminDay(date, { refresh })]);
+        setStatus(s);
+        setBundle(b);
+      }
     } catch (err) {
       setError(err.message || String(err));
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, page]);
 
   useEffect(() => { setBundle(null); load(); }, [load]);
 
@@ -102,10 +112,25 @@ export default function HealthView() {
     : null;
 
   const shell = (inner) => (
-    <GarminShell dateISO={date} syncedAt={syncedAt} loading={loading} connected={!!connected} onRefresh={() => load(true)}>
+    <GarminShell
+      dateISO={date}
+      activeSlug={page ? slug : ''}
+      syncedAt={syncedAt}
+      loading={loading}
+      connected={!!connected}
+      onRefresh={() => load(true)}
+      header={page ? <MetricHeader page={page} slug={slug} dateISO={date} range={page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : null} setRange={setRange} /> : null}
+    >
       {inner}
     </GarminShell>
   );
+
+  if (page) {
+    const effectiveRange = page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : '1d';
+    return shell(
+      <MetricPage page={page} slug={slug} dateISO={date} range={effectiveRange} connected={!!connected} refreshToken={refreshToken} />
+    );
+  }
 
   const notice = (title, body) => (
     <section style={{ ...card, maxWidth: column.maxWidth }}>

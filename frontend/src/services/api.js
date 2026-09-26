@@ -66,6 +66,8 @@ export const getGarminEndpoints = () => api.get('/garmin/endpoints').then((r) =>
 export const callGarmin = (name, params = {}, { refresh = false } = {}) =>
   api.get(`/garmin/${name}`, { params: refresh ? { ...params, refresh: 1 } : params, validateStatus: () => true })
     .then((r) => r.data);
+export const garminBatch = (calls, { refresh = false } = {}) =>
+  api.post('/garmin/batch', { calls, refresh }).then((r) => r.data);
 export const postGarmin = (name, body = {}) =>
   api.post(`/garmin/${name}`, body, { validateStatus: () => true }).then((r) => r.data);
 
