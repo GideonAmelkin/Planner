@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import GarminShell from '../components/health/GarminShell';
-import MetricPage, { MetricHeader } from '../components/health/MetricPage';
+import MetricPage, { MetricHeader, hasBespoke } from '../components/health/MetricPage';
 import { pageFor } from '../garminNav';
 import GarminCard from '../components/health/GarminCard';
 import GarminIcon from '../components/health/GarminIcon';
@@ -35,9 +35,12 @@ const detailsBlock = (label, node) => (
 );
 
 export default function HealthView() {
-  const { date, page: slug } = useParams();
+  const params = useParams();
+  const date = params.date;
+  const activityId = params.id || null;
+  const slug = activityId ? 'activity' : params.page;
   const page = slug ? pageFor(slug) : null;
-  const [range, setRange] = useState('7d');
+  const [range, setRange] = useState('1d');
   const [refreshToken, setRefreshToken] = useState(0);
   const [bundle, setBundle] = useState(null);
   const [status, setStatus] = useState(null);
@@ -119,7 +122,7 @@ export default function HealthView() {
       loading={loading}
       connected={!!connected}
       onRefresh={() => load(true)}
-      header={page ? <MetricHeader page={page} slug={slug} dateISO={date} range={page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : null} setRange={setRange} /> : null}
+      header={page ? (hasBespoke(slug) ? <div style={{ height: 0 }} /> : <MetricHeader page={page} slug={slug} dateISO={date} range={page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : null} setRange={setRange} />) : null}
     >
       {inner}
     </GarminShell>
@@ -128,7 +131,7 @@ export default function HealthView() {
   if (page) {
     const effectiveRange = page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : '1d';
     return shell(
-      <MetricPage key={slug} page={page} slug={slug} dateISO={date} range={effectiveRange} connected={!!connected} refreshToken={refreshToken} />
+      <MetricPage key={`${slug}:${activityId || ''}`} page={page} slug={slug} dateISO={date} range={effectiveRange} setRange={setRange} connected={!!connected} refreshToken={refreshToken} activityId={activityId} syncedAt={syncedAt} />
     );
   }
 

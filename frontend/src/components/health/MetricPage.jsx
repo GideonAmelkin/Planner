@@ -7,6 +7,7 @@ import { garminBatch, callGarmin } from '../../services/api';
 import { shiftISO, todayISO, longDate } from '../../utils/dayInfo';
 import { RANGES, rangeDays, garminUrl } from '../../garminNav';
 import { G, card, cardBody, column, chevronButton, footerLink, summaryHeader } from '../../garminTheme';
+import PAGE_COMPONENTS from './pages';
 
 const ICON_FOR = {
   'Health Stats': 'heart', Activities: 'activity', Nutrition: 'nutrition', 'Performance Stats': 'performance',
@@ -17,6 +18,8 @@ const shortDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US
 
 // Garmin's sub-page header: big thin title, then ‹ › + a gray date pill and the
 // 1 Day / 7 Days / 4 Weeks / 1 Year control when the page supports ranges.
+export const hasBespoke = (slug) => !!PAGE_COMPONENTS[slug];
+
 export function MetricHeader({ page, slug, dateISO, range, setRange, narrow }) {
   const ranges = page.ranges || [];
   const to = (d) => `/health/${d}/${slug}`;
@@ -51,7 +54,8 @@ export function MetricHeader({ page, slug, dateISO, range, setRange, narrow }) {
 }
 
 // One sub-page: runs the page's registry calls and shows a card per call.
-export default function MetricPage({ page, slug, dateISO, range, connected, refreshToken }) {
+export default function MetricPage({ page, slug, dateISO, range, setRange, connected, refreshToken, activityId = null, syncedAt = null }) {
+  const Bespoke = PAGE_COMPONENTS[slug] || null;
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(!!page.calls);
@@ -72,7 +76,7 @@ export default function MetricPage({ page, slug, dateISO, range, connected, refr
       }
       const end = dateISO;
       const start = shiftISO(dateISO, -rangeDays(range));
-      const calls = page.calls({ date: dateISO, start, end, range, profileId });
+      const calls = page.calls({ date: dateISO, start, end, range, profileId, id: activityId });
       if (!calls.length) { if (mine === seq.current) setResults({}); return; }
       const out = await garminBatch(calls, { refresh });
       if (mine === seq.current) setResults(out.results || {});
@@ -81,7 +85,7 @@ export default function MetricPage({ page, slug, dateISO, range, connected, refr
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [page, dateISO, range]);
+  }, [page, dateISO, range, activityId]);
 
   useEffect(() => { setResults(null); load(refreshToken > 0); }, [load, refreshToken]);
 
@@ -112,6 +116,9 @@ export default function MetricPage({ page, slug, dateISO, range, connected, refr
   if (error) return <div style={column}><section style={card}><div style={{ ...cardBody, color: G.metric.heart }}>{error}</div></section></div>;
   if (!results) return <div style={column}><section style={card}><div style={{ ...cardBody, color: G.muted, fontSize: 13 }}>Pulling {page.title.toLowerCase()} from Garmin Connect...</div></section></div>;
 
+  if (Bespoke) {
+    return <Bespoke page={page} slug={slug} dateISO={dateISO} range={range} setRange={setRange} results={results} loading={loading} activityId={activityId} syncedAt={syncedAt} />;
+  }
   const entries = Object.entries(results);
   return (
     <div style={column}>

@@ -118,23 +118,24 @@ export const PAGES = {
   } },
   'news-feed': { title: 'News Feed', group: 'Home', garminPath: '/newsfeed', calls: () => [n('get_activities', { start: 0, limit: 20 }, 'Recent activities')] },
 
-  activities: { title: 'All Activities', group: 'Activities', garminPath: '/activities', calls: () => [n('get_activities', { start: 0, limit: 50 }, 'Activities'), n('count_activities', {}, 'Total activities')] },
+  activities: { title: 'All Activities', group: 'Activities', garminPath: '/activities', calls: () => [n('get_activities', { start: 0, limit: 50 }, 'list'), n('count_activities', {}, 'count')] },
+  activity: { title: 'Activity', group: 'Activities', garminPath: '/activity/{id}', calls: ({ id }) => [n('get_activity', { activity_id: String(id) }, 'activity'), n('get_activity_details', { activity_id: String(id), maxchart: 400, maxpoly: 1000 }, 'details'), n('get_activity_splits', { activity_id: String(id) }, 'splits'), n('get_devices', {}, 'devices')] },
   epics: { title: 'Epics', group: 'Activities', garminPath: '/epics' },
-  steps: { title: 'Steps', group: 'Activities', garminPath: '/daily-summary/{date}', ranges: ['7d', '4w', '1y'], calls: ({ date, start, end }) => [r('get_daily_steps', start, end, 'Daily steps'), d('get_steps_data', date, 'Steps by 15 minutes')] },
-  floors: { title: 'Floors', group: 'Activities', garminPath: '/floors/{date}', calls: ({ date }) => [d('get_floors', date, 'Floors')] },
-  'intensity-minutes': { title: 'Intensity Minutes', group: 'Activities', garminPath: '/intensity-minutes/{date}', ranges: ['7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_intensity_minutes_data', date, 'Today'), r('get_weekly_intensity_minutes', start, end, 'Weekly')] },
+  steps: { title: 'Steps', group: 'Activities', garminPath: '/steps/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_user_summary', date, 'summary'), d('get_steps_data', date, 'buckets'), r('get_daily_steps', start, end, 'daily')] },
+  floors: { title: 'Floors', group: 'Activities', garminPath: '/floors', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date }) => [d('get_user_summary', date, 'summary'), d('get_floors', date, 'floors')] },
+  'intensity-minutes': { title: 'Intensity Minutes', group: 'Activities', garminPath: '/intensity-minutes', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_intensity_minutes_data', date, 'im'), r('get_weekly_intensity_minutes', start, end, 'weekly')] },
 
-  sleep: { title: 'Sleep', group: 'Health Stats', garminPath: '/sleep/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_sleep_data', date, 'Last night'), r('get_sleep_daily', start, end, 'Sleep by day')] },
-  'health-status': { title: 'Health Status', group: 'Health Stats', garminPath: '/health-status' },
-  weight: { title: 'Weight', group: 'Health Stats', garminPath: '/weight', ranges: ['7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_daily_weigh_ins', date, 'Weigh-ins today'), rd('get_weigh_ins', start, end, 'Weigh-ins'), rd('get_body_composition', start, end, 'Body composition')] },
-  'blood-pressure': { title: 'Blood Pressure', group: 'Health Stats', garminPath: '/blood-pressure', ranges: ['7d', '4w', '1y'], calls: ({ start, end }) => [rd('get_blood_pressure', start, end, 'Readings')] },
-  'pulse-ox': { title: 'Pulse Ox', group: 'Health Stats', garminPath: '/pulse-ox/{date}', calls: ({ date }) => [d('get_spo2_data', date, 'Pulse Ox')] },
-  'pulse-ox-acclimation': { title: 'Pulse Ox Acclimation', group: 'Health Stats', garminPath: '/pulse-ox-acclimation', calls: ({ date }) => [d('get_spo2_data', date, 'Pulse Ox')] },
-  respiration: { title: 'Respiration', group: 'Health Stats', garminPath: '/respiration/{date}', calls: ({ date }) => [d('get_respiration_data', date, 'Respiration')] },
-  'heart-rate': { title: 'Heart Rate', group: 'Health Stats', garminPath: '/heart-rate/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_heart_rates', date, 'Heart rate'), r('get_rhr_daily', start, end, 'Resting heart rate by day')] },
-  'fitness-age': { title: 'Fitness Age', group: 'Health Stats', garminPath: '/fitness-age', calls: ({ date }) => [d('get_fitnessage_data', date, 'Fitness age')] },
-  stress: { title: 'Stress', group: 'Health Stats', garminPath: '/stress/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, end, range }) => [d('get_stress_data', date, 'Stress'), n('get_weekly_stress', { end, weeks: range === '1y' ? 52 : 4 }, 'Weekly stress')] },
-  'body-battery': { title: 'Body Battery', group: 'Health Stats', garminPath: '/body-battery/{date}', ranges: ['1d', '7d', '4w'], calls: ({ date, start, end }) => [rd('get_body_battery', start, end, 'Body Battery'), d('get_body_battery_events', date, 'Events')] },
+  sleep: { title: 'Sleep', group: 'Health Stats', garminPath: '/sleep/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_sleep_data', date, 'sleep'), r('get_sleep_daily', start, end, 'daily')] },
+  'health-status': { title: 'Health Status', group: 'Health Stats', garminPath: '/health-status/{date}', calls: ({ date }) => [d('get_heart_rates', date, 'hr'), d('get_hrv_data', date, 'hrv'), d('get_respiration_data', date, 'resp'), d('get_spo2_data', date, 'spo2')] },
+  weight: { title: 'Weight', group: 'Health Stats', garminPath: '/weight', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_daily_weigh_ins', date, 'today'), rd('get_weigh_ins', start, end, 'range'), rd('get_body_composition', start, end, 'comp')] },
+  'blood-pressure': { title: 'Blood Pressure', group: 'Health Stats', garminPath: '/blood-pressure', ranges: ['1d', '7d', '4w', '1y'], calls: ({ start, end }) => [rd('get_blood_pressure', start, end, 'bp')] },
+  'pulse-ox': { title: 'Pulse Ox', group: 'Health Stats', garminPath: '/pulse-ox/{date}', calls: ({ date }) => [d('get_spo2_data', date, 'spo2')] },
+  'pulse-ox-acclimation': { title: 'Pulse Ox Acclimation', group: 'Health Stats', garminPath: '/pulse-ox-acclimation', calls: ({ date }) => [d('get_spo2_data', date, 'spo2')] },
+  respiration: { title: 'Respiration', group: 'Health Stats', garminPath: '/respiration/{date}', ranges: ['1d', '7d', '4w'], calls: ({ date }) => [d('get_respiration_data', date, 'resp')] },
+  'heart-rate': { title: 'Heart Rate', group: 'Health Stats', garminPath: '/heart-rate/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_heart_rates', date, 'hr'), d('get_user_summary', date, 'summary'), r('get_rhr_daily', start, end, 'rhr')] },
+  'fitness-age': { title: 'Fitness Age', group: 'Health Stats', garminPath: '/fitness-age', calls: ({ date }) => [d('get_fitnessage_data', date, 'fa')] },
+  stress: { title: 'Stress', group: 'Health Stats', garminPath: '/stress/{date}/0', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, end, range }) => [d('get_stress_data', date, 'stress'), d('get_user_summary', date, 'summary'), n('get_weekly_stress', { end, weeks: range === '1y' ? 52 : 4 }, 'weekly')] },
+  'body-battery': { title: 'Body Battery', group: 'Health Stats', garminPath: '/body-battery', ranges: ['1d', '7d', '4w'], calls: ({ date, start, end }) => [rd('get_body_battery', start, end, 'bb'), d('get_body_battery_events', date, 'events'), d('get_user_summary', date, 'summary')] },
   'health-snapshot': { title: 'Health Snapshot', group: 'Health Stats', garminPath: '/health-snapshot' },
 
   nutrition: { title: 'Nutrition', group: 'Nutrition', garminPath: '/nutrition', calls: ({ date }) => [d('get_nutrition_daily_food_log', date, 'Food log'), d('get_nutrition_daily_meals', date, 'Meals'), d('get_nutrition_daily_settings', date, 'Settings')] },
@@ -169,7 +170,7 @@ export const PAGES = {
   'tracking-accuracy': { title: 'Activity Tracking Accuracy', group: 'Info', garminPath: '/activity-tracking-accuracy' },
 };
 
-export const garminUrl = (page, date) => `${GARMIN}${(page.garminPath || '').replace('{date}', date)}`;
+export const garminUrl = (page, date, id = '') => `${GARMIN}${(page.garminPath || '').replace('{date}', date).replace('{id}', id)}`;
 export const pageFor = (slug) => PAGES[slug] || null;
 
 // The group a slug belongs to (for the sidebar's active-group outline).
