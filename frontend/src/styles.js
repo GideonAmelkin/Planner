@@ -183,7 +183,7 @@ export const modalCard = {
   border: 'none',
   borderRadius: RADIUS,
   boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
-  padding: 20,
+  padding: 24,
 };
 export const modalTitle = { fontSize: 20, fontWeight: 600, color: COLORS.ink };
 export const modalClose = {

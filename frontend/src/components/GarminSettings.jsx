@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { getGarminStatus, garminLogin, garminMfa, garminLogout } from '../services/api';
-import { COLORS, outlineButton } from '../styles';
+import { COLORS, outlineButton, sectionDot, sectionHeader } from '../styles';
+
+const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', padding: '10px 12px', background: COLORS.page, borderRadius: 8, marginBottom: 6 };
+const noticeStyle = { marginTop: 12, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
 
 // The Garmin Connect block inside Settings: status, Sign in (with the MFA code
 // box when Garmin asks for one), Sign out.
@@ -66,21 +69,21 @@ export default function GarminSettings() {
   const name = status && status.profile && status.profile.full_name;
 
   return (
-    <div style={{ marginTop: 18 }}>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, letterSpacing: 0.3, color: COLORS.ink }}>Garmin Connect</div>
+    <div style={{ marginTop: 22 }}>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
+        <span style={sectionDot(COLORS.garmin)} />
+        Garmin Connect
+      </div>
       {!status ? (
         <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div>
       ) : (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap',
-          padding: '6px 8px', border: `1px solid ${COLORS.hairline}`, marginBottom: 6, background: 'white',
-        }}>
+        <div style={rowStyle}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>
               Garmin
               {status.email ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> · {status.email}</span> : null}
             </div>
-            <div style={{ fontSize: 11, color: connected ? COLORS.done : COLORS.muted }}>
+            <div style={{ fontSize: 12, color: connected ? COLORS.done : COLORS.muted }}>
               {connected ? `Connected${name ? ` as ${name}` : ''}` : (status.signing_in ? 'Sign-in in progress' : 'Not connected')}
             </div>
           </div>
@@ -109,7 +112,7 @@ export default function GarminSettings() {
             placeholder="Verification code"
             inputMode="numeric"
             autoFocus
-            style={{ border: `1px solid ${COLORS.hairline}`, padding: '5px 8px', fontSize: 13, width: 160, background: 'white' }}
+            style={{ border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, width: 160, background: COLORS.paper }}
           />
           <button disabled={busy || !code} onClick={submitCode} style={outlineButton(COLORS.garmin, { disabled: busy || !code })}>Verify</button>
         </div>
@@ -120,7 +123,7 @@ export default function GarminSettings() {
       ) : null}
 
       {status && !configured ? (
-        <div style={{ marginTop: 8, padding: 10, background: '#FFF8E1', border: '1px solid #E0D5B5', fontSize: 11, color: COLORS.muted, lineHeight: 1.5 }}>
+        <div style={noticeStyle}>
           <strong>Setup required.</strong>{' '}
           {!status.configured ? <>Add <code>GARMIN_EMAIL</code> and <code>GARMIN_PASSWORD</code> to <code>backend/.env</code> on the server. </> : null}
           {!status.python_ok ? <>The Python client is missing; see the Garmin section of <code>deploy/README.md</code>.</> : null}

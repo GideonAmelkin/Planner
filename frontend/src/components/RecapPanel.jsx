@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getRecap } from '../services/api';
 import { longDate } from '../utils/dayInfo';
 import CheckMark from './CheckMark';
-import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle } from '../styles';
+import { COLORS, PRIORITY_CHIPS, modalBackdrop, modalCard, modalClose, modalTitle, pill } from '../styles';
 
 export default function RecapPanel({ onClose }) {
   const [groups, setGroups] = useState([]);
@@ -27,7 +28,8 @@ export default function RecapPanel({ onClose }) {
 
   const totalItems = groups.reduce((n, g) => n + g.items.length, 0);
 
-  return (
+  // Rendered into document.body so the sticky rail's stacking context cannot trap the backdrop.
+  return createPortal(
     <div style={modalBackdrop} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
@@ -41,10 +43,10 @@ export default function RecapPanel({ onClose }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-          <div className="serif" style={modalTitle}>Recap</div>
+          <div style={modalTitle}>Recap</div>
           <button onClick={onClose} style={modalClose}>×</button>
         </div>
-        <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 12, letterSpacing: 0.3 }}>
+        <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 14 }}>
           Completed action items, most recent first
           {!loading && !error ? ` · ${totalItems} item${totalItems === 1 ? '' : 's'}` : ''}
         </div>
@@ -53,45 +55,46 @@ export default function RecapPanel({ onClose }) {
 
         <div style={{ overflowY: 'auto', flex: 1, paddingRight: 4 }}>
           {loading ? (
-            <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading…</div>
+            <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div>
           ) : groups.length === 0 ? (
-            <div style={{ color: COLORS.muted, fontSize: 13, fontStyle: 'italic' }}>No completed items yet.</div>
+            <div style={{ color: COLORS.muted, fontSize: 13 }}>No completed items yet.</div>
           ) : (
             groups.map((g) => (
               <div key={g.date} style={{ marginBottom: 18 }}>
-                <div
-                  className="serif"
-                  style={{
-                    fontSize: 15, fontWeight: 600, color: COLORS.ink,
-                    borderBottom: `1px solid ${COLORS.hairline}`,
-                    paddingBottom: 4, marginBottom: 8,
-                  }}
-                >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: COLORS.ink, marginBottom: 6 }}>
                   {longDate(g.date)}
-                  <span style={{ color: COLORS.accent, fontWeight: 400, fontSize: 12 }}> · {g.items.length}</span>
+                  <span style={pill}>{g.items.length}</span>
                 </div>
-                {g.items.map((it) => (
-                  <div key={it.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '3px 0' }}>
+                {g.items.map((it) => {
+                  const chip = it.priority ? PRIORITY_CHIPS[it.priority] : null;
+                  return (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 8, minHeight: 32 }}>
                     <CheckMark done size={18} />
-                    {it.priority ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: COLORS.accent, minWidth: 16, marginTop: 1 }}>
+                    {chip ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        minWidth: 22, height: 20, padding: '0 7px', borderRadius: 999,
+                        background: chip.bg, color: chip.fg, fontSize: 11, fontWeight: 700, flexShrink: 0,
+                      }}>
                         {it.priority}{it.priority_num != null ? it.priority_num : ''}
                       </span>
                     ) : null}
                     <span style={{
-                      fontSize: 13,
+                      fontSize: 14,
                       color: COLORS.ink,
                       lineHeight: 1.4,
                     }}>
                       {it.text}
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ))
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

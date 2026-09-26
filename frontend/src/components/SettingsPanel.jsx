@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { getCalendarAccounts, disconnectCalendarAccount, API_BASE } from '../services/api';
 import GarminSettings from './GarminSettings';
-import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton } from '../styles';
+import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton, sectionDot, sectionHeader } from '../styles';
+
+const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 12px', background: COLORS.page, borderRadius: 8, marginBottom: 6 };
+const noticeStyle = { marginTop: 12, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
 
 const PROVIDER_NAMES = { google: 'Google', outlook: 'Outlook' };
 
@@ -36,40 +40,40 @@ export default function SettingsPanel({ onClose }) {
     await load();
   };
 
-  return (
+  // Rendered into document.body so the sticky rail's stacking context cannot trap the backdrop.
+  return createPortal(
     <div style={modalBackdrop} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ ...modalCard, width: 520 }}
+        style={{ ...modalCard, width: 560, maxWidth: '92vw' }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div className="serif" style={modalTitle}>Settings</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={modalTitle}>Settings</div>
           <button onClick={onClose} style={modalClose}>×</button>
         </div>
 
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, letterSpacing: 0.3, color: COLORS.ink }}>Connected Calendars</div>
+        <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
+          <span style={sectionDot(COLORS.google)} />
+          Connected Calendars
+        </div>
         {error ? <div style={{ color: COLORS.danger, fontSize: 12, marginBottom: 8 }}>{error}</div> : null}
 
         {loading ? (
-          <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading…</div>
+          <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div>
         ) : data.accounts.length === 0 ? (
-          <div style={{ color: COLORS.muted, fontSize: 13, fontStyle: 'italic', marginBottom: 12 }}>
+          <div style={{ color: COLORS.muted, fontSize: 13, marginBottom: 12 }}>
             No calendars connected. External events won't appear in the daily view until you connect one.
           </div>
         ) : (
           <div style={{ marginBottom: 12 }}>
             {data.accounts.map((acct) => (
-              <div key={acct.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '6px 8px', border: `1px solid ${COLORS.hairline}`, marginBottom: 6,
-                background: 'white',
-              }}>
+              <div key={acct.id} style={rowStyle}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
                     {PROVIDER_NAMES[acct.provider] || acct.provider}
                     {acct.email ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> · {acct.email}</span> : null}
                   </div>
-                  {acct.display_name ? <div style={{ fontSize: 11, color: COLORS.muted }}>{acct.display_name}</div> : null}
+                  {acct.display_name ? <div style={{ fontSize: 12, color: COLORS.muted }}>{acct.display_name}</div> : null}
                 </div>
                 <button onClick={() => disconnect(acct.id)} style={outlineButton(COLORS.danger)}>Disconnect</button>
               </div>
@@ -77,7 +81,7 @@ export default function SettingsPanel({ onClose }) {
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
           <button
             disabled={!data.providers.google}
             onClick={() => connect('google')}
@@ -95,7 +99,7 @@ export default function SettingsPanel({ onClose }) {
         </div>
 
         {(!data.providers.google || !data.providers.outlook) ? (
-          <div style={{ marginTop: 14, padding: 10, background: '#FFF8E1', border: '1px solid #E0D5B5', fontSize: 11, color: COLORS.muted, lineHeight: 1.5 }}>
+          <div style={noticeStyle}>
             <strong>Setup required.</strong>{' '}
             Some providers are disabled because their OAuth credentials aren't in <code>backend/.env</code> yet. See <code>~/Documents/Planner/CALENDAR_SETUP.md</code> for the one-time app-registration steps for{' '}
             {!data.providers.google ? <strong>Google</strong> : null}
@@ -106,7 +110,8 @@ export default function SettingsPanel({ onClose }) {
 
         <GarminSettings />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
