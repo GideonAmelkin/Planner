@@ -15,6 +15,7 @@ export const COLORS = {
   done: '#2E7D32',       // completed check
   google: '#1565C0',
   outlook: '#00695C',
+  garmin: '#007CC3',
 };
 
 export const INDENT_PX = 24;

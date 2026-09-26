@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getCalendarAccounts, disconnectCalendarAccount, API_BASE } from '../services/api';
+import GarminSettings from './GarminSettings';
 import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton } from '../styles';
 
 const PROVIDER_NAMES = { google: 'Google', outlook: 'Outlook' };
@@ -102,6 +103,8 @@ export default function SettingsPanel({ onClose }) {
             {!data.providers.outlook ? <strong>Microsoft</strong> : null}.
           </div>
         ) : null}
+
+        <GarminSettings />
       </div>
     </div>
   );
