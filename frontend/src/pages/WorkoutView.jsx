@@ -31,7 +31,8 @@ const weightUnit = (profile) => (profile && profile.shows_kg ? 'kg' : 'lb');
 const toUnit = (kg, unit) => (kg === null || kg === undefined ? null : (unit === 'kg' ? kg : kg * KG_TO_LB));
 
 const clockOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null);
-const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-');
+// Every date on this tab reads 'Mon, Sep 8, 2026'.
+const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-');
 const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
 // Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
 const exerciseName = (e) => (/^\d+$/.test(e.name || '') ? `Exercise ${e.name}` : e.name);
