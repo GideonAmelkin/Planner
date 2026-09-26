@@ -81,7 +81,7 @@ export default function GarminShell({ dateISO, syncedAt, loading, connected, onR
         <div style={{ background: G.nav, display: 'flex', alignItems: 'center', gap: 4, padding: '6px 8px', overflowX: 'auto' }}>
           <Link to={`/agenda/${dateISO}`} style={{ ...wordmark, fontSize: 22, padding: '4px 10px' }}>planner</Link>
           {TABS.map((t) => (
-            <Link key={t.section} to={`/${t.section}/${dateISO}`} style={{ ...sidebarItem(t.section === 'health'), width: 'auto', height: 34, padding: '0 10px', borderLeft: 'none', borderBottom: `3px solid ${t.section === 'health' ? 'white' : 'transparent'}`, fontSize: 14 }}>
+            <Link key={t.section} to={`/${t.section}/${dateISO}`} style={{ ...sidebarItem(t.section === 'health'), width: 'auto', height: 34, padding: '0 10px', borderLeftWidth: 0, borderLeftStyle: 'none', borderBottom: `3px solid ${t.section === 'health' ? 'white' : 'transparent'}`, fontSize: 14 }}>
               <GarminIcon name={t.icon} color={t.color} size={16} /> {t.label}
             </Link>
           ))}

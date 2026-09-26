@@ -32,7 +32,7 @@ export default function ActivityCard({ activity: a }) {
         <GarminIcon name="chart" color="white" size={14} />
       </div>
       <div style={{ padding: '4px 16px 14px', display: 'grid', gridTemplateColumns: 'minmax(120px, 1fr) minmax(0, 2fr)', gap: '8px 16px', alignItems: 'center' }}>
-        <div style={{ fontSize: 40, fontWeight: 300, lineHeight: 1.1, ...white }}>
+        <div style={{ fontSize: 'clamp(28px, 7vw, 40px)', fontWeight: 300, lineHeight: 1.1, whiteSpace: 'nowrap', ...white }}>
           {miles ? `${num(miles, 2)} mi` : secondsToHm(a.duration) || '--'}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(72px, 1fr))', gap: '6px 12px' }}>
