@@ -57,7 +57,7 @@ Respiration, Hydration, HRV, Training, Weight, green activity blocks, and a coll
 "All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
 the raw JSON it returns. Its sidebar is Garmin's own navigation tree; every item opens a
 sub-page at `/health/:date/<slug>` fed by the mapped endpoints (`frontend/src/garminNav.js`),
-and items Garmin keeps off its API link out to connect.garmin.com.
+each laid out like the matching Garmin page (rings, timelines, tables, badges, maps), and items Garmin keeps off its API render Garmin's empty state with a link out.
 
 The Workout App tab shows the Home Workouts app (Leap Health, bundle
 `com.abishkking.maleworkout`), which runs on the Mac as an iPhone app. The Mac exports its
