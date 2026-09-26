@@ -29,7 +29,8 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | `components/workout/WorkoutCard.jsx`, `WorkoutTile.jsx` | Paper card and label-over-number tile for the Workout App tab, plus the shared table styles (`tileGrid`, `table`, `th`, `td`). |
 | `components/TopNav.jsx` | Light header bar used by the Workout tab: Agenda / Garmin / Workout App tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks`. Exports `TABS`. The Agenda uses `AgendaRail` and the Garmin tab `GarminShell` instead. |
 | `components/NavLinks.jsx` | Recap and Settings buttons plus their modals; `direction="column"` stacks them for the rail. |
-| `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
+| `components/ConnectionRow.jsx` | One row of Settings > Connections: status dot (green ok, red error, grey off), name, detail line, action on the right. |
+| `components/GarminSettings.jsx` | The Garmin row in Settings > Connections: dot from `/api/garmin/status`, Sign In / Sign Out, the verification-code box, the setup notice. |
 | `garminTheme.js` | Tokens and style objects measured from connect.garmin.com (Open Sans, `#efefef` page, white 8px cards, blue `#1265c2`, per-metric colors). Only the Garmin tab uses it. |
 | `components/health/GarminCard.jsx` | Daily-summary card: colored icon + tracked uppercase title, body, and a footer link (`details` toggles a hidden block, `href` links out). |
 | `components/health/GarminStat.jsx` | `Headline` (48px thin number + caption), `Stat` (18px value over a 12px gray label), `HeadlineRow` (headline left, stats right). |
@@ -49,7 +50,7 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | `components/MonthlyGoals.jsx` | Monthly Goals: Personal | Business cards with tinted headers, reorder within a card. |
 | `components/CalendarSection.jsx` | Calendar card: 6-row month grid of rounded cells, today as an indigo circle, each day links to its spread. |
 | `components/CheckMark.jsx` | The rounded-square check (indigo when done) used by Action Items, Monthly Goals and Recap. |
-| `components/RecapPanel.jsx`, `SettingsPanel.jsx` | Modals: completed items by date; connected calendar accounts and Connect buttons. |
+| `components/RecapPanel.jsx`, `SettingsPanel.jsx` | Modals, portalled to `document.body`: completed items by date; Settings > Connections lists Google / Outlook accounts (dot red when today's `calendar_errors` names the account, Connect / Disconnect), Garmin (Sign In / Sign Out) and the Home Workouts snapshot (Mac sync, red when older than 48 h). |
 | `components/CalendarToast.jsx` | The post-OAuth toast. |
 | `services/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx). One export per endpoint, including the Garmin calls (`getGarminDay`, `callGarmin`, `postGarmin`, sign-in) and the Workout App reads (`getWorkoutStatus`, `getWorkoutDay`, `getWorkoutRecent`, `getWorkoutCatalog`; 404 means no snapshot yet). `API_BASE` is used by Settings to build the connect URL. |
 | `utils/dayInfo.js` | `todayISO`, `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `headlineLong`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |

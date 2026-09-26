@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { getGarminStatus, garminLogin, garminMfa, garminLogout } from '../services/api';
-import { COLORS, outlineButton, sectionDot, sectionHeader } from '../styles';
+import ConnectionRow from './ConnectionRow';
+import { COLORS, outlineButton } from '../styles';
 
-const rowStyle = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', padding: '10px 12px', background: COLORS.page, borderRadius: 8, marginBottom: 6 };
-const noticeStyle = { marginTop: 12, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
+const noticeStyle = { marginTop: 6, marginBottom: 6, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
 
-// The Garmin Connect block inside Settings: status, Sign in (with the MFA code
-// box when Garmin asks for one), Sign out.
+// The Garmin row in Settings > Connections: status dot, Sign In / Sign Out,
+// the MFA code box when Garmin asks for one, and the setup notice.
 export default function GarminSettings() {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -20,8 +20,7 @@ export default function GarminSettings() {
       setStatus(s);
       setNeedsMfa(!!s.needs_mfa);
     } catch (err) {
-      setStatus({ connected: false, configured: false, python_ok: false });
-      setMessage({ text: err.message || String(err), error: true });
+      setStatus({ connected: false, configured: false, python_ok: false, error: err.message || String(err) });
     }
   };
 
@@ -64,47 +63,49 @@ export default function GarminSettings() {
     load();
   };
 
-  const connected = !!(status && status.connected);
-  const configured = !!(status && status.configured && status.python_ok);
-  const name = status && status.profile && status.profile.full_name;
+  if (!status) {
+    return <ConnectionRow status="off" name="Garmin" detail="Loading..." />;
+  }
+
+  const connected = !!status.connected;
+  const configured = !!(status.configured && status.python_ok);
+  const name = status.profile && status.profile.full_name;
+  const hasError = !!status.error || (configured && status.token_file && !connected && !status.signing_in);
+
+  let dot = 'off';
+  let detail = 'Not connected';
+  let detailColor;
+  if (connected) {
+    dot = 'ok';
+    detail = `Connected${name ? ` as ${name}` : ''}${status.email ? ` (${status.email})` : ''}`;
+  } else if (status.signing_in) {
+    detail = 'Sign-in in progress';
+  } else if (hasError) {
+    dot = 'error';
+    detail = status.error || 'Session expired, sign in again';
+    detailColor = COLORS.danger;
+  } else if (!configured) {
+    detail = 'Not configured';
+  }
 
   return (
-    <div style={{ marginTop: 22 }}>
-      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
-        <span style={sectionDot(COLORS.garmin)} />
-        Garmin Connect
-      </div>
-      {!status ? (
-        <div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div>
-      ) : (
-        <div style={rowStyle}>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>
-              Garmin
-              {status.email ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> · {status.email}</span> : null}
-            </div>
-            <div style={{ fontSize: 12, color: connected ? COLORS.done : COLORS.muted }}>
-              {connected ? `Connected${name ? ` as ${name}` : ''}` : (status.signing_in ? 'Sign-in in progress' : 'Not connected')}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {connected ? (
-              <button disabled={busy} onClick={signOut} style={outlineButton(COLORS.danger, { disabled: busy })}>Sign out</button>
-            ) : (
-              <button
-                disabled={busy || !configured || needsMfa}
-                onClick={signIn}
-                title={configured ? '' : 'GARMIN_EMAIL / GARMIN_PASSWORD not set in backend/.env, or the Python client is not installed'}
-                style={outlineButton(COLORS.garmin, { disabled: busy || !configured || needsMfa })}>
-                {busy ? 'Signing in...' : 'Sign in'}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+    <div>
+      <ConnectionRow status={dot} name="Garmin" detail={detail} detailColor={detailColor}>
+        {connected ? (
+          <button disabled={busy} onClick={signOut} style={outlineButton(COLORS.danger, { disabled: busy })}>Sign Out</button>
+        ) : (
+          <button
+            disabled={busy || !configured || needsMfa}
+            onClick={signIn}
+            title={configured ? '' : 'GARMIN_EMAIL / GARMIN_PASSWORD not set in backend/.env, or the Python client is not installed'}
+            style={outlineButton(COLORS.garmin, { disabled: busy || !configured || needsMfa })}>
+            {busy ? 'Signing in...' : 'Sign In'}
+          </button>
+        )}
+      </ConnectionRow>
 
       {needsMfa ? (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', margin: '0 0 8px 4px' }}>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
@@ -119,10 +120,10 @@ export default function GarminSettings() {
       ) : null}
 
       {message ? (
-        <div style={{ fontSize: 12, color: message.error ? COLORS.danger : COLORS.muted, marginBottom: 6 }}>{message.text}</div>
+        <div style={{ fontSize: 12, color: message.error ? COLORS.danger : COLORS.muted, margin: '0 0 8px 4px' }}>{message.text}</div>
       ) : null}
 
-      {status && !configured ? (
+      {!configured ? (
         <div style={noticeStyle}>
           <strong>Setup required.</strong>{' '}
           {!status.configured ? <>Add <code>GARMIN_EMAIL</code> and <code>GARMIN_PASSWORD</code> to <code>backend/.env</code> on the server. </> : null}
