@@ -29,3 +29,6 @@ logs/
 
 # created at runtime
 .claude/
+
+# Home Workouts snapshot on the server (rsynced from the Mac)
+backend/workout-state/

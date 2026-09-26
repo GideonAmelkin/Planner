@@ -1,7 +1,8 @@
 # Planner
 
 A two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper
-book, plus a Garmin tab fed by Garmin Connect. Single user, persists to SQLite, pulls events
+book, plus a Garmin tab fed by Garmin Connect and a Workout App tab fed by the Home Workouts
+iPhone app. Single user, persists to SQLite, pulls events
 from Google Calendar and Outlook so the daily timeline shows real meetings next to whatever
 was typed by hand, and pulls the same day's steps, sleep, heart rate and the rest from the
 user's Garmin account.
@@ -16,8 +17,9 @@ The app lives on RT100 and that is where all work happens. There is no localhost
 - Frontend: static build served from `/var/www/planner/build`.
 - Source of truth: this Mac repo (git, `origin` on GitHub). Push files with
   `deploy/push.sh`, build and restart on the server. Runbook: [deploy/README.md](deploy/README.md).
-- Never copy `backend/.env`, `backend/planner.db` or `backend/garmin-state/` to the server;
-  the server's copies hold the live OAuth config, the real data and the Garmin session.
+- Never copy `backend/.env`, `backend/planner.db`, `backend/garmin-state/` or
+  `backend/workout-state/` to the server; the server's copies hold the live OAuth config, the
+  real data, the Garmin session and the Home Workouts snapshot.
 - Garmin needs Python 3.12 in `backend/garmin/.venv` on the server (installed with `uv`, no
   sudo). Setup steps are in [deploy/README.md](deploy/README.md).
 
@@ -25,9 +27,9 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 
 ## What is on the page
 
-Two tabs in the header, each with its own route: **Agenda** at `/agenda/:date` and
-**Garmin** at `/health/:date` (`/`, `/day/:date` and anything else redirect to today's
-agenda). Prev / Today / Next and the date picker stay inside the current tab.
+Three tabs in the header, each with its own route: **Agenda** at `/agenda/:date`,
+**Garmin** at `/health/:date` and **Workout App** at `/workout/:date` (`/`, `/day/:date` and
+anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
 
 The Agenda has three stacked sections, referred to by these names:
 
@@ -50,6 +52,14 @@ Respiration, Hydration, HRV, Training, Weight, green activity blocks, and a coll
 "All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
 the raw JSON it returns.
 
+The Workout App tab shows the Home Workouts app (Leap Health, bundle
+`com.abishkking.maleworkout`), which runs on the Mac as an iPhone app. The Mac exports its
+SQLite files to one JSON snapshot and rsyncs it to `backend/workout-state/` every 30 minutes
+(`tools/homeworkouts/`, launchd); the server only reads that file. Cards: Sessions for the
+day (exercises and sets), Totals (streak, count, active minutes), Body Weight, Last 30 Days,
+and a collapsed Plan and Templates catalog. Only what the Mac copy of the app has synced is
+shown, and the header says when the snapshot was taken. Runs and walks are not exported.
+
 ## Architecture
 
 ```
@@ -69,6 +79,7 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 |    quoteService.js  one unique quote per date         |
 |    calendarService.js  provider registry (google/outlook)
 |    garminService.js  bridge queue, read cache, warm  |
+|    workoutService.js  Home Workouts snapshot reader   |
 |    garmin/registry.json  every Garmin endpoint       |
 |    planner.db (SQLite, WAL)                           |
 +----------------------------^--------------------------+
@@ -76,7 +87,8 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 +----------------------------v--------------------------+
 |  React 19 frontend (react-scripts build)              |
 |    pages/DailyView.jsx      the Agenda tab            |
-|    pages/HealthView.jsx     the Health tab            |
+|    pages/HealthView.jsx     the Garmin tab            |
+|    pages/WorkoutView.jsx    the Workout App tab       |
 |    components/*             sections and widgets      |
 |    styles.js                design tokens             |
 +-------------------------------------------------------+
@@ -117,5 +129,6 @@ Planner/
   deploy/                 push.sh, README.md runbook, nginx + pm2 configs
   backend/                Express API, see backend/CLAUDE.md
   backend/garmin/         bridge.py, registry.json, requirements.txt (+ .venv on the server)
+  tools/homeworkouts/     Mac-side Home Workouts exporter, sync job, launchd plist, tests
   frontend/               React app, see frontend/CLAUDE.md
 ```

@@ -6,7 +6,8 @@ React 19, `react-scripts 5.0.1`, inline styles. Built on the server with
 
 ## Routes (`src/App.js`)
 
-`/agenda/:date` renders `pages/DailyView` and `/health/:date` renders `pages/HealthView`;
+`/agenda/:date` renders `pages/DailyView`, `/health/:date` renders `pages/HealthView` and
+`/workout/:date` renders `pages/WorkoutView`;
 `/`, the legacy `/day/:date` and unknown paths redirect to today's agenda. On a fresh page
 load any `/<section>/:date` snaps back to today in that section (`BootRedirectToToday`). `src/index.js` turns
 `?connected=` / `?calendar_error=` query params from the OAuth callback into a toast in
@@ -18,7 +19,9 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 |---|---|
 | `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
 | `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
-| `components/TopNav.jsx` | Header bar: Agenda / Garmin tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). `theme="garmin"` swaps in the near-black thin-type Garmin look. |
+| `pages/WorkoutView.jsx` | The Workout App tab: loads `GET /api/workout/status`, `day/:date` and `recent`, renders Sessions (exercises and sets), Totals, Body Weight, Last 30 Days, and lazily `catalog` for the collapsed Plan and Templates section. Paper look; weights shown in the app's unit. |
+| `components/workout/WorkoutCard.jsx`, `WorkoutTile.jsx` | Paper card and label-over-number tile for the Workout App tab, plus the shared table styles (`tileGrid`, `table`, `th`, `td`). |
+| `components/TopNav.jsx` | Header bar: Agenda / Garmin / Workout App tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). `theme="garmin"` swaps in the near-black thin-type Garmin look. |
 | `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
 | `garminTheme.js` | Tokens and style objects measured from connect.garmin.com (Open Sans, `#efefef` page, white 8px cards, blue `#1265c2`, per-metric colors). Only the Garmin tab uses it. |
 | `components/health/GarminCard.jsx` | Daily-summary card: colored icon + tracked uppercase title, body, and a footer link (`details` toggles a hidden block, `href` links out). |
@@ -41,7 +44,7 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | `components/CheckMark.jsx` | The circular check used by Action Items, Monthly Goals and Recap. |
 | `components/RecapPanel.jsx`, `SettingsPanel.jsx` | Modals: completed items by date; connected calendar accounts and Connect buttons. |
 | `components/CalendarToast.jsx` | The post-OAuth toast. |
-| `services/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx). One export per endpoint, including the Garmin calls (`getGarminDay`, `callGarmin`, `postGarmin`, sign-in). `API_BASE` is used by Settings to build the connect URL. |
+| `services/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx). One export per endpoint, including the Garmin calls (`getGarminDay`, `callGarmin`, `postGarmin`, sign-in) and the Workout App reads (`getWorkoutStatus`, `getWorkoutDay`, `getWorkoutRecent`, `getWorkoutCatalog`; 404 means no snapshot yet). `API_BASE` is used by Settings to build the connect URL. |
 | `utils/dayInfo.js` | `todayISO`, `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |
 | `styles.js` | `COLORS` tokens, `INDENT_PX`, and the shared style objects (section header, row input, nav button, outline button, modal shell, drop-zone borders). |
 

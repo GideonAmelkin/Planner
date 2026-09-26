@@ -23,10 +23,13 @@ Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT1
 | `garminService.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Garmin bundle warm, holds the sign-in child during an MFA hand-off. |
 | `garmin/bridge.py` | Python 3.12 CLI over the `garminconnect` client: `status`, `login` (reads the MFA code from stdin), `logout`, `call` (a batch of registry methods, one process). Tokens in `garmin-state/garmin_tokens.json`. |
 | `garmin/registry.json` | One entry per garminconnect method: `name`, `group`, `kind` (read / write / unsupported), `params` with types. Read by both sides. |
+| `workoutService.js` | Reads `workout-state/home_workouts.json` (shipped by the Mac, see `tools/homeworkouts/`), re-parses on mtime change, filters sessions by local date. Never writes. |
+| `routes/workout.js` | `GET /api/workout/{status,day/:date,recent,catalog}`. No upload route on purpose: the API has no auth. |
 | `routes/garmin.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
 | `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
+| `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
 ## Schema (11 tables)
@@ -78,6 +81,10 @@ garmin_cache         Garmin read results: (name, params JSON) -> payload, fetche
 | POST | `/api/garmin/batch` | `{calls:[{key, name, params}], refresh}` for read endpoints |
 | GET | `/api/garmin/:name` | any read endpoint; query params are validated against the registry |
 | POST | `/api/garmin/:name` | any write endpoint; JSON body is validated against the registry |
+| GET | `/api/workout/status` | `{available, exported_at, received_at, app_version, counts, profile, awards, last_session}`; `available:false` before the first sync |
+| GET | `/api/workout/day/:date` | `{sessions, plan_day, weights}` for that local date; 404 `{available:false}` without a snapshot |
+| GET | `/api/workout/recent?end=&days=` | sessions (sets stripped) in the window, newest first, plus every weigh-in |
+| GET | `/api/workout/catalog` | `{templates, plan}` |
 
 Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}` or
 `{endpoint, params, ok:false, error, code}` with status 502; `code` is one of `auth`,
