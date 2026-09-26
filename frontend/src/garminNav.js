@@ -101,22 +101,21 @@ const n = (name, params = {}, key) => ({ key: key || name, name, params });
 // slug -> page. `garminPath` is appended to connect.garmin.com/modern; `{date}` is replaced.
 export const PAGES = {
   challenges: { title: 'Challenges', group: 'Home', garminPath: '/challenge', calls: () => [
-    n('get_non_completed_badge_challenges', { start: 0, limit: 20 }, 'In progress'),
-    n('get_available_badge_challenges', { start: 0, limit: 20 }, 'Available'),
-    n('get_badge_challenges', { start: 0, limit: 20 }, 'Completed'),
-    n('get_adhoc_challenges', { start: 0, limit: 20 }, 'Ad hoc challenges'),
-    n('get_inprogress_virtual_challenges', { start: 0, limit: 20 }, 'Virtual challenges'),
+    n('get_non_completed_badge_challenges', { start: 0, limit: 20 }, 'inprogress'),
+    n('get_available_badge_challenges', { start: 0, limit: 20 }, 'available'),
+    n('get_badge_challenges', { start: 0, limit: 20 }, 'completed'),
+    n('get_adhoc_challenges', { start: 0, limit: 20 }, 'adhoc'),
   ] },
   calendar: { title: 'Calendar', group: 'Home', garminPath: '/calendar', calls: ({ date }) => {
     const [y, m] = date.split('-');
     const first = `${y}-${m}-01`;
     const last = shiftISO(`${y}-${m}-01`, 31).slice(0, 8) + '01';
     return [
-      rd('get_activities_by_date', first, shiftISO(last, -1), 'Activities this month'),
-      n('get_scheduled_workouts', { year: Number(y), month: Number(m) }, 'Scheduled workouts'),
+      rd('get_activities_by_date', first, shiftISO(last, -1), 'acts'),
+      n('get_scheduled_workouts', { year: Number(y), month: Number(m) }, 'sched'),
     ];
   } },
-  'news-feed': { title: 'News Feed', group: 'Home', garminPath: '/newsfeed', calls: () => [n('get_activities', { start: 0, limit: 20 }, 'Recent activities')] },
+  'news-feed': { title: 'News Feed', group: 'Home', garminPath: '/newsfeed', calls: ({ date }) => [n('get_user_profile', {}, 'profile'), r('get_daily_steps', shiftISO(date, -13), shiftISO(date, 6), 'week')] },
 
   activities: { title: 'All Activities', group: 'Activities', garminPath: '/activities', calls: () => [n('get_activities', { start: 0, limit: 50 }, 'list'), n('count_activities', {}, 'count')] },
   activity: { title: 'Activity', group: 'Activities', garminPath: '/activity/{id}', calls: ({ id }) => [n('get_activity', { activity_id: String(id) }, 'activity'), n('get_activity_details', { activity_id: String(id), maxchart: 400, maxpoly: 1000 }, 'details'), n('get_activity_splits', { activity_id: String(id) }, 'splits'), n('get_devices', {}, 'devices')] },
@@ -138,34 +137,34 @@ export const PAGES = {
   'body-battery': { title: 'Body Battery', group: 'Health Stats', garminPath: '/body-battery', ranges: ['1d', '7d', '4w'], calls: ({ date, start, end }) => [rd('get_body_battery', start, end, 'bb'), d('get_body_battery_events', date, 'events'), d('get_user_summary', date, 'summary')] },
   'health-snapshot': { title: 'Health Snapshot', group: 'Health Stats', garminPath: '/health-snapshot' },
 
-  nutrition: { title: 'Nutrition', group: 'Nutrition', garminPath: '/nutrition', calls: ({ date }) => [d('get_nutrition_daily_food_log', date, 'Food log'), d('get_nutrition_daily_meals', date, 'Meals'), d('get_nutrition_daily_settings', date, 'Settings')] },
-  hydration: { title: 'Hydration', group: 'Nutrition', garminPath: '/hydration/{date}', calls: ({ date }) => [d('get_hydration_data', date, 'Hydration')] },
-  'calories-burned': { title: 'Calories Burned', group: 'Nutrition', garminPath: '/daily-summary/{date}', ranges: ['7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_user_summary', date, 'Today'), r('get_calories_daily', start, end, 'Calories by day')] },
+  nutrition: { title: 'Nutrition', group: 'Nutrition', garminPath: '/nutrition/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date }) => [d('get_nutrition_daily_food_log', date, 'log'), d('get_nutrition_daily_meals', date, 'meals'), d('get_nutrition_daily_settings', date, 'settings')] },
+  hydration: { title: 'Hydration', group: 'Nutrition', garminPath: '/hydration/{date}/0', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date }) => [d('get_hydration_data', date, 'hyd')] },
+  'calories-burned': { title: 'Calories Burned', group: 'Nutrition', garminPath: '/calories/{date}', ranges: ['1d', '7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_user_summary', date, 'summary'), r('get_calories_daily', start, end, 'daily')] },
 
-  'hrv-status': { title: 'HRV Status', group: 'Performance Stats', garminPath: '/hrv-status/{date}', ranges: ['7d', '4w', '1y'], calls: ({ date, start, end }) => [d('get_hrv_data', date, 'Last night'), r('get_hrv_data_range', start, end, 'HRV by day')] },
-  'race-predictor': { title: 'Race Predictor', group: 'Performance Stats', garminPath: '/race-predictions', calls: () => [n('get_race_predictions', {}, 'Race predictions')] },
-  'vo2-max': { title: 'VO2 Max', group: 'Performance Stats', garminPath: '/vo2-max', ranges: ['4w', '1y'], calls: ({ start, end }) => [r('get_max_metrics_range', start, end, 'VO2 max by day')] },
-  'training-effect': { title: 'Training Effect', group: 'Performance Stats', garminPath: '/training-status', ranges: ['4w', '1y'], calls: ({ date, start, end }) => [d('get_training_status', date, 'Training status'), d('get_training_readiness', date, 'Training readiness'), rd('get_endurance_score', start, end, 'Endurance score'), rd('get_hill_score', start, end, 'Hill score')] },
+  'hrv-status': { title: 'HRV Status', group: 'Performance Stats', garminPath: '/hrv-status', ranges: ['1d', '7d', '4w'], calls: ({ date, start, end }) => [d('get_hrv_data', date, 'hrv'), r('get_hrv_data_range', start, end, 'range')] },
+  'race-predictor': { title: 'Race Predictor', group: 'Performance Stats', garminPath: '/report/-29/running/current', calls: () => [n('get_race_predictions', {}, 'race')] },
+  'vo2-max': { title: 'VO2 Max', group: 'Performance Stats', garminPath: '/report/21/all/current', calls: ({ date }) => [r('get_max_metrics_range', shiftISO(date, -364), date, 'range')] },
+  'training-effect': { title: 'Training Effect', group: 'Performance Stats', garminPath: '/report/62/running/last_seven_days', calls: ({ date }) => [d('get_training_status', date, 'status'), d('get_training_readiness', date, 'readiness')] },
 
-  workouts: { title: 'Workouts', group: 'Training & Planning', garminPath: '/workouts', calls: () => [n('get_workouts', { start: 0, limit: 50 }, 'Workouts'), n('get_next_scheduled_workout', {}, 'Next scheduled workout')] },
-  'coach-plans': { title: 'Garmin Coach Plans', group: 'Training & Planning', garminPath: '/training-plans', calls: () => [n('get_training_plans', {}, 'Training plans')] },
-  'races-events': { title: 'Races & Events', group: 'Training & Planning', garminPath: '/events' },
-  courses: { title: 'Courses', group: 'Training & Planning', garminPath: '/courses' },
-  pacepro: { title: 'PacePro Pacing Strategies', group: 'Training & Planning', garminPath: '/pacepro' },
-  segments: { title: 'Segments', group: 'Training & Planning', garminPath: '/segments' },
-  'garmin-trails': { title: 'Garmin Trails', group: 'Training & Planning', garminPath: '/trails' },
-  'popularity-heatmap': { title: 'Popularity Heatmap', group: 'Training & Planning', garminPath: '/heatmap' },
+  workouts: { title: 'Workouts', group: 'Training & Planning', garminPath: '/workouts', calls: () => [n('get_workouts', { start: 0, limit: 50 }, 'list'), n('get_next_scheduled_workout', {}, 'next')] },
+  'coach-plans': { title: 'Garmin Coach Plans', group: 'Training & Planning', garminPath: '/training-plan', calls: () => [n('get_training_plans', {}, 'plans')] },
+  'races-events': { title: 'Races & Events', group: 'Training & Planning', garminPath: '/event-dashboard', calls: () => [] },
+  courses: { title: 'Courses', group: 'Training & Planning', garminPath: '/courses', calls: () => [n('get_last_activity', {}, 'last')] },
+  pacepro: { title: 'PacePro Pacing Strategies', group: 'Training & Planning', garminPath: '/pacepro', calls: () => [] },
+  segments: { title: 'Segments', group: 'Training & Planning', garminPath: '/segments', calls: () => [n('get_last_activity', {}, 'last')] },
+  'garmin-trails': { title: 'Garmin Trails', group: 'Training & Planning', garminPath: '/trails', calls: () => [n('get_last_activity', {}, 'last')] },
+  'popularity-heatmap': { title: 'Popularity Heatmap', group: 'Training & Planning', garminPath: '/popularity-heatmap', calls: () => [n('get_last_activity', {}, 'last')] },
 
-  gear: { title: 'Gear', group: 'Gear', garminPath: '/gear', prelude: ['get_user_profile'], calls: ({ profileId }) => (profileId ? [n('get_gear', { userProfileNumber: String(profileId) }, 'Gear'), n('get_gear_defaults', { userProfileNumber: String(profileId) }, 'Default gear')] : []) },
-  insights: { title: 'Insights', group: 'Insights', garminPath: '/insights' },
-  reports: { title: 'Reports', group: 'Reports', garminPath: '/report', ranges: ['4w', '1y'], calls: ({ start, end, range }) => [rd('get_progress_summary_between_dates', start, end, 'Progress summary'), n('get_weekly_steps', { end, weeks: range === '1y' ? 52 : 4 }, 'Weekly steps'), n('get_weekly_stress', { end, weeks: range === '1y' ? 52 : 4 }, 'Weekly stress'), r('get_weekly_intensity_minutes', start, end, 'Weekly intensity minutes')] },
+  gear: { title: 'Gear', group: 'Gear', garminPath: '/gear', prelude: ['get_user_profile'], calls: ({ profileId }) => (profileId ? [n('get_gear', { userProfileNumber: String(profileId) }, 'gear'), n('get_gear_defaults', { userProfileNumber: String(profileId) }, 'defaults')] : []) },
+  insights: { title: 'Insights', group: 'Insights', garminPath: '/insights', calls: () => [] },
+  reports: { title: 'Reports', group: 'Reports', garminPath: '/report', calls: ({ date }) => [rd('get_progress_summary_between_dates', shiftISO(date, -6), date, 'progress')] },
 
-  friends: { title: 'Friends', group: 'Social', garminPath: '/connections' },
-  groups: { title: 'Groups', group: 'Social', garminPath: '/groups' },
+  friends: { title: 'Friends', group: 'Social', garminPath: '/friends', calls: ({ date }) => [n('get_user_profile', {}, 'profile'), r('get_daily_steps', shiftISO(date, -13), shiftISO(date, 6), 'week')] },
+  groups: { title: 'Groups', group: 'Social', garminPath: '/groups', calls: () => [] },
 
-  badges: { title: 'Badges', group: 'Achievements', garminPath: '/badges', calls: () => [n('get_earned_badges', {}, 'Earned'), n('get_in_progress_badges', {}, 'In progress'), n('get_available_badges', {}, 'Available')] },
-  'personal-records': { title: 'Personal Records', group: 'Achievements', garminPath: '/personal-record', calls: () => [n('get_personal_record', {}, 'Personal records')] },
-  goals: { title: 'Goals', group: 'Achievements', garminPath: '/goals', calls: () => [n('get_goals', { status: 'active' }, 'Active'), n('get_goals', { status: 'future' }, 'Upcoming'), n('get_goals', { status: 'past' }, 'Past')] },
+  badges: { title: 'Badges', group: 'Achievements', garminPath: '/badges', calls: () => [n('get_user_profile', {}, 'profile'), n('get_earned_badges', {}, 'earned'), n('get_available_badges', {}, 'available')] },
+  'personal-records': { title: 'Personal Records', group: 'Achievements', garminPath: '/personal-records', calls: () => [n('get_personal_record', {}, 'prs')] },
+  goals: { title: 'Goals', group: 'Achievements', garminPath: '/goals', calls: () => [n('get_goals', { status: 'active' }, 'active'), n('get_goals', { status: 'future' }, 'future'), n('get_goals', { status: 'past' }, 'past')] },
 
   'tracking-accuracy': { title: 'Activity Tracking Accuracy', group: 'Info', garminPath: '/activity-tracking-accuracy' },
 };

@@ -28,7 +28,8 @@ export function MetricFrame({ title, info = true, slug, dateISO, range, setRange
 
 // "Daily Timeline" block: an area sparkline of a [[ts, v]] series or Garmin's empty text.
 export function DailyTimeline({ payload, arrayKey, color = G.blue, unit = '', bars = false, min, max, legend = null, title = 'Daily Timeline' }) {
-  const pts = series(payload && payload[arrayKey]).filter((p) => p[1] >= 0);
+  const raw = series(payload && payload[arrayKey]).filter((p) => p[1] >= 0);
+  const pts = raw.some((p) => p[1] > 0) ? raw : [];
   return (
     <div>
       <SectionHeading style={{ marginBottom: 12 }}>{title}</SectionHeading>
