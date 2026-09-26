@@ -281,13 +281,15 @@ export default function WorkoutView() {
         </div>
         <MiniCalendar dateISO={date} section="workout" marks={workoutDays} />
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap', marginTop: 16 }}>
-        <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" />
-        <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
-        <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
-        <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
-        <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
-        <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap', marginTop: 128 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap' }}>
+          <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" />
+          <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
+          <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
+          <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
+          <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
+          <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
+        </div>
         {rangeControls}
       </div>
       <div style={{ paddingTop: 16 }}>
