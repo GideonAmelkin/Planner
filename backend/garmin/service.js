@@ -5,13 +5,13 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { run, get } = require('./db');
-const { localISO } = require('./lib/dates');
-const registry = require('./garmin/registry.json');
+const { run, get } = require('../db');
+const { localISO } = require('../lib/dates');
+const registry = require('./registry.json');
 
-const GARMIN_DIR = path.join(__dirname, 'garmin');
+const GARMIN_DIR = __dirname;
 const PYTHON = process.env.GARMIN_PYTHON || path.join(GARMIN_DIR, '.venv', 'bin', 'python');
-const STATE_DIR = process.env.GARMIN_STATE_DIR || path.join(__dirname, 'garmin-state');
+const STATE_DIR = process.env.GARMIN_STATE_DIR || path.join(__dirname, '..', 'garmin-state');
 const TOKEN_FILE = path.join(STATE_DIR, 'garmin_tokens.json');
 
 const CALL_TIMEOUT_MS = 120 * 1000;

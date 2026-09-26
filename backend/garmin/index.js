@@ -1,7 +1,7 @@
 // Garmin Connect: sign-in, the Health page bundle, and one route per registry
 // endpoint (GET for reads, POST for writes). Static paths come before /:name.
 const { Router } = require('express');
-const garmin = require('../garminService');
+const garmin = require('./service');
 const { asyncHandler, isDate } = require('../lib/http');
 
 const router = Router();

@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const agenda = require('./agenda');
-const { startWarmCache } = require('./garminService');
+const { startWarmCache } = require('./garmin/service');
 
 const PORT = process.env.PORT || 5002;
 const JSON_LIMIT = '2mb';
@@ -15,9 +15,8 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // One router per tab. Every route file declares its own /api/... paths so they stay greppable.
 app.use('/api', agenda);
-for (const name of ['garmin', 'workout']) {
-  app.use('/api', require(`./routes/${name}`));
-}
+app.use('/api', require('./garmin'));
+app.use('/api', require('./routes/workout'));
 
 // Anything thrown inside an asyncHandler lands here.
 app.use((err, req, res, _next) => {

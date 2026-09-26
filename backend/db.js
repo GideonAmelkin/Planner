@@ -169,10 +169,7 @@ db.serialize(() => {
   )`);
   db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_quote_text ON quotes(text)`);
 
-  // Records that a day's incomplete items were pulled forward, so the nightly
-  // auto-rollover skips days already handled (manually or by a prior auto run).
-  // `date` is the SOURCE day (its leftovers moved to date + 1).
-  // Garmin Connect read results, keyed by endpoint name + sorted kwargs JSON.
+  // Garmin Connect read results (garmin/service.js), keyed by endpoint name + sorted kwargs JSON.
   db.run(`CREATE TABLE IF NOT EXISTS garmin_cache (
     name TEXT NOT NULL,
     params TEXT NOT NULL,
@@ -181,6 +178,9 @@ db.serialize(() => {
     PRIMARY KEY (name, params)
   )`);
 
+  // Records that a day's incomplete items were pulled forward, so the nightly
+  // auto-rollover skips days already handled (manually or by a prior auto run).
+  // `date` is the SOURCE day (its leftovers moved to date + 1).
   db.run(`CREATE TABLE IF NOT EXISTS pull_forward_runs (
     date TEXT PRIMARY KEY,
     trigger TEXT,
