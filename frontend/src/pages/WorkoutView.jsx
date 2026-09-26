@@ -326,7 +326,7 @@ export default function WorkoutView() {
           <div style={tileGrid(140)}>
             <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
             <WorkoutTile label="Active time" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
-            <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} sub="consecutive days" />
+            <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
             <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
           </div>
           <div style={{ paddingTop: 16 }}>
