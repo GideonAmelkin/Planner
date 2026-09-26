@@ -5,7 +5,7 @@ import AgendaRail from '../components/AgendaRail';
 import MiniCalendar from '../components/MiniCalendar';
 import WorkoutCard from '../components/workout/WorkoutCard';
 import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
-import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../services/api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
@@ -45,8 +45,9 @@ const repsText = (sets) => {
   return reps.every((r) => r === reps[0]) ? String(reps[0]) : reps.join(', ');
 };
 
-// The app bundle has no per-exercise URLs, so link to a video search for named exercises.
-const videoUrl = (e) => (/^\d+$/.test(e.name || '') || !e.name ? null : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${e.name.replace(/ · /g, ' ')} exercise form`)}`);
+// Media the Mac shipped from the app's own cache (see tools/homeworkouts/sync.py).
+const mediaUrl = (kind, id) => `${API_BASE}/workout/media/${kind}/${id}`;
+const isNarrowGrid = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
 
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
 
@@ -153,6 +154,7 @@ export default function WorkoutView() {
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
   const [openTemplate, setOpenTemplate] = useState(null);
+  const [playingExercise, setPlayingExercise] = useState(null);
   const [logOpen, setLogOpen] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -363,59 +365,81 @@ export default function WorkoutView() {
         </WorkoutCard>
 
       <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
-        {templatesList.length ? (() => {
-          const selected = templatesList.find((t) => t.id === openTemplate) || templatesList[0];
-          return (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 16, alignItems: 'start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320 }}>
-                {templatesList.map((t) => {
-                  const [a, b] = titleLines(t.name);
-                  const open = selected.id === t.id;
-                  const strong = /StrongLifts/.test(t.name);
-                  return (
-                    <div
-                      key={t.id}
-                      onClick={() => setOpenTemplate(t.id)}
-                      title={t.name}
-                      style={{
-                        position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                        background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
-                        outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
-                      }}
-                    >
-                      <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
-                        {a}<br />{b}
-                        {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
-                      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+          {templatesList.map((t) => {
+            const [a, b] = titleLines(t.name);
+            const open = openTemplate === t.id;
+            const strong = /StrongLifts/.test(t.name);
+            const media = (catalog && catalog.media) || { videos: [], thumbs: [] };
+            const numCell = { ...tdNum, textAlign: 'right', padding: '8px 12px 8px 0' };
+            const numHead = { ...th, textAlign: 'right', padding: '4px 12px 8px 0' };
+            return (
+              <React.Fragment key={t.id}>
+                <div
+                  onClick={() => { setOpenTemplate(open ? null : t.id); setPlayingExercise(null); }}
+                  title={t.name}
+                  style={{
+                    position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                    background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
+                    outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
+                    gridColumn: open ? 1 : 'auto', alignSelf: 'start',
+                  }}
+                >
+                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+                    {a}<br />{b}
+                    {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
+                  </div>
+                </div>
+                {open ? (
+                  <div style={{ gridColumn: isNarrowGrid() ? '1 / -1' : '2 / -1', background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0 }}>
+                    <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{t.name}</div>
+                    <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
+                      <span style={pill}>{t.exercises.length} exercises</span>
+                      <span style={pill}>{maxSets(t)} sets</span>
                     </div>
-                  );
-                })}
-              </div>
-              <div style={{ background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0, gridColumn: 'span 2' }}>
-                <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{selected.name}</div>
-                <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
-                  <span style={pill}>{selected.exercises.length} exercises</span>
-                  <span style={pill}>{maxSets(selected)} sets</span>
-                </div>
-                <div style={tableWrap}>
-                  <table style={table}>
-                    <thead><tr style={headRow}><th style={th}>Exercise</th><th style={{ ...th, textAlign: 'right' }}>Sets</th><th style={{ ...th, textAlign: 'right' }}>Reps</th><th style={{ ...th, textAlign: 'right' }}>Video</th></tr></thead>
-                    <tbody>
-                      {selected.exercises.map((e) => (
-                        <tr key={`${e.action_id}-${e.order}`}>
-                          <td style={td}>{exerciseName(e)}</td>
-                          <td style={tdNum}>{(e.sets || []).length || '-'}</td>
-                          <td style={tdNum}>{repsText(e.sets)}</td>
-                          <td style={tdNum}>{videoUrl(e) ? <a href={videoUrl(e)} target="_blank" rel="noreferrer" style={tableLink}>Video ↗</a> : '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          );
-        })() : null}
+                    <div style={tableWrap}>
+                      <table style={{ ...table, tableLayout: 'fixed' }}>
+                        <colgroup><col /><col style={{ width: 64 }} /><col style={{ width: 90 }} /><col style={{ width: 130 }} /></colgroup>
+                        <thead><tr style={headRow}><th style={th}>Exercise</th><th style={numHead}>Sets</th><th style={numHead}>Reps</th><th style={numHead}>Video</th></tr></thead>
+                        <tbody>
+                          {t.exercises.map((e) => {
+                            const hasVideo = media.videos.includes(String(e.action_id));
+                            const hasThumb = media.thumbs.includes(String(e.action_id));
+                            const playing = playingExercise === `${t.id}:${e.action_id}:${e.order}`;
+                            return (
+                              <React.Fragment key={`${e.action_id}-${e.order}`}>
+                                <tr>
+                                  <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {hasThumb ? <img src={mediaUrl('thumb', e.action_id)} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', verticalAlign: 'middle', marginRight: 10, background: COLORS.page }} /> : null}
+                                    {exerciseName(e)}
+                                  </td>
+                                  <td style={numCell}>{(e.sets || []).length || '-'}</td>
+                                  <td style={numCell}>{repsText(e.sets)}</td>
+                                  <td style={numCell}>
+                                    {hasVideo ? (
+                                      <button type="button" onClick={() => setPlayingExercise(playing ? null : `${t.id}:${e.action_id}:${e.order}`)} style={{ ...tableLink, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>{playing ? 'Hide' : 'Play ▶'}</button>
+                                    ) : (
+                                      <span style={{ color: COLORS.faint, fontSize: 11 }} title="Start this workout once in Home Workouts on the Mac; the app saves the clip and the next sync picks it up.">Not downloaded yet</span>
+                                    )}
+                                  </td>
+                                </tr>
+                                {playing ? (
+                                  <tr><td colSpan={4} style={{ padding: '4px 0 12px' }}>
+                                    <video controls autoPlay preload="metadata" src={mediaUrl('video', e.action_id)} style={{ width: '100%', maxWidth: 480, borderRadius: 10, background: '#000', display: 'block' }} />
+                                  </td></tr>
+                                ) : null}
+                              </React.Fragment>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </WorkoutCard>
       </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
