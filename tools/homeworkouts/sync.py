@@ -7,7 +7,9 @@ by hand:  python3 tools/homeworkouts/sync.py
 
 Besides the JSON it ships the app's own exercise clips and thumbnails (the app
 downloads a clip the first time an exercise is started, into its cache, named by
-action id) to backend/workout-state/media/{videos,thumbs}/ on the server.
+action id) to backend/workout-state/media/{videos,thumbs}/ on the server, and
+fetches the clips the app has not cached yet straight from its CDN (fetch_media.py),
+a capped batch per run so launchd catches up over a few runs.
 
 The transport is rsync over the existing SSH key. There is no push endpoint on
 the server (its API has no auth), so the server only ever reads a file. This is
@@ -16,6 +18,7 @@ the one binary that needs Full Disk Access to read the app container and this
 repo under ~/Documents (both are guarded for background processes).
 """
 import glob
+import json
 import os
 import shutil
 import subprocess
@@ -24,6 +27,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import export  # noqa: E402
+import fetch_media  # noqa: E402
 
 HOST = 'gamelkin@70.42.223.139'
 REMOTE_DIR = '/home/gamelkin/apps/planner/backend/workout-state'
@@ -36,6 +40,7 @@ LOG = os.path.join(STATE_DIR, 'sync.log')
 MEDIA_STAGE = os.path.join(STATE_DIR, 'media')
 CLIPS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'cacheImv', 'mg', 'tl')
 THUMBS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'Caches', 'Images')
+FETCH_CAP = 80   # CDN downloads per run; the 6-hourly launchd runs finish the rest
 
 
 def stage_media():
@@ -71,6 +76,20 @@ def stage_media():
     return n_clips, n_thumbs
 
 
+def snapshot_action_ids(path):
+    """Every exercise id the snapshot references: templates, sessions and plan days."""
+    with open(path) as f:
+        snap = json.load(f)
+    ids = set()
+    for t in snap.get('templates') or []:
+        ids.update(str(e.get('action_id')) for e in t.get('exercises') or [])
+    for s in snap.get('sessions') or []:
+        ids.update(str(e.get('action_id')) for e in s.get('exercises') or [])
+    for d in (snap.get('plan') or {}).get('days') or []:
+        ids.update(str(e.get('action_id')) for e in d.get('exercises') or [])
+    return {i for i in ids if i.isdigit()}
+
+
 def main():
     os.makedirs(STATE_DIR, exist_ok=True)
     log = open(LOG, 'a')
@@ -89,6 +108,12 @@ def main():
         print('== %s media staged: %d new clip(s), %d new thumbnail(s)' % (stamp(), new_clips, new_thumbs))
     except OSError as e:
         print('== %s media staging skipped: %s' % (stamp(), e))
+    try:
+        ids = snapshot_action_ids(SNAPSHOT)
+        fetched, had, failed = fetch_media.fetch_missing(ids, os.path.join(MEDIA_STAGE, 'videos'), limit=FETCH_CAP, log=lambda m: print('   ' + m))
+        print('== %s clips fetched from the CDN: %d new, %d already present, %d failed' % (stamp(), fetched, had, failed))
+    except Exception as e:  # never let the clip fetch block the snapshot shipping
+        print('== %s clip fetch skipped: %s' % (stamp(), e))
     try:
         subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', HOST, "mkdir -p '%s/media'" % REMOTE_DIR], check=True, timeout=60)
         subprocess.run(['rsync', '-a', '--timeout=60', SNAPSHOT, '%s:%s/home_workouts.json' % (HOST, REMOTE_DIR)], check=True, timeout=120)
