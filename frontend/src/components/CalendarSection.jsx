@@ -39,7 +39,7 @@ export default function CalendarSection({ year, month }) {
                 return (
                   <Link
                     key={ci}
-                    to={`/day/${iso}`}
+                    to={`/agenda/${iso}`}
                     style={{
                       borderTop: ri === 0 ? 'none' : `1px solid ${COLORS.hairline}`,
                       borderLeft: ci === 0 ? 'none' : `1px solid ${COLORS.hairline}`,

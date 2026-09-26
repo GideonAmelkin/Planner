@@ -97,7 +97,7 @@ export default function DailyView() {
   if (error) {
     return (
       <div>
-        <TopNav dateISO={date} />
+        <TopNav dateISO={date} section="agenda" />
         <div style={{ padding: 32, color: COLORS.danger }}>Error: {error}</div>
       </div>
     );
@@ -106,7 +106,7 @@ export default function DailyView() {
   if (!data) {
     return (
       <div>
-        <TopNav dateISO={date} />
+        <TopNav dateISO={date} section="agenda" />
         <div style={{ padding: 32, color: COLORS.muted }}>Loading…</div>
       </div>
     );
@@ -122,7 +122,7 @@ export default function DailyView() {
 
   return (
     <div>
-      <TopNav dateISO={date} />
+      <TopNav dateISO={date} section="agenda" />
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',

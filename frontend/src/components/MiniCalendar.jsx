@@ -55,7 +55,7 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
             {row.map((c, ci) => (
               <td key={ci} style={{ padding: 0, textAlign: 'center' }}>
                 <Link
-                  to={`/day/${c.iso}`}
+                  to={`/agenda/${c.iso}`}
                   style={{ ...cellStyle(c), textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
                 >
                   {c.day}
