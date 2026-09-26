@@ -91,6 +91,8 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
   const navigate = useNavigate();
   const narrow = useNarrow();
   const [drawer, setDrawer] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('garminNavCollapsed') === '1'; } catch (_) { return false; } });
+  const toggleCollapsed = () => setCollapsed((c) => { try { localStorage.setItem('garminNavCollapsed', c ? '0' : '1'); } catch (_) { /* ignore */ } return !c; });
   const [showRecap, setShowRecap] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -138,16 +140,21 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
           ) : null}
         </>
       ) : (
-        <nav style={sidebar} aria-label="Planner">
-          <Sidebar dateISO={dateISO} activeSlug={activeSlug} />
-        </nav>
+        collapsed ? null : (
+          <nav style={sidebar} aria-label="Planner">
+            <Sidebar dateISO={dateISO} activeSlug={activeSlug} />
+          </nav>
+        )
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ ...topBar, padding: narrow ? '0 16px' : topBar.padding }}>
-          <Link to={`/agenda/${dateISO}`} style={circleButton} aria-label="Back to the agenda" title="Agenda">
-            <GarminIcon name="back" color={G.muted} size={18} />
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button type="button" onClick={narrow ? () => setDrawer((d) => !d) : toggleCollapsed} style={circleButton} aria-label={collapsed ? 'Show menu' : 'Hide menu'} title={collapsed ? 'Show menu' : 'Hide menu'}>
+              <GarminIcon name="back" color={G.muted} size={18} style={{ transform: collapsed && !narrow ? 'rotate(180deg)' : 'none' }} />
+            </button>
+            {collapsed && !narrow ? <Link to={`/agenda/${dateISO}`} style={{ fontSize: 20, fontWeight: 300, color: G.text, textDecoration: 'none' }}>planner</Link> : null}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button type="button" onClick={onRefresh} disabled={loading || !connected} style={{ ...iconButton, opacity: loading || !connected ? 0.4 : 1 }} title="Sync from Garmin" aria-label="Refresh">
               <GarminIcon name="sync" color={G.muted} size={22} />
