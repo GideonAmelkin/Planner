@@ -7,7 +7,7 @@ export default function WorkoutTile({ label, value, unit = '', sub = null, size 
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted }}>{label}</div>
-      <div style={{ fontSize: size, fontWeight: 600, letterSpacing: -0.3, color: COLORS.ink, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
+      <div style={{ fontSize: size, fontWeight: 600, letterSpacing: -0.3, color: COLORS.ink, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums', marginTop: 2, whiteSpace: 'nowrap' }}>
         {shown}{shown !== '-' && unit ? <span style={{ fontSize: 12, fontWeight: 500, color: COLORS.muted, marginLeft: 3, letterSpacing: 0 }}>{unit}</span> : null}
       </div>
       {sub ? <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>{sub}</div> : null}
