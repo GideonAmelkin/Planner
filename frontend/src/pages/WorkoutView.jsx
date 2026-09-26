@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import AgendaRail from '../components/AgendaRail';
-import DateCard from '../components/DateCard';
 import WorkoutCard from '../components/workout/WorkoutCard';
 import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
 import { getWorkoutStatus, getWorkoutDay, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
+import { headlineLong, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot, sectionHeader } from '../styles';
 
@@ -135,6 +135,7 @@ function Templates({ catalog, unit }) {
 
 export default function WorkoutView() {
   const { date } = useParams();
+  const navigate = useNavigate();
   const [status, setStatus] = useState(null);
   const [day, setDay] = useState(null);
   const [recent, setRecent] = useState(null);
@@ -179,24 +180,35 @@ export default function WorkoutView() {
   const snapshotPill = !status
     ? 'Loading...'
     : (available && status.exported_at ? `Snapshot ${stamp(status.exported_at)}` : 'No snapshot');
-  const headerPills = (
-    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-      <span style={pill}>Home Workouts</span>
-      <span style={pill}>{snapshotPill}</span>
-    </div>
-  );
-  const reload = (
-    <button type="button" disabled={loading} onClick={() => load()} style={{ ...navButton, cursor: loading ? 'default' : 'pointer', color: loading ? COLORS.faint : COLORS.ink }}>
-      {loading ? 'Loading...' : 'Reload'}
-    </button>
-  );
-  const totals = (
-    <div style={{ background: COLORS.calloutBg, borderRadius: 12, padding: '16px 20px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>
-      <div style={{ ...tileGrid(110), width: '100%' }}>
-        <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
-        <WorkoutTile label="Workouts" value={awards.workout_count} sub={status && status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
-        <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
-        <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
+  const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
+
+  // The tab's own header card: date headline and day controls on the left,
+  // the snapshot pills on the right. Same design language as the Agenda's
+  // header, none of its features.
+  const header = (
+    <div style={{ ...card, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }}>
+        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1, whiteSpace: 'nowrap' }}>
+          {headlineLong(date)}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <Link to={`/workout/${shiftISO(date, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
+          <Link to={`/workout/${todayISO()}`} style={navButton}>Today</Link>
+          <Link to={`/workout/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => { if (e.target.value) navigate(`/workout/${e.target.value}`); }}
+            style={{ background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.hairline}`, padding: '4px 8px', borderRadius: 8, fontSize: 13, colorScheme: 'light' }}
+          />
+          <button type="button" disabled={loading} onClick={() => load()} style={{ ...navButton, cursor: loading ? 'default' : 'pointer', color: loading ? COLORS.faint : COLORS.ink }}>
+            {loading ? 'Loading...' : 'Reload'}
+          </button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignSelf: 'flex-start' }}>
+        <span style={pill}>Home Workouts</span>
+        <span style={pill}>{snapshotPill}</span>
       </div>
     </div>
   );
@@ -206,7 +218,7 @@ export default function WorkoutView() {
       <AgendaRail dateISO={date} section="workout" />
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <DateCard dateISO={date} section="workout" pills={headerPills} actions={reload} middle={totals} />
+          {header}
           {inner}
         </div>
       </main>
@@ -228,11 +240,20 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
+        <WorkoutCard title="Sessions" dot={COLORS.workout} span={2} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
           {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
           {day && day.plan_day ? (
             <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
           ) : null}
+        </WorkoutCard>
+
+        <WorkoutCard title="Totals" dot={COLORS.accent}>
+          <div style={tileGrid(100)}>
+            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
+            <WorkoutTile label="Workouts" value={awards.workout_count} sub={status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
+            <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
+            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
+          </div>
         </WorkoutCard>
 
         <WorkoutCard title="Body Weight" dot={SECTION_DOTS.ongoing} empty={!latestWeight && !profile.current_weight_kg}>

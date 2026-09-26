@@ -31,8 +31,8 @@ Three tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** a
 `/health/:date` and **Workout App** at `/workout/:date` (`/`, `/day/:date` and anything else
 redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
 The Agenda and Workout App tabs share a fixed 240px left rail (`AgendaRail`: wordmark, the
-three tab links, Recap / Settings at the bottom) and the same header card; the Garmin tab has
-its own connect.garmin.com frame.
+three tab links, Recap / Settings at the bottom) and the card look; each has its own header
+card. The Garmin tab has its own connect.garmin.com frame.
 
 The Agenda is white cards on a warm grey canvas, in three parts referred to by these names:
 
