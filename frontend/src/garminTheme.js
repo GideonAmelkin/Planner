@@ -296,3 +296,44 @@ export const summaryHeader = {
 };
 export const contentArea = { background: G.page, padding: 30, minHeight: 'calc(100vh - 60px)' };
 export const column = { maxWidth: COLUMN_W, display: 'flex', flexDirection: 'column', gap: 16 };
+
+// Sub-page primitives (measured on connect.garmin.com/app/sleep) --------------------
+export const container = {
+  background: G.surface,
+  maxWidth: 1280,
+  margin: '0 auto',
+  padding: 'clamp(16px, 4vw, 56px)',
+  minWidth: 0,
+};
+export const title44 = { fontSize: 'clamp(30px, 4vw, 44px)', fontWeight: 300, lineHeight: 1.3, color: G.text, display: 'inline-flex', alignItems: 'center', gap: 8 };
+export const title22 = { fontSize: 22, fontWeight: 300, lineHeight: 1.3, color: G.text, display: 'inline-flex', alignItems: 'center', gap: 8 };
+export const infoDot = { width: 12, height: 12, borderRadius: '50%', background: G.blue, color: 'white', fontSize: 9, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 };
+export const sectionHeading = { fontSize: 18, fontWeight: 300, color: G.text, margin: '0 0 12px' };
+export const segmentTrack = { display: 'inline-flex', background: G.border, borderRadius: 4, padding: 4, gap: 0 };
+export const segment = (active) => ({
+  padding: '0 18px', height: 22, lineHeight: '22px', fontSize: 14, fontWeight: active ? 700 : 400,
+  color: G.text, background: active ? 'white' : 'transparent', border: 'none', borderRadius: 4,
+  cursor: 'pointer', fontFamily: G.font, whiteSpace: 'nowrap',
+});
+export const datePill = { display: 'inline-flex', alignItems: 'center', gap: 6, background: G.border, borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 600, color: G.text, position: 'relative', cursor: 'pointer' };
+export const roundNav = { ...circleButton, width: 30, height: 30, fontSize: 18, color: G.text };
+export const tabRow = { display: 'flex', borderBottom: `1px solid ${G.faint}`, gap: 0 };
+export const tab = (active) => ({
+  padding: '8px 16px', fontSize: 14, fontWeight: 400, color: active ? G.text : G.muted,
+  borderBottom: `1.5px solid ${active ? 'black' : 'transparent'}`, marginBottom: -1, background: 'transparent',
+  border: 'none', borderBottomWidth: 1.5, borderBottomStyle: 'solid', borderBottomColor: active ? 'black' : 'transparent',
+  cursor: 'pointer', fontFamily: G.font, whiteSpace: 'nowrap', textDecoration: 'none',
+});
+export const emptyWrap = { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '40px 16px' };
+export const emptyCircle = { width: 64, height: 64, borderRadius: '50%', background: G.border, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 };
+export const emptyTitle = { fontSize: 26, fontWeight: 300, color: G.text, marginBottom: 6 };
+export const emptySub = { fontSize: 12, color: G.text, maxWidth: 360, lineHeight: 1.6 };
+export const blueButton = { background: G.blue, color: 'white', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: G.font, textDecoration: 'none', display: 'inline-block', lineHeight: '20px' };
+export const grayButton = { ...blueButton, background: G.border, color: G.text };
+export const outlinedButton = { ...blueButton, background: 'white', color: G.text, border: `1px solid ${G.faint}`, padding: '7px 15px' };
+export const linkText = { color: G.blue, fontSize: 12, textDecoration: 'none', cursor: 'pointer', background: 'transparent', border: 'none', fontFamily: G.font, padding: 0 };
+export const statPairValue = { fontSize: 22, fontWeight: 300, color: G.text, lineHeight: 1.2, fontVariantNumeric: 'tabular-nums' };
+export const statPairLabel = { fontSize: 12, color: G.muted, marginTop: 2 };
+export const noticeStrip = { background: G.surface2, border: `1px solid ${G.border}`, borderRadius: 4, padding: '8px 12px', fontSize: 12, color: G.text, display: 'flex', alignItems: 'center', gap: 8 };
+export const yellowBanner = { background: '#fff8e1', border: '1px solid #f3e2a8', padding: '10px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 };
+export const kebab = { ...iconButton, fontSize: 18, color: G.muted, padding: '0 6px', lineHeight: 1 };
