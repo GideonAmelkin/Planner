@@ -3,12 +3,12 @@ import GarminIcon from './GarminIcon';
 import { G, card, cardHeader, cardTitle, cardBody, cardFooter, footerLink } from '../../garminTheme';
 
 // A connect.garmin.com daily-summary card: icon + tracked uppercase title, a body,
-// and a footer link. `details` (a node) is collapsed behind "VIEW DETAILS"; `href`
-// makes the footer an external "VIEW ON GARMIN" link instead.
-export default function GarminCard({ icon, title, aside = null, children, details = null, href = null, detailsLabel = 'View details', style }) {
+// and a VIEW DETAILS footer. With `details` (a node) the footer toggles it inline
+// (chevron down); otherwise it links out to `href` (chevron right), like Garmin.
+export default function GarminCard({ id, icon, title, aside = null, children, details = null, href = null, detailsLabel = 'View details', style }) {
   const [open, setOpen] = useState(false);
   return (
-    <section style={{ ...card, ...style }}>
+    <section id={id} style={{ ...card, scrollMarginTop: 70, ...style }}>
       <div style={cardHeader}>
         <div style={cardTitle}>
           {icon ? <GarminIcon name={icon} /> : null}
@@ -20,12 +20,12 @@ export default function GarminCard({ icon, title, aside = null, children, detail
       {open && details ? <div style={{ padding: '0 16px 16px' }}>{details}</div> : null}
       {details || href ? (
         <div style={cardFooter}>
-          {href ? (
-            <a href={href} target="_blank" rel="noreferrer" style={footerLink}>View on Garmin <span aria-hidden="true">›</span></a>
-          ) : (
+          {details ? (
             <button type="button" onClick={() => setOpen((o) => !o)} style={footerLink}>
               {detailsLabel} <span aria-hidden="true" style={{ fontSize: 12 }}>{open ? '⌃' : '⌄'}</span>
             </button>
+          ) : (
+            <a href={href} target="_blank" rel="noreferrer" style={footerLink}>{detailsLabel} <span aria-hidden="true">›</span></a>
           )}
         </div>
       ) : null}

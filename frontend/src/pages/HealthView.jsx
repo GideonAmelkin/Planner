@@ -130,38 +130,38 @@ export default function HealthView() {
   }
 
   const offset = localOffset(hr.startTimestampGMT ? hr : stress.startTimestampGMT ? stress : summary);
+  const garminHref = `https://connect.garmin.com/modern/daily-summary/${date}`;
 
   return shell(
     <>
       <div style={column}>
-        {activities.length ? activities.map((a) => <ActivityCard key={a.activityId} activity={a} />) : (
-          notice('No activities recorded', 'Activities recorded on this day show here as green cards.')
-        )}
+        <div id="activities" style={column}>
+          {activities.length ? activities.map((a) => <ActivityCard key={a.activityId} activity={a} />) : (
+            notice('No activities recorded', 'Activities recorded on this day show here as green cards.')
+          )}
+        </div>
 
-        <GarminCard icon="heart" title="Heart Rate" details={hrPts.length ? detailsBlock('Heart rate through the day', <Sparkline points={hrPts} offset={offset} unit=" bpm" color={G.metric.heart} />) : null}>
+        <GarminCard id="heart-rate" icon="heart" title="Heart Rate" href={garminHref} details={hrPts.length ? detailsBlock('Heart rate through the day', <Sparkline points={hrPts} offset={offset} unit=" bpm" color={G.metric.heart} />) : null}>
           <HeadlineRow
-            headline={<Headline value={num(hr.restingHeartRate || summary.restingHeartRate)} unit="bpm" caption="Resting" />}
+            headline={<Headline value={num(orNull(hr.lastSevenDaysAvgRestingHeartRate || summary.lastSevenDaysAvgRestingHeartRate))} unit="bpm" caption="Avg Resting" />}
             stats={<>
-              <Stat label="7-day Avg" value={num(orNull(hr.lastSevenDaysAvgRestingHeartRate))} unit="bpm" />
+              <Stat label="Resting" value={num(orNull(hr.restingHeartRate || summary.restingHeartRate))} unit="bpm" />
               <Stat label="High" value={num(orNull(hr.maxHeartRate || summary.maxHeartRate))} unit="bpm" />
-              <Stat label="Low" value={num(orNull(hr.minHeartRate || summary.minHeartRate))} unit="bpm" />
             </>}
           />
         </GarminCard>
 
-        <GarminCard icon="battery" title="Body Battery" details={bbPts.length ? detailsBlock('Body Battery through the day', <Sparkline points={bbPts} offset={localOffset(bb)} min={0} max={100} color={G.metric.battery} />) : null}>
+        <GarminCard id="body-battery" icon="battery" title="Body Battery" href={garminHref} details={bbPts.length ? detailsBlock('Body Battery through the day', <Sparkline points={bbPts} offset={localOffset(bb)} min={0} max={100} color={G.metric.battery} />) : null}>
           <HeadlineRow
             headline={<Headline value={orNull(summary.bodyBatteryMostRecentValue)} caption="/100" />}
             stats={<>
               <Stat label="Charged" value={bb.charged !== undefined ? `+${bb.charged}` : orNull(summary.bodyBatteryChargedValue)} />
               <Stat label="Drained" value={bb.drained !== undefined ? `-${bb.drained}` : orNull(summary.bodyBatteryDrainedValue)} />
-              <Stat label="High" value={orNull(summary.bodyBatteryHighestValue)} />
-              <Stat label="Low" value={orNull(summary.bodyBatteryLowestValue)} />
             </>}
           />
         </GarminCard>
 
-        <GarminCard icon="stress" title="Stress" details={stressPts.length ? detailsBlock('Stress through the day', <Sparkline points={stressPts} offset={localOffset(stress)} min={0} max={100} color={G.metric.stress} />) : null}>
+        <GarminCard id="stress" icon="stress" href={garminHref} title="Stress" details={stressPts.length ? detailsBlock('Stress through the day', <Sparkline points={stressPts} offset={localOffset(stress)} min={0} max={100} color={G.metric.stress} />) : null}>
           <HeadlineRow
             headline={<Headline value={orNull(stress.avgStressLevel !== undefined ? stress.avgStressLevel : summary.averageStressLevel)} />}
             stats={<>
@@ -173,7 +173,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="intensity" title="Intensity Minutes">
+        <GarminCard id="intensity" icon="intensity" href={garminHref} title="Intensity Minutes">
           <ProgressBar value={im.weeklyTotal || 0} goal={im.weekGoal || summary.intensityMinutesGoal || 150} color={G.metric.intensityFill} style={{ marginBottom: 14 }} />
           <HeadlineRow
             headline={<Headline value={num(orNull(im.weeklyTotal))} caption="/week" />}
@@ -186,7 +186,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="steps" title="Steps" details={hasStepSeries ? detailsBlock('Steps per 15 minutes', <Sparkline points={stepPoints} bars offset={offset} min={0} color={G.metric.stepsFill} />) : null}>
+        <GarminCard id="steps" icon="steps" href={garminHref} title="Steps" details={hasStepSeries ? detailsBlock('Steps per 15 minutes', <Sparkline points={stepPoints} bars offset={offset} min={0} color={G.metric.stepsFill} />) : null}>
           <ProgressBar value={summary.totalSteps || 0} goal={summary.dailyStepGoal || 0} color={G.metric.stepsFill} style={{ marginBottom: 14 }} />
           <HeadlineRow
             headline={<Headline value={num(orNull(summary.totalSteps))} />}
@@ -198,7 +198,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="floors" title="Floors">
+        <GarminCard id="floors" icon="floors" href={garminHref} title="Floors">
           <ProgressBar value={summary.floorsAscended || 0} goal={summary.userFloorsAscendedGoal || 0} color={G.metric.floors} style={{ marginBottom: 14 }} />
           <HeadlineRow
             headline={<Headline value={summary.floorsAscended !== undefined ? num(summary.floorsAscended) : null} caption={summary.userFloorsAscendedGoal ? `/${summary.userFloorsAscendedGoal}` : null} />}
@@ -210,7 +210,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="calories" title="Calories">
+        <GarminCard id="calories" icon="calories" href={garminHref} title="Calories">
           <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
             <Headline value={num(orNull(summary.totalKilocalories))} caption="Total Calories" />
             <span style={{ fontSize: 28, fontWeight: 300, color: G.muted }}>=</span>
@@ -220,7 +220,7 @@ export default function HealthView() {
           </div>
         </GarminCard>
 
-        <GarminCard icon="sleep" title="Sleep" aside={sleepScore !== null ? `Score ${sleepScore}` : null}>
+        <GarminCard id="sleep" icon="sleep" href={garminHref} title="Sleep" aside={sleepScore !== null ? `Score ${sleepScore}` : null}>
           <div style={{ display: 'flex', height: 20, background: G.border, marginBottom: 14 }}>
             {stageTotal ? STAGES.map((s) => (sleepDto[s.key] ? (
               <div key={s.key} title={`${s.label} ${secondsToHm(sleepDto[s.key])}`} style={{ flex: sleepDto[s.key], background: s.color }} />
@@ -239,7 +239,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="spo2" title="Pulse Ox">
+        <GarminCard id="pulse-ox" icon="spo2" href={garminHref} title="Pulse Ox">
           <HeadlineRow
             headline={<Headline value={num(orNull(spo2.averageSpO2))} unit="%" caption="Avg SpO2" />}
             stats={<>
@@ -250,7 +250,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="respiration" title="Respiration">
+        <GarminCard id="respiration" icon="respiration" href={garminHref} title="Respiration">
           <HeadlineRow
             headline={<Headline value={num(orNull(resp.avgWakingRespirationValue))} unit="brpm" caption="Awake Avg" />}
             stats={<>
@@ -261,7 +261,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="hydration" title="Hydration">
+        <GarminCard id="hydration" icon="hydration" href={garminHref} title="Hydration">
           <ProgressBar value={hydration.valueInML || 0} goal={hydration.goalInML || 0} color={G.metric.hydration} style={{ marginBottom: 14 }} />
           <HeadlineRow
             headline={<Headline value={hydration.valueInML !== undefined ? num(mlToOz(hydration.valueInML)) : null} unit="oz" />}
@@ -272,7 +272,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="hrv" title="HRV Status" aside={hrvSummary && hrvSummary.status ? titleCase(hrvSummary.status) : null}>
+        <GarminCard id="hrv" icon="hrv" href={garminHref} title="HRV Status" aside={hrvSummary && hrvSummary.status ? titleCase(hrvSummary.status) : null}>
           <HeadlineRow
             headline={<Headline value={num(hrvSummary && hrvSummary.lastNightAvg)} unit="ms" caption="Last Night" />}
             stats={<>
@@ -283,7 +283,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="training" title="Training" aside={trainingPhrase}>
+        <GarminCard id="training" icon="training" href={garminHref} title="Training" aside={trainingPhrase}>
           <HeadlineRow
             headline={<Headline value={readiness ? readiness.score : null} caption={readiness && readiness.level ? titleCase(readiness.level) : 'Readiness'} />}
             stats={<>
@@ -295,7 +295,7 @@ export default function HealthView() {
           />
         </GarminCard>
 
-        <GarminCard icon="weight" title="Weight">
+        <GarminCard id="weight" icon="weight" href={garminHref} title="Weight">
           <HeadlineRow
             headline={<Headline value={weight ? num(gramsToLbs(weight.weight), 1) : null} unit="lb" />}
             stats={<>

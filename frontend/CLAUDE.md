@@ -18,10 +18,11 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | File | Role |
 |---|---|
 | `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
-| `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
+| `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards inside `GarminShell`, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
+| `components/health/GarminShell.jsx` | The connect.garmin.com frame: 268px dark sidebar (wordmark, tab links, card anchors, Recap / Settings), white 60px top bar (back circle, sync / recap / settings icons), the DAILY SUMMARY header (blue date that opens a picker, Today pill, chevrons, Synced line) and the gray content area. Collapses to a dark strip under 900px. Owns the Recap and Settings modals on that tab. |
 | `pages/WorkoutView.jsx` | The Workout App tab: loads `GET /api/workout/status`, `day/:date` and `recent`, renders Sessions (exercises and sets), Totals, Body Weight, Last 30 Days, and lazily `catalog` for the collapsed Plan and Templates section. Paper look; weights shown in the app's unit. |
 | `components/workout/WorkoutCard.jsx`, `WorkoutTile.jsx` | Paper card and label-over-number tile for the Workout App tab, plus the shared table styles (`tileGrid`, `table`, `th`, `td`). |
-| `components/TopNav.jsx` | Header bar: Agenda / Garmin / Workout App tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). `theme="garmin"` swaps in the near-black thin-type Garmin look. |
+| `components/TopNav.jsx` | Header bar: Agenda / Garmin / Workout App tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). The Garmin tab does not use it (see `GarminShell`). |
 | `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
 | `garminTheme.js` | Tokens and style objects measured from connect.garmin.com (Open Sans, `#efefef` page, white 8px cards, blue `#1265c2`, per-metric colors). Only the Garmin tab uses it. |
 | `components/health/GarminCard.jsx` | Daily-summary card: colored icon + tracked uppercase title, body, and a footer link (`details` toggles a hidden block, `href` links out). |
@@ -60,8 +61,9 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
   intentionally blocked; use the keyboard.
 - Section vocabulary in conversation: Agenda tab = Planner (the spread), Monthly Goals,
   Calendar; Garmin tab = the Garmin cards.
-- The Garmin tab mirrors connect.garmin.com's daily summary: colors, type and card styles
-  come from `garminTheme.js`, never from `COLORS` in `styles.js`. The page root carries the
-  `garmin-page` class (Open Sans). Sleep stages use Garmin's deep / light / REM / awake
+- The Garmin tab mirrors connect.garmin.com's daily summary, frame included: colors, type,
+  sidebar, top bar and card styles come from `garminTheme.js`, never from `COLORS` in
+  `styles.js`. The page root carries the `garmin-page` class (Open Sans). Cards sit in a
+  left-aligned 932px column and carry ids the sidebar anchors scroll to. Sleep stages use Garmin's deep / light / REM / awake
   colors and are always labeled; text never takes a series color.
 - No em dashes anywhere.
