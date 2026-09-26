@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
-import DailyView from './pages/DailyView';
+import AgendaView from './agenda/AgendaView';
 import HealthView from './pages/HealthView';
 import WorkoutView from './pages/WorkoutView';
 import CalendarToast from './shared/CalendarToast';
@@ -60,7 +60,7 @@ export default function App() {
       <CalendarToast />
       <Routes>
         <Route path="/" element={<TodayRedirect />} />
-        <Route path="/agenda/:date" element={<Dated section="agenda"><DailyView /></Dated>} />
+        <Route path="/agenda/:date" element={<Dated section="agenda"><AgendaView /></Dated>} />
         <Route path="/health/:date" element={<Dated section="health"><HealthView /></Dated>} />
         <Route path="/health/:date/:page" element={<Dated section="health"><HealthView /></Dated>} />
         <Route path="/health/:date/activity/:id" element={<Dated section="health"><HealthView /></Dated>} />

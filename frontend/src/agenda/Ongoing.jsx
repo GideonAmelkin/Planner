@@ -1,5 +1,5 @@
 import React from 'react';
-import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from '../shared/api';
+import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from './api';
 import NestedListSection from './NestedListSection';
 import { SECTION_DOTS } from '../shared/styles';
 

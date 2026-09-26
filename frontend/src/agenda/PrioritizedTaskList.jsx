@@ -1,5 +1,5 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
-import { createTask, updateTask, deleteTask, reorderTasks } from '../shared/api';
+import { createTask, updateTask, deleteTask, reorderTasks } from './api';
 import { sortByOrder } from '../shared/dayInfo';
 import CheckMark from '../shared/CheckMark';
 import {

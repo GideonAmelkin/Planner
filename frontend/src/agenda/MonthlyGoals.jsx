@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import {
-  getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
-} from '../shared/api';
+import { getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks } from './api';
 import CheckMark from '../shared/CheckMark';
 import { sortByOrder } from '../shared/dayInfo';
 import { COLORS, GOAL_WASH, card, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../shared/styles';

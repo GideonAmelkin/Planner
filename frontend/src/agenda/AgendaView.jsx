@@ -1,25 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
-import DateCard from '../components/DateCard';
-import TimelineSchedule from '../components/TimelineSchedule';
-import PrioritizedTaskList from '../components/PrioritizedTaskList';
-import DailyNotes from '../components/DailyNotes';
-import Ongoing from '../components/Ongoing';
-import DailyNotesText from '../components/DailyNotesText';
-import MonthlyGoals from '../components/MonthlyGoals';
-import CalendarSection from '../components/CalendarSection';
+import DateCard from './DateCard';
+import TimelineSchedule from './TimelineSchedule';
+import PrioritizedTaskList from './PrioritizedTaskList';
+import DailyNotes from './DailyNotes';
+import Ongoing from './Ongoing';
+import DailyNotesText from './DailyNotesText';
+import MonthlyGoals from './MonthlyGoals';
+import CalendarSection from './CalendarSection';
 import { COLORS, card } from '../shared/styles';
-import {
-  getDay,
-  createTask, deleteTask,
-  createNote, deleteNote,
-  createOngoing, deleteOngoing,
-} from '../shared/api';
+import { getDay } from '../shared/api';
+import { createTask, deleteTask, createNote, deleteNote, createOngoing, deleteOngoing } from './api';
 
 const SPREAD_MAX_WIDTH = 1500;
 
-export default function DailyView() {
+export default function AgendaView() {
   const { date } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);

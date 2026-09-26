@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { saveNotesText } from '../shared/api';
+import { saveNotesText } from './api';
 import { COLORS, SECTION_DOTS, sectionDot, sectionHeader } from '../shared/styles';
 
 export default function DailyNotesText({ dateISO, value, onChange }) {

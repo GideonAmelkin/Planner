@@ -1,5 +1,5 @@
 import React from 'react';
-import { createNote, updateNote, deleteNote, reorderNotes } from '../shared/api';
+import { createNote, updateNote, deleteNote, reorderNotes } from './api';
 import NestedListSection from './NestedListSection';
 import { SECTION_DOTS } from '../shared/styles';
 

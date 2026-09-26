@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createAppointment, updateAppointment, deleteAppointment } from '../shared/api';
+import { createAppointment, updateAppointment, deleteAppointment } from './api';
 import { todayISO } from '../shared/dayInfo';
 import { COLORS, SECTION_DOTS, outlineButton, sectionDot, sectionHeader } from '../shared/styles';
 
