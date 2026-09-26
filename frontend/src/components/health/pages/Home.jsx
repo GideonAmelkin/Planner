@@ -99,8 +99,8 @@ export function Leaderboard({ dateISO, results, name }) {
   );
 }
 
-export function NewsFeed({ dateISO, results }) {
-  const prof = ok(results, 'profile') || {}; const name = prof.fullName || prof.displayName || 'You';
+export function NewsFeed({ dateISO, results, profile }) {
+  const name = (profile && profile.full_name) || 'You';
   return (
     <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)' }}>
       <div style={{ ...sectionLabel, marginBottom: 16 }}>News Feed</div>

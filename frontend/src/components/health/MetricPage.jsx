@@ -54,7 +54,7 @@ export function MetricHeader({ page, slug, dateISO, range, setRange, narrow }) {
 }
 
 // One sub-page: runs the page's registry calls and shows a card per call.
-export default function MetricPage({ page, slug, dateISO, range, setRange, connected, refreshToken, activityId = null, syncedAt = null }) {
+export default function MetricPage({ page, slug, dateISO, range, setRange, connected, refreshToken, activityId = null, syncedAt = null, profile = null }) {
   const Bespoke = PAGE_COMPONENTS[slug] || null;
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
@@ -117,7 +117,7 @@ export default function MetricPage({ page, slug, dateISO, range, setRange, conne
   if (!results) return <div style={column}><section style={card}><div style={{ ...cardBody, color: G.muted, fontSize: 13 }}>Pulling {page.title.toLowerCase()} from Garmin Connect...</div></section></div>;
 
   if (Bespoke) {
-    return <Bespoke page={page} slug={slug} dateISO={dateISO} range={range} setRange={setRange} results={results} loading={loading} activityId={activityId} syncedAt={syncedAt} />;
+    return <Bespoke page={page} slug={slug} dateISO={dateISO} range={range} setRange={setRange} results={results} loading={loading} activityId={activityId} syncedAt={syncedAt} profile={profile} />;
   }
   const entries = Object.entries(results);
   return (

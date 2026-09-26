@@ -38,9 +38,9 @@ export function Insights() {
   );
 }
 
-export function Friends({ dateISO, results }) {
+export function Friends({ dateISO, results, profile }) {
   const [tabv, setTab] = useState('followers');
-  const prof = ok(results, 'profile') || {}; const name = prof.fullName || prof.displayName || 'You';
+  const name = (profile && profile.full_name) || 'You';
   return (
     <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)' }}>
       <PageTitle info={false} right={null} small style={{ marginBottom: 4 }}>Friends</PageTitle>
@@ -66,13 +66,13 @@ export function Groups() {
   );
 }
 
-export function Badges({ results }) {
+export function Badges({ results, profile }) {
   const [tabv, setTab] = useState('earned');
   const earned = ok(results, 'earned') || []; const available = ok(results, 'available') || []; const prof = ok(results, 'profile') || {};
   const points = earned.reduce((n, b) => n + (b.badgePoints || 0), 0);
   const level = Math.floor(points / 50) + 1; const toNext = 50 - (points % 50);
   const list = tabv === 'earned' ? earned : available;
-  const name = prof.fullName || prof.displayName || 'You';
+  const name = (profile && profile.full_name) || (earned[0] && earned[0].fullName) || prof.fullName || 'You';
   return (
     <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)' }}>
       <PageTitle info={false} right={null} small>Badges</PageTitle>
@@ -98,11 +98,12 @@ const PR_TYPES = {
   1: ['Run 1K', 'running', 'time'], 2: ['Run 1 mi', 'running', 'time'], 3: ['Run 5K', 'running', 'time'], 4: ['Run 10K', 'running', 'time'], 5: ['Run Half Marathon', 'running', 'time'], 6: ['Run Marathon', 'running', 'time'], 7: ['Longest Run', 'running', 'dist'],
   8: ['Ride 40K', 'cycling', 'time'], 9: ['Longest Ride', 'cycling', 'dist'], 10: ['Max Avg Power (20 min)', 'cycling', 'watts'], 11: ['Swim 100 m', 'swim', 'time'], 12: ['Most Steps in a Day', 'steps', 'steps'], 13: ['Most Steps in a Week', 'steps', 'steps'], 14: ['Most Steps in a Month', 'steps', 'steps'], 15: ['Longest Goal Streak', 'steps', 'days'], 16: ['Current Goal Streak', 'steps', 'days'],
 };
-const fmtPR = (kind, v) => (v === null || v === undefined ? '--' : kind === 'time' ? hms(v) : kind === 'dist' ? `${num(metersToMiles(v), 2)} mi` : kind === 'steps' ? num(v) : kind === 'days' ? `${num(v)} days` : kind === 'watts' ? `${num(v)} W` : num(v));
+const fmtPR = (kind, v) => (v === null || v === undefined || (kind === 'days' && !v) ? '--' : kind === 'time' ? hms(v) : kind === 'dist' ? `${num(metersToMiles(v), 2)} mi` : kind === 'steps' ? num(v) : kind === 'days' ? `${num(v)} days` : kind === 'watts' ? `${num(v)} W` : num(v));
+const fmtDate = (s) => { if (!s) return '--'; const d = new Date(String(s).replace(' ', 'T')); return Number.isNaN(d.getTime()) ? String(s).slice(0, 10) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
 export function PersonalRecords({ results }) {
   const [tabv, setTab] = useState('steps');
   const prs = ok(results, 'prs') || [];
-  const rows = prs.map((p) => { const t = PR_TYPES[p.typeId] || [`Record type ${p.typeId}`, 'other', 'raw']; return { key: p.id, category: t[0], group: t[1], record: fmtPR(t[2], p.value), date: p.prStartTimeLocalFormatted || p.actStartDateTimeInGMTFormatted || '', activity: p.activityName }; }).filter((r) => r.group === tabv);
+  const rows = prs.map((p) => { const t = PR_TYPES[p.typeId] || [`Record type ${p.typeId}`, 'other', 'raw']; return { key: p.id, category: t[0], group: t[1], record: fmtPR(t[2], p.value), date: t[2] === 'days' && !p.value ? '--' : fmtDate(p.prStartTimeLocalFormatted || p.actStartDateTimeInGMTFormatted), activity: p.activityName }; }).filter((r) => r.group === tabv);
   return (
     <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 10 }}>

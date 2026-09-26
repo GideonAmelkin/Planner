@@ -131,7 +131,7 @@ export default function HealthView() {
   if (page) {
     const effectiveRange = page.ranges ? (page.ranges.includes(range) ? range : page.ranges[0]) : '1d';
     return shell(
-      <MetricPage key={`${slug}:${activityId || ''}`} page={page} slug={slug} dateISO={date} range={effectiveRange} setRange={setRange} connected={!!connected} refreshToken={refreshToken} activityId={activityId} syncedAt={syncedAt} />
+      <MetricPage key={`${slug}:${activityId || ''}`} page={page} slug={slug} dateISO={date} range={effectiveRange} setRange={setRange} connected={!!connected} refreshToken={refreshToken} activityId={activityId} syncedAt={syncedAt} profile={status ? status.profile : null} />
     );
   }
 
