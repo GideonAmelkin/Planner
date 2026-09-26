@@ -3,13 +3,14 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { endOfMonth } from 'date-fns';
 import AgendaRail from '../shared/AgendaRail';
 import MiniCalendar from '../shared/MiniCalendar';
-import WorkoutCard from '../components/workout/WorkoutCard';
-import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
-import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../shared/api';
+import WorkoutCard from './WorkoutCard';
+import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from './WorkoutTile';
+import { API_BASE } from '../shared/api';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from './api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
-import { templateBanner, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
+import { templateBanner, titleLines, APP_BLUE, POPPINS } from './art';
 
 const RANGES = [
   { key: 'd1', label: '1 day', days: 1, sub: 'this day' },

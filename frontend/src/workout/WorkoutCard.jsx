@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS, card, pill, sectionDot, sectionHeader } from '../../shared/styles';
+import { COLORS, card, pill, sectionDot, sectionHeader } from '../shared/styles';
 
 // One card in the Workout App grid, in the Agenda's card look: dotted title,
 // optional aside as a pill. `span` lets a card take the full row.

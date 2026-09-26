@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import AgendaView from './agenda/AgendaView';
 import GarminView from './garmin/GarminView';
-import WorkoutView from './pages/WorkoutView';
+import WorkoutView from './workout/WorkoutView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 

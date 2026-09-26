@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getCalendarAccounts, disconnectCalendarAccount, getDay, getWorkoutStatus, API_BASE } from './api';
+import { getCalendarAccounts, disconnectCalendarAccount, getDay, API_BASE } from './api';
+import { getWorkoutStatus } from '../workout/api';
 import { todayISO } from './dayInfo';
 import ConnectionRow from './ConnectionRow';
 import GarminSettings from '../garmin/GarminSettings';
