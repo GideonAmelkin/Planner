@@ -20,6 +20,8 @@ const clockOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour
 const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-');
 const stamp = (iso) => (iso ? new Date(iso).toLocaleString('en-US', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : null);
 const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
+// Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
+const exerciseName = (e) => (/^\d+$/.test(e.name || '') ? `Exercise ${e.name}` : e.name);
 
 // Session volume: sum of reps x weight over finished sets (all sets when none is flagged).
 function volumeKg(session) {
@@ -87,7 +89,7 @@ function SessionBlock({ session: s, unit }) {
             <tbody>
               {s.exercises.map((e) => (
                 <tr key={`${e.action_id}-${e.order}`}>
-                  <td style={td}>{e.name}</td>
+                  <td style={td}>{exerciseName(e)}</td>
                   <td style={tdNum}>{s.kind === 'gym' ? setsText(e.sets, unit) : (e.seconds ? `${e.seconds}s` : '-')}</td>
                 </tr>
               ))}
@@ -119,7 +121,7 @@ function Templates({ catalog, unit }) {
                 <thead><tr style={headRow}><th style={th}>Exercise</th><th style={th}>Default sets (reps x {unit})</th></tr></thead>
                 <tbody>
                   {t.exercises.map((e) => (
-                    <tr key={`${e.action_id}-${e.order}`}><td style={td}>{e.name}</td><td style={tdNum}>{setsText(e.sets, unit)}</td></tr>
+                    <tr key={`${e.action_id}-${e.order}`}><td style={td}>{exerciseName(e)}</td><td style={tdNum}>{setsText(e.sets, unit)}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -291,7 +293,7 @@ export default function WorkoutView() {
                             <tr key={d.day}>
                               <td style={tdNum}>{d.day}</td>
                               <td style={td}>{d.name || '-'}</td>
-                              <td style={td}>{d.exercises.map((e) => e.name).join(', ')}</td>
+                              <td style={td}>{d.exercises.map(exerciseName).join(', ')}</td>
                               <td style={tdNum}>{d.done_at ? shortDate(d.done_at.slice(0, 10)) : '-'}</td>
                             </tr>
                           ))}
