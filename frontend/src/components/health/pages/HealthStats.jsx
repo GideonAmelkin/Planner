@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MetricFrame, DailyTimeline, DailyBars, ok, first, Center, Para, pageTo } from './common';
-import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, TabStrip, DateControls, InfoDot } from '../../garmin';
+import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, DateControls, InfoDot } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, dateTitle, pillButton, chevronButton, syncedText } from '../../../garminTheme';
 import { num, metersToMiles, gramsToLbs, secondsToHm, clock, titleCase } from '../../../utils/garminFormat';

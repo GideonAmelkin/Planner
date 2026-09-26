@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ok, first, Center, Para } from './common';
-import { PageContainer, PageTitle, TabStrip, EmptyState, StatPair, StatRow, BlueButton, LinkButton, MapView, SectionHeading } from '../../garmin';
+import { ok, first } from './common';
+import { PageContainer, PageTitle, EmptyState, StatPair, StatRow, BlueButton, MapView, SectionHeading } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import Sparkline from '../Sparkline';
 import { G, sectionLabel, linkText } from '../../../garminTheme';
@@ -19,7 +19,7 @@ const sportOf = (a) => { const k = (a.activityType && a.activityType.typeKey) ||
 export function AllActivities({ dateISO, results }) {
   const list = ok(results, 'list') || []; const count = ok(results, 'count');
   const [sport, setSport] = useState('all'); const [q, setQ] = useState('');
-  const rows = useMemo(() => list.filter((a) => (sport === 'all' || sportOf(a) === sport) && (!q || (a.activityName || '').toLowerCase().includes(q.toLowerCase()))), [list, sport, q]);
+  const rows = list.filter((a) => (sport === 'all' || sportOf(a) === sport) && (!q || (a.activityName || '').toLowerCase().includes(q.toLowerCase())));
   return (
     <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)' }}>
       <PageTitle info={false} right={<div style={{ display: 'flex', gap: 14, fontSize: 12, color: G.text }}><span>+ Manual Activity</span><span>Import</span><span>Export CSV</span></div>} style={{ marginBottom: 8 }}>Activities</PageTitle>
@@ -62,7 +62,7 @@ export function ActivityDetail({ dateISO, results }) {
   const a = ok(results, 'activity') || {}; const details = ok(results, 'details') || {}; const devices = ok(results, 'devices') || [];
   const sm = a.summaryDTO || {}; const type = (a.activityTypeDTO && a.activityTypeDTO.typeKey) || '';
   const poly = ((details.geoPolylineDTO || {}).polyline || []).map((p) => (Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lon])).filter((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]));
-  const charts = useMemo(() => {
+  const charts = (() => {
     const desc = details.metricDescriptors || []; const rows = details.activityDetailMetrics || [];
     const idx = (re) => { const d = desc.find((x) => re.test(x.key)); return d ? d.metricsIndex : -1; };
     const ti = idx(/directTimestamp/); const mk = (re) => { const i = idx(re); if (i < 0 || ti < 0) return []; return rows.map((r) => [r.metrics[ti], r.metrics[i]]).filter((p) => p[0] && p[1] !== null && p[1] !== undefined); };
@@ -72,7 +72,7 @@ export function ActivityDetail({ dateISO, results }) {
       ['Heart Rate', mk(/directHeartRate/), G.metric.heart, ' bpm', null],
       ['Temperature', mk(/directAirTemperature/), G.metric.respiration, ' °F', (v) => v * 9 / 5 + 32],
     ].map(([label, pts, color, unit, conv]) => [label, conv ? pts.map((p) => [p[0], conv(p[1])]) : pts, color, unit]);
-  }, [details]);
+  })();
   const start = a.summaryDTO && a.summaryDTO.startTimeLocal ? new Date(a.summaryDTO.startTimeLocal) : null;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', gap: 16 }}>
