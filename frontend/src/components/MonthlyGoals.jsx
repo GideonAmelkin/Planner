@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import {
   getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
 } from '../services/api';
@@ -184,7 +185,7 @@ export default function MonthlyGoals({ year, month }) {
 
   const sheet = (
     <div style={{ minWidth: 0 }}>
-      <div style={{ ...uppercaseHeading, padding: '0 0 12px' }}>Monthly Goals</div>
+      <div style={{ ...uppercaseHeading, padding: '0 0 12px' }}>Monthly Goals: {format(new Date(year, month - 1, 1), 'MMMM')}</div>
       {error && <div style={{ padding: '0 0 12px', color: COLORS.danger }}>{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
         <Column title="Personal" wash={GOAL_WASH.personal} items={personal} onCreate={handleCreate('personal')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
