@@ -1,17 +1,38 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createAppointment, updateAppointment, deleteAppointment } from '../services/api';
-import { COLORS, outlineButton, sectionHeader } from '../styles';
+import { todayISO } from '../utils/dayInfo';
+import { COLORS, SECTION_DOTS, outlineButton, sectionDot, sectionHeader } from '../styles';
 
 const START_HOUR = 7;
 const END_HOUR = 20;          // 8 PM marker
 const HOURS = END_HOUR - START_HOUR; // 13
 const PX_PER_HOUR = 60;
 
+// Solid blocks: provider colour with white text; manual blocks are ink.
 const PROVIDER_STYLES = {
-  google:  { bar: COLORS.google, bg: '#E3F2FD', text: '#0D3B66' },
-  outlook: { bar: COLORS.outlook, bg: '#E0F2F1', text: '#003D33' },
-  manual:  { bar: COLORS.ink, bg: COLORS.paper, text: COLORS.ink },
+  google:  { bg: COLORS.google, text: '#FFFFFF' },
+  outlook: { bg: COLORS.outlook, text: '#FFFFFF' },
+  manual:  { bg: COLORS.ink, text: '#FFFFFF' },
 };
+
+const BLOCK_STYLE = {
+  padding: '6px 10px',
+  fontSize: 12,
+  overflow: 'hidden',
+  borderRadius: 8,
+  boxSizing: 'border-box',
+};
+
+// Fractional hour of the current local time, or null when `dateISO` is not today.
+function useNowFraction(dateISO) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+  if (dateISO !== todayISO()) return null;
+  return now.getHours() + now.getMinutes() / 60;
+}
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -115,15 +136,16 @@ function ManualEditor({ block, dateISO, onSave, onDelete, onCancel }) {
       gridTemplateColumns: '70px 70px 1fr auto',
       gap: 6,
       alignItems: 'center',
-      padding: '4px 6px',
-      background: 'white',
-      border: `1px solid ${COLORS.ink}`,
-      borderRadius: 3,
+      padding: '6px 8px',
+      background: COLORS.paper,
+      border: `1px solid ${COLORS.hairline}`,
+      borderRadius: 8,
+      boxShadow: '0 4px 12px rgba(0,0,0,.06)',
     }}>
       <input type="time" value={start} onChange={(e) => setStart(e.target.value)} step="900"
-        style={{ fontSize: 12, padding: '2px 4px', border: `1px solid ${COLORS.hairline}` }} />
+        style={{ fontSize: 12, padding: '3px 4px', border: `1px solid ${COLORS.hairline}`, borderRadius: 6 }} />
       <input type="time" value={end} onChange={(e) => setEnd(e.target.value)} step="900"
-        style={{ fontSize: 12, padding: '2px 4px', border: `1px solid ${COLORS.hairline}` }} />
+        style={{ fontSize: 12, padding: '3px 4px', border: `1px solid ${COLORS.hairline}`, borderRadius: 6 }} />
       <input
         autoFocus
         value={text}
@@ -133,7 +155,7 @@ function ManualEditor({ block, dateISO, onSave, onDelete, onCancel }) {
           if (e.key === 'Enter') { e.preventDefault(); submit(); }
           if (e.key === 'Escape') onCancel();
         }}
-        style={{ fontSize: 13, padding: '4px 6px', border: `1px solid ${COLORS.hairline}` }}
+        style={{ fontSize: 13, padding: '4px 8px', border: `1px solid ${COLORS.hairline}`, borderRadius: 6 }}
       />
       <div style={{ display: 'flex', gap: 4 }}>
         <button onClick={submit} style={outlineButton(COLORS.ink, { small: true })}>Save</button>
@@ -158,23 +180,18 @@ function ExternalBlock({ ev, top, height, leftPct, widthPct }) {
         top, height,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
+        ...BLOCK_STYLE,
         background: style.bg,
-        borderLeft: `3px solid ${style.bar}`,
         color: style.text,
-        padding: '3px 6px',
-        fontSize: 12,
-        overflow: 'hidden',
         cursor: ev.link ? 'pointer' : 'default',
-        borderRadius: 2,
-        boxSizing: 'border-box',
       }}
     >
       <div style={{ fontWeight: 600, lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
         {ev.title}
       </div>
-      <div style={{ fontSize: 10, opacity: 0.8 }}>{formatTimeRange(ev.start_at, ev.end_at)}</div>
+      <div style={{ fontSize: 10, opacity: 0.85 }}>{formatTimeRange(ev.start_at, ev.end_at)}</div>
       {ev.location && height > 50 ? (
-        <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>{ev.location}</div>
+        <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>{ev.location}</div>
       ) : null}
     </div>
   );
@@ -190,21 +207,16 @@ function ManualBlock({ appt, top, height, leftPct, widthPct, onClick }) {
         top, height,
         left: `calc(${leftPct}% + 2px)`,
         width: `calc(${widthPct}% - 4px)`,
+        ...BLOCK_STYLE,
         background: style.bg,
-        borderLeft: `3px solid ${style.bar}`,
         color: style.text,
-        padding: '3px 6px',
-        fontSize: 12,
-        overflow: 'hidden',
         cursor: 'pointer',
-        borderRadius: 2,
-        boxSizing: 'border-box',
       }}
     >
       <div style={{ fontWeight: 600, lineHeight: 1.2, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
         {appt.text}
       </div>
-      <div style={{ fontSize: 10, opacity: 0.7 }}>{formatTimeRange(appt.start_at, appt.end_at)}</div>
+      <div style={{ fontSize: 10, opacity: 0.85 }}>{formatTimeRange(appt.start_at, appt.end_at)}</div>
     </div>
   );
 }
@@ -212,21 +224,20 @@ function ManualBlock({ appt, top, height, leftPct, widthPct, onClick }) {
 function AllDayPills({ events }) {
   if (events.length === 0) return null;
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 4px', borderBottom: `1px dashed ${COLORS.hairline}` }}>
-      <span style={{ fontSize: 11, color: COLORS.muted, alignSelf: 'center', marginRight: 4 }}>All-day:</span>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '2px 0 10px', alignItems: 'center' }}>
+      <span style={{ fontSize: 11, color: COLORS.faint, marginRight: 4 }}>All-day:</span>
       {events.map((ev) => {
-        const s = PROVIDER_STYLES[ev.provider] || PROVIDER_STYLES.manual;
         return (
           <a key={ev.id}
             href={ev.link || undefined}
             target="_blank" rel="noopener noreferrer"
             style={{
               fontSize: 11,
-              padding: '2px 8px',
-              background: s.bg,
-              color: s.text,
-              borderLeft: `3px solid ${s.bar}`,
-              borderRadius: 2,
+              fontWeight: 600,
+              padding: '3px 10px',
+              background: COLORS.allDayBg,
+              color: COLORS.allDayText,
+              borderRadius: 999,
               textDecoration: 'none',
             }}>
             {ev.title}
@@ -240,6 +251,7 @@ function AllDayPills({ events }) {
 export default function TimelineSchedule({ dateISO, appointments, externalEvents, calendarErrors, onChange }) {
   const [editing, setEditing] = useState(null); // { mode: 'new'|'edit', block }
   const containerRef = useRef(null);
+  const nowFrac = useNowFraction(dateISO);
 
   useEffect(() => { setEditing(null); }, [dateISO]);
 
@@ -306,15 +318,16 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
 
   return (
     <div>
-      <div style={sectionHeader}>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
+        <span style={sectionDot(SECTION_DOTS.schedule)} />
         Appointment Schedule
       </div>
 
       {calendarErrors && calendarErrors.length > 0 ? (
-        <div style={{ background: COLORS.dangerBg, color: COLORS.danger, fontSize: 11, padding: '4px 8px', borderBottom: '1px solid #EF9A9A' }}>
+        <div style={{ background: COLORS.dangerBg, color: COLORS.danger, fontSize: 11, padding: '6px 10px', borderRadius: 8, marginBottom: 8 }}>
           {calendarErrors.map((e, i) => (
             <div key={i}>
-              {e.provider ? `${e.provider}: ` : ''}{e.email ? `(${e.email}) ` : ''}{e.message} — Disconnect and reconnect from Settings.
+              {e.provider ? `${e.provider}: ` : ''}{e.email ? `(${e.email}) ` : ''}{e.message}. Disconnect and reconnect from Settings.
             </div>
           ))}
         </div>
@@ -323,7 +336,7 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
       <AllDayPills events={allDay} />
 
       {editing ? (
-        <div style={{ padding: '6px 0', borderBottom: `1px dashed ${COLORS.hairline}` }}>
+        <div style={{ padding: '4px 0 10px' }}>
           <ManualEditor
             block={editing.block}
             dateISO={dateISO}
@@ -344,7 +357,7 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
           cursor: editing ? 'default' : 'crosshair',
         }}
       >
-        {/* hour grid lines and labels — skip the top line, the section underline already serves as it */}
+        {/* hour grid lines and labels; the top line is skipped, the header serves as it */}
         {Array.from({ length: HOURS + 1 }).map((_, i) => {
           const h = START_HOUR + i;
           return (
@@ -353,7 +366,7 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
               top: i * PX_PER_HOUR, left: 0, right: 0,
               borderTop: i === 0 ? 'none' : `1px solid ${COLORS.hairline}`,
               fontSize: 11,
-              color: COLORS.muted,
+              color: COLORS.faint,
               paddingLeft: 4,
               paddingTop: 2,
               pointerEvents: 'none',
@@ -363,6 +376,22 @@ export default function TimelineSchedule({ dateISO, appointments, externalEvents
             </div>
           );
         })}
+        {/* current time */}
+        {nowFrac !== null && nowFrac >= START_HOUR && nowFrac <= END_HOUR ? (
+          <div style={{
+            position: 'absolute',
+            top: (nowFrac - START_HOUR) * PX_PER_HOUR - 1,
+            left: 0, right: 0,
+            borderTop: `2px solid ${COLORS.accent}`,
+            pointerEvents: 'none',
+            zIndex: 2,
+          }}>
+            <span style={{
+              position: 'absolute', left: -3, top: -5,
+              width: 8, height: 8, borderRadius: '50%', background: COLORS.accent,
+            }} />
+          </div>
+        ) : null}
         {/* event blocks */}
         {laidOut.map((b) => {
           const startFrac = Math.max(START_HOUR, b._start);
