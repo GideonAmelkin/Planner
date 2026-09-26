@@ -60,7 +60,6 @@ const repsText = (sets) => {
 
 // Media the Mac shipped from the app's own cache (see tools/homeworkouts/sync.py).
 const mediaUrl = (kind, id) => `${API_BASE}/workout/media/${kind}/${id}`;
-const isNarrowGrid = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches;
 
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
 
@@ -383,19 +382,16 @@ export default function WorkoutView() {
             const [a, b] = titleLines(t.name);
             const open = openTemplate === t.id;
             const strong = /StrongLifts/.test(t.name);
-            const media = (catalog && catalog.media) || { videos: [], thumbs: [] };
-            const numCell = { ...tdNum, textAlign: 'right', padding: '8px 12px 8px 0' };
-            const numHead = { ...th, textAlign: 'right', padding: '4px 12px 8px 0' };
             return (
-              <React.Fragment key={t.id}>
                 <div
+                  key={t.id}
                   onClick={() => { setOpenTemplate(open ? null : t.id); setPlayingExercise(null); }}
                   title={t.name}
                   style={{
                     position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
                     background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
                     outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
-                    gridColumn: open ? 1 : 'auto', alignSelf: 'start',
+                    alignSelf: 'start',
                   }}
                 >
                   <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
@@ -403,8 +399,17 @@ export default function WorkoutView() {
                     {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
                   </div>
                 </div>
-                {open ? (
-                  <div style={{ gridColumn: isNarrowGrid() ? '1 / -1' : '2 / -1', background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0 }}>
+            );
+          })}
+        </div>
+        {(() => {
+          const t = templatesList.find((x) => x.id === openTemplate);
+          if (!t) return null;
+          const media = (catalog && catalog.media) || { videos: [], thumbs: [] };
+          const numCell = { ...tdNum, textAlign: 'right', padding: '8px 12px 8px 0' };
+          const numHead = { ...th, textAlign: 'right', padding: '4px 12px 8px 0' };
+          return (
+                  <div style={{ marginTop: 12, background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0 }}>
                     <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{t.name}</div>
                     <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
                       <span style={pill}>{t.exercises.length} exercises</span>
@@ -448,11 +453,8 @@ export default function WorkoutView() {
                       </table>
                     </div>
                   </div>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
-        </div>
+          );
+        })()}
       </WorkoutCard>
       </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
