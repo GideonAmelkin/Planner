@@ -368,7 +368,7 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-      <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
+      <WorkoutCard title="Workouts" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {templatesList.map((t) => {
             const [a, b] = titleLines(t.name);
