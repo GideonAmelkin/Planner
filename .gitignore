@@ -11,6 +11,8 @@
 *.db-wal
 
 # secrets / env
+backend/garmin-state/
+backend/garmin/.venv/
 .env
 .env.local
 .env.*.local

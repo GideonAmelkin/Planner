@@ -31,6 +31,10 @@ check month             200 GET  "/month/$Y/$M"
 check recap             200 GET  /recap
 check calendar-accounts 200 GET  /calendar/accounts
 check master-list       200 GET  "/master-tasks?year=$Y&month=$M"
+check garmin-status     200 GET  /garmin/status
+check garmin-endpoints  200 GET  /garmin/endpoints
+check garmin-unknown    404 GET  /garmin/no_such_endpoint
+check garmin-bad-date   400 GET  /garmin/day/not-a-date
 
 check task-create 200 POST  /tasks "{\"date\":\"$TODAY\",\"text\":\"SMOKE-TEST task\",\"priority\":\"C\"}"; TID=$(id)
 check task-patch    200 PATCH "/tasks/$TID" '{"text":"SMOKE-TEST task edited","status":"completed"}'

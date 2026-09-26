@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { startScheduler } = require('./autoRollover');
+const { startWarmCache } = require('./garminService');
 
 const PORT = process.env.PORT || 5002;
 const JSON_LIMIT = '2mb';
@@ -13,7 +14,7 @@ app.use(express.json({ limit: JSON_LIMIT }));
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Every router declares its own /api/... paths so they stay greppable.
-for (const name of ['day', 'tasks', 'appointments', 'notes', 'ongoing', 'masterTasks', 'summaries', 'calendar']) {
+for (const name of ['day', 'tasks', 'appointments', 'notes', 'ongoing', 'masterTasks', 'summaries', 'calendar', 'garmin']) {
   app.use('/api', require(`./routes/${name}`));
 }
 
@@ -26,4 +27,5 @@ app.use((err, req, res, _next) => {
 app.listen(PORT, () => {
   console.log(`Planner backend listening on ${PORT}`);
   startScheduler();
+  startWarmCache();
 });
