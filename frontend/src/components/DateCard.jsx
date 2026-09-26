@@ -5,12 +5,14 @@ import { DayInfoBadge, QuoteCallout } from './QuoteHeader';
 import { headlineLong, shiftISO, todayISO } from '../utils/dayInfo';
 import { COLORS, card, navButton } from '../styles';
 
-// The header card across the top of the spread: headline, day controls and
-// pills on the left, the quote callout in the middle, the mini calendar right.
-export default function DateCard({ dateISO, quote }) {
+// The header card across the top of a tab: headline, day controls and pills
+// on the left, a middle block (the quote callout by default), the mini
+// calendar on the right. `section` is the route the controls navigate in;
+// `pills`, `middle` and `actions` let another tab swap in its own content.
+export default function DateCard({ dateISO, section = 'agenda', quote, middle, pills, actions }) {
   const navigate = useNavigate();
   const onPickDate = (e) => {
-    if (e.target.value) navigate(`/agenda/${e.target.value}`);
+    if (e.target.value) navigate(`/${section}/${e.target.value}`);
   };
   const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
 
@@ -28,9 +30,9 @@ export default function DateCard({ dateISO, quote }) {
           {headlineLong(dateISO)}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link to={`/agenda/${shiftISO(dateISO, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-          <Link to={`/agenda/${todayISO()}`} style={navButton}>Today</Link>
-          <Link to={`/agenda/${shiftISO(dateISO, 1)}`} style={arrowStyle} title="Next day">›</Link>
+          <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
+          <Link to={`/${section}/${todayISO()}`} style={navButton}>Today</Link>
+          <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle} title="Next day">›</Link>
           <input
             type="date"
             value={dateISO}
@@ -45,11 +47,12 @@ export default function DateCard({ dateISO, quote }) {
               colorScheme: 'light',
             }}
           />
+          {actions}
         </div>
-        <DayInfoBadge dateISO={dateISO} />
+        {pills === undefined ? <DayInfoBadge dateISO={dateISO} /> : pills}
       </div>
-      <QuoteCallout quote={quote} />
-      <MiniCalendar dateISO={dateISO} />
+      {middle === undefined ? <QuoteCallout quote={quote} /> : middle}
+      <MiniCalendar dateISO={dateISO} section={section} />
     </div>
   );
 }

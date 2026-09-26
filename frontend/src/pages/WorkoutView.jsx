@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import TopNav from '../components/TopNav';
+import AgendaRail from '../components/AgendaRail';
+import DateCard from '../components/DateCard';
 import WorkoutCard from '../components/workout/WorkoutCard';
-import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum } from '../components/workout/WorkoutTile';
+import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
 import { getWorkoutStatus, getWorkoutDay, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
-import { longDate } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
-import { COLORS, uppercaseHeading, outlineButton } from '../styles';
+import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot, sectionHeader } from '../styles';
 
 const MAX_WIDTH = 1500;
 const HISTORY_DAYS = 30;
@@ -44,7 +44,7 @@ const setsText = (sets, unit) => {
 // Ink-on-paper line of body weight over time; labels carry the unit.
 function WeightChart({ weights, unit }) {
   const pts = (weights || []).filter((w) => w.kg !== null && w.date).map((w) => [Date.parse(`${w.date}T12:00:00`), toUnit(w.kg, unit)]);
-  if (pts.length < 2) return <div style={{ color: COLORS.muted, fontSize: 12, fontStyle: 'italic' }}>One weigh-in so far; the chart starts with the second.</div>;
+  if (pts.length < 2) return <div style={{ color: COLORS.muted, fontSize: 12 }}>One weigh-in so far; the chart starts with the second.</div>;
   const W = 600; const H = 64; const PAD = 2;
   const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
   const x0 = Math.min(...xs); const x1 = Math.max(...xs);
@@ -55,7 +55,7 @@ function WeightChart({ weights, unit }) {
   return (
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block' }} role="img" aria-label={`Body weight, ${num(y0, 1)} to ${num(y1, 1)} ${unit}`}>
-        <path d={path} fill="none" stroke={COLORS.ink} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <path d={path} fill="none" stroke={COLORS.accent} strokeWidth={2} vectorEffect="non-scaling-stroke" />
       </svg>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 4 }}>
         <span>{shortDate(pts[0] && weights[0].date)}</span>
@@ -72,7 +72,7 @@ function SessionBlock({ session: s, unit }) {
     <div style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 15 }}>{s.title}</span>
-        <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.workout }}>{kindLabel(s)}</span>
+        <span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{kindLabel(s)}</span>
         <span style={{ fontSize: 12, color: COLORS.muted }}>
           {[clockOf(s.started_at), secondsToHm(s.duration_s), s.calories ? `${num(s.calories)} cal` : null, vol ? `${num(toUnit(vol, unit))} ${unit} lifted` : null].filter(Boolean).join(' · ')}
         </span>
@@ -97,7 +97,7 @@ function SessionBlock({ session: s, unit }) {
           </table>
         </div>
       ) : (
-        <div style={{ fontSize: 12, color: COLORS.muted, fontStyle: 'italic' }}>No exercise detail in the snapshot for this session.</div>
+        <div style={{ fontSize: 12, color: COLORS.muted }}>No exercise detail in the snapshot for this session.</div>
       )}
     </div>
   );
@@ -106,14 +106,14 @@ function SessionBlock({ session: s, unit }) {
 function Templates({ catalog, unit }) {
   const [open, setOpen] = useState(null);
   const templates = (catalog && catalog.templates) || [];
-  if (!templates.length) return <div style={{ color: COLORS.muted, fontSize: 12, fontStyle: 'italic' }}>No templates in the snapshot.</div>;
+  if (!templates.length) return <div style={{ color: COLORS.muted, fontSize: 12 }}>No templates in the snapshot.</div>;
   return (
     <div>
       {templates.map((t) => (
         <div key={t.id} style={{ borderBottom: `1px solid ${COLORS.hairline}` }}>
           <button type="button" onClick={() => setOpen(open === t.id ? null : t.id)} style={{ width: '100%', background: 'transparent', border: 'none', padding: '8px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: COLORS.ink, cursor: 'pointer', fontSize: 13 }}>
             <span style={{ fontWeight: 600 }}>{t.name}</span>
-            <span style={{ fontSize: 11, color: COLORS.muted }}>{t.exercises.length} exercises {open === t.id ? '▾' : '▸'}</span>
+            <span style={{ fontSize: 11, color: COLORS.muted }}>{t.exercises.length} exercises <span style={{ color: COLORS.accent }}>{open === t.id ? '▾' : '▸'}</span></span>
           </button>
           {open === t.id ? (
             <div style={{ ...tableWrap, paddingBottom: 10 }}>
@@ -176,60 +176,66 @@ export default function WorkoutView() {
   const plan = (catalog && catalog.plan) || null;
   const last = status && status.last_session;
 
-  const shell = (inner) => (
-    <div>
-      <TopNav dateISO={date} section="workout" />
-      <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '32px min(24px, 4vw) 64px min(24px, 4vw)' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-          <div>
-            <div style={uppercaseHeading}>Workout App</div>
-            <div style={{ fontSize: 13, color: COLORS.muted, marginTop: 2 }}>{longDate(date)}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: COLORS.muted, flexWrap: 'wrap' }}>
-            {available && status.exported_at ? <span>Snapshot from the Mac {stamp(status.exported_at)}</span> : null}
-            <button disabled={loading} onClick={() => load()} style={outlineButton(COLORS.ink, { small: true, disabled: loading })}>
-              {loading ? 'Loading...' : 'Reload'}
-            </button>
-          </div>
-        </div>
-        {inner}
+  const snapshotPill = !status
+    ? 'Loading...'
+    : (available && status.exported_at ? `Snapshot ${stamp(status.exported_at)}` : 'No snapshot');
+  const headerPills = (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <span style={pill}>Home Workouts</span>
+      <span style={pill}>{snapshotPill}</span>
+    </div>
+  );
+  const reload = (
+    <button type="button" disabled={loading} onClick={() => load()} style={{ ...navButton, cursor: loading ? 'default' : 'pointer', color: loading ? COLORS.faint : COLORS.ink }}>
+      {loading ? 'Loading...' : 'Reload'}
+    </button>
+  );
+  const totals = (
+    <div style={{ background: COLORS.calloutBg, borderRadius: 12, padding: '16px 20px', alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>
+      <div style={{ ...tileGrid(110), width: '100%' }}>
+        <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
+        <WorkoutTile label="Workouts" value={awards.workout_count} sub={status && status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
+        <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
+        <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
       </div>
     </div>
   );
 
-  if (error) return shell(<div style={{ color: COLORS.danger }}>Error: {error}</div>);
-  if (!status && loading) return shell(<div style={{ color: COLORS.muted }}>Loading workout data...</div>);
+  const shell = (inner) => (
+    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
+      <AgendaRail dateISO={date} section="workout" />
+      <main style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <DateCard dateISO={date} section="workout" pills={headerPills} actions={reload} middle={totals} />
+          {inner}
+        </div>
+      </main>
+    </div>
+  );
+
+  if (error) return shell(<div style={{ ...card, color: COLORS.danger }}>Error: {error}</div>);
+  if (!status && loading) return shell(<div style={{ ...card, color: COLORS.muted }}>Loading workout data...</div>);
 
   if (status && !available) {
     return shell(
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.ink}`, padding: 20, maxWidth: 560, fontSize: 13, lineHeight: 1.6 }}>
+      <div style={{ ...card, maxWidth: 560, fontSize: 13, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>No Home Workouts snapshot on the server yet.</div>
         <div>The Mac exports the app's data and ships it here every 6 hours (<code>tools/homeworkouts/sync.py</code>). Run it by hand once, or check that the launchd job has Full Disk Access. See the Home Workouts section of <code>deploy/README.md</code>.</div>
       </div>
     );
   }
 
-  const c = status.counts || {};
   return shell(
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
-        <WorkoutCard title="Sessions" span={2} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
           {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
           {day && day.plan_day ? (
             <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
           ) : null}
         </WorkoutCard>
 
-        <WorkoutCard title="Totals">
-          <div style={tileGrid(100)}>
-            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
-            <WorkoutTile label="Workouts" value={awards.workout_count} sub={c.sessions !== undefined ? `${c.sessions} in the snapshot` : null} />
-            <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
-            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
-          </div>
-        </WorkoutCard>
-
-        <WorkoutCard title="Body Weight" empty={!latestWeight && !profile.current_weight_kg}>
+        <WorkoutCard title="Body Weight" dot={SECTION_DOTS.ongoing} empty={!latestWeight && !profile.current_weight_kg}>
           <div style={tileGrid(100)}>
             <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${shortDate(latestWeight.date)}` : null} />
             <WorkoutTile label="Target" value={num(toUnit(profile.target_weight_kg, unit), 1)} unit={unit} />
@@ -238,7 +244,7 @@ export default function WorkoutView() {
           <div style={{ marginTop: 14 }}><WeightChart weights={weights} unit={unit} /></div>
         </WorkoutCard>
 
-        <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} span={2} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
+        <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} span={2} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
           <div style={tableWrap}>
             <table style={table}>
               <thead>
@@ -249,7 +255,7 @@ export default function WorkoutView() {
               <tbody>
                 {history.map((s) => (
                   <tr key={s.id}>
-                    <td style={tdNum}><Link to={`/workout/${s.date}`} style={{ textDecoration: 'underline' }}>{shortDate(s.date)}</Link></td>
+                    <td style={tdNum}><Link to={`/workout/${s.date}`} style={tableLink}>{shortDate(s.date)}</Link></td>
                     <td style={td}>{s.title}</td>
                     <td style={td}>{kindLabel(s)}</td>
                     <td style={tdNum}>{secondsToHm(s.duration_s) || '-'}</td>
@@ -264,22 +270,25 @@ export default function WorkoutView() {
         </WorkoutCard>
       </div>
 
-      <section style={{ marginTop: 32, background: COLORS.paper, border: `1px solid ${COLORS.ink}`, padding: '12px 16px' }}>
+      <section style={card}>
         <button
           type="button"
           onClick={() => setShowTemplates((s) => !s)}
-          style={{ width: '100%', background: 'transparent', border: 'none', padding: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: COLORS.ink, cursor: 'pointer' }}
+          style={{ ...sectionHeader, padding: 0, width: '100%', background: 'transparent', border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
         >
-          <span style={{ fontStyle: 'italic', fontSize: 13, fontWeight: 500 }}>Plan and Templates</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <span style={sectionDot(SECTION_DOTS.notes)} />
+            Plan and Templates
+          </span>
           <span style={{ color: COLORS.accent, fontSize: 14 }}>{showTemplates ? '▾' : '▸'}</span>
         </button>
         {showTemplates ? (
-          <div style={{ marginTop: 10, borderTop: `1px solid ${COLORS.ink}`, paddingTop: 12 }}>
+          <div style={{ marginTop: 14 }}>
             {!catalog ? <div style={{ color: COLORS.muted, fontSize: 12 }}>Loading...</div> : (
               <>
                 {plan ? (
                   <div style={{ marginBottom: 18 }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 6 }}>{plan.total_days}-day plan</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 8 }}>{plan.total_days}-day plan</div>
                     <div style={tileGrid(100)}>
                       <WorkoutTile label="Done" value={plan.finish_days} sub={`of ${plan.total_days} days`} />
                       <WorkoutTile label="Current day" value={plan.current_day_index !== null && plan.current_day_index !== undefined ? plan.current_day_index + 1 : null} />
@@ -302,16 +311,15 @@ export default function WorkoutView() {
                     </div>
                   </div>
                 ) : null}
-                <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 6 }}>Gym templates</div>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 8 }}>Gym templates</div>
                 <Templates catalog={catalog} unit={unit} />
               </>
             )}
           </div>
         ) : null}
       </section>
-      <div style={{ marginTop: 10, fontSize: 11, color: COLORS.faint }}>
+      <div style={{ fontSize: 11, color: COLORS.faint }}>
         Home Workouts app data, exported on the Mac and read from <code>backend/workout-state</code>. Only what the Mac copy of the app has synced is here.
-        {' '}Back to <Link to={`/agenda/${date}`} style={{ textDecoration: 'underline' }}>the agenda</Link>.
       </div>
     </>
   );

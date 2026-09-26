@@ -1,21 +1,23 @@
 import React from 'react';
-import { COLORS, sectionHeader } from '../../styles';
+import { COLORS, card, pill, sectionDot, sectionHeader } from '../../styles';
 
-// One paper card in the Workout App grid. `span` lets a card take the full row.
-export default function WorkoutCard({ title, children, span = 1, aside = null, empty = false, emptyText = 'Nothing on this day.' }) {
+// One card in the Workout App grid, in the Agenda's card look: dotted title,
+// optional aside as a pill. `span` lets a card take the full row.
+export default function WorkoutCard({ title, dot = COLORS.workout, children, span = 1, aside = null, empty = false, emptyText = 'Nothing on this day.' }) {
   return (
     <div style={{
-      background: COLORS.paper,
-      border: `1px solid ${COLORS.ink}`,
-      padding: '12px 16px 16px 16px',
+      ...card,
       gridColumn: span > 1 ? '1 / -1' : 'auto',
       minWidth: 0,
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, ...sectionHeader, textAlign: 'left', marginBottom: 12 }}>
-        <span>{title}</span>
-        {aside ? <span style={{ fontStyle: 'normal', fontSize: 11, color: COLORS.muted }}>{aside}</span> : null}
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={sectionDot(dot)} />
+          {title}
+        </span>
+        {aside ? <span style={pill}>{aside}</span> : null}
       </div>
-      {empty ? <div style={{ color: COLORS.muted, fontSize: 12, fontStyle: 'italic' }}>{emptyText}</div> : children}
+      {empty ? <div style={{ color: COLORS.muted, fontSize: 13 }}>{emptyText}</div> : children}
     </div>
   );
 }

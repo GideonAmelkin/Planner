@@ -6,7 +6,7 @@ import { COLORS } from '../styles';
 
 const cellSize = 22;
 
-function MonthGrid({ monthDate, todayDate, compact = false }) {
+function MonthGrid({ monthDate, todayDate, compact = false, section = 'agenda' }) {
   const monthStart = startOfMonth(monthDate);
   const rows = monthGrid(monthDate, { minRows: 5 }).map((week) => week.map((d) => ({
     date: d,
@@ -54,7 +54,7 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
             {row.map((c, ci) => (
               <td key={ci} style={{ padding: 0, textAlign: 'center' }}>
                 <Link
-                  to={`/agenda/${c.iso}`}
+                  to={`/${section}/${c.iso}`}
                   style={{ ...cellStyle(c), textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
                 >
                   {c.day}
@@ -68,7 +68,8 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
   );
 }
 
-export default function MiniCalendar({ dateISO }) {
+// `section` is the route the day links open (agenda, workout, ...).
+export default function MiniCalendar({ dateISO, section = 'agenda' }) {
   const today = isoToDate(dateISO);
-  return <MonthGrid monthDate={today} todayDate={today} />;
+  return <MonthGrid monthDate={today} todayDate={today} section={section} />;
 }

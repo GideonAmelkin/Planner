@@ -30,9 +30,9 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 Three tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
 `/health/:date` and **Workout App** at `/workout/:date` (`/`, `/day/:date` and anything else
 redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
-The Agenda has a fixed 240px left rail (`AgendaRail`: wordmark, the three tab links,
-Recap / Settings at the bottom); the Workout tab keeps the light top header (`TopNav`); the
-Garmin tab has its own connect.garmin.com frame.
+The Agenda and Workout App tabs share a fixed 240px left rail (`AgendaRail`: wordmark, the
+three tab links, Recap / Settings at the bottom) and the same header card; the Garmin tab has
+its own connect.garmin.com frame.
 
 The Agenda is white cards on a warm grey canvas, in three parts referred to by these names:
 
