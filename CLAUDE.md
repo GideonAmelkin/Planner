@@ -1,8 +1,8 @@
 # Planner
 
-A two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper
-book, plus a Garmin tab fed by Garmin Connect and a Workout App tab fed by the Home Workouts
-iPhone app. Single user, persists to SQLite, pulls events
+A day-per-page digital agenda (the structure of a Franklin Planner Compass-Monarch, drawn
+as a card app since 2026-09-26), plus a Garmin tab fed by Garmin Connect and a Workout App
+tab fed by the Home Workouts iPhone app. Single user, persists to SQLite, pulls events
 from Google Calendar and Outlook so the daily timeline shows real meetings next to whatever
 was typed by hand, and pulls the same day's steps, sleep, heart rate and the rest from the
 user's Garmin account.
@@ -27,18 +27,23 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 
 ## What is on the page
 
-Three tabs in the header, each with its own route: **Agenda** at `/agenda/:date`,
-**Garmin** at `/health/:date` and **Workout App** at `/workout/:date` (`/`, `/day/:date` and
-anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
+Three tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
+`/health/:date` and **Workout App** at `/workout/:date` (`/`, `/day/:date` and anything else
+redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
+The Agenda has a fixed 240px left rail (`AgendaRail`: wordmark, the three tab links,
+Recap / Settings at the bottom); the Workout tab keeps the light top header (`TopNav`); the
+Garmin tab has its own connect.garmin.com frame.
 
-The Agenda has three stacked sections, referred to by these names:
+The Agenda is white cards on a warm grey canvas, in three parts referred to by these names:
 
-1. **Planner**: the daily spread. Date headline + mini calendar, quote + day-info badge,
-   Appointment Schedule timeline, and the right-hand column of Action Items, Tasks,
-   Ongoing and free-form Notes. The dark bar above it (Prev / Today / Next / date picker /
-   Recap / Settings) is the header, not part of the spread.
-2. **Monthly Goals**: Personal | Business running lists for the month (`MonthlyGoals.jsx`).
-3. **Calendar**: the month grid; clicking a day opens that day's spread (`CalendarSection.jsx`).
+1. **Planner**: the daily spread. A header card across the top (`DateCard`: headline
+   "Saturday, September 26", Prev / Today / Next + date field, the day pills, the quote in an
+   indigo callout, the mini calendar), then the Appointment Schedule card on the left and one
+   card each for Action Items, Tasks, Ongoing and free-form Notes on the right.
+2. **Monthly Goals**: Personal | Business cards for the month (`MonthlyGoals.jsx`).
+3. **Calendar**: the month grid card; clicking a day opens that day's spread (`CalendarSection.jsx`).
+
+Monthly Goals and Calendar sit side by side under the spread.
 
 Recap and Settings are modals opened from the header. Settings holds the calendar
 connections and the Garmin Connect sign-in.
