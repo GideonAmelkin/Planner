@@ -2,11 +2,12 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import DailyView from './pages/DailyView';
 import HealthView from './pages/HealthView';
+import WorkoutView from './pages/WorkoutView';
 import CalendarToast from './components/CalendarToast';
 import { todayISO } from './utils/dayInfo';
 
-// Two top-level tabs, each with its own /<section>/:date route.
-export const SECTIONS = ['agenda', 'health'];
+// Three top-level tabs, each with its own /<section>/:date route.
+export const SECTIONS = ['agenda', 'health', 'workout'];
 
 function TodayRedirect() {
   return <Navigate to={`/agenda/${todayISO()}`} replace />;
@@ -26,7 +27,7 @@ function BootRedirectToToday() {
   React.useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    const m = window.location.pathname.match(/^\/(agenda|health)\/(\d{4}-\d{2}-\d{2})$/);
+    const m = window.location.pathname.match(/^\/(agenda|health|workout)\/(\d{4}-\d{2}-\d{2})$/);
     if (m && m[2] !== todayISO()) {
       navigate(`/${m[1]}/${todayISO()}`, { replace: true });
     }
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/" element={<TodayRedirect />} />
         <Route path="/agenda/:date" element={<DailyView />} />
         <Route path="/health/:date" element={<HealthView />} />
+        <Route path="/workout/:date" element={<WorkoutView />} />
         <Route path="/day/:date" element={<LegacyDayRedirect />} />
         <Route path="*" element={<TodayRedirect />} />
       </Routes>

@@ -16,6 +16,7 @@ export const COLORS = {
   google: '#1565C0',
   outlook: '#00695C',
   garmin: '#007CC3',
+  workout: '#B5471B',   // Workout App tab accent
 };
 
 export const INDENT_PX = 24;

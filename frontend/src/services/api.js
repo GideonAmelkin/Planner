@@ -72,3 +72,9 @@ export const postGarmin = (name, body = {}) =>
 export const API_BASE = API_BASE_URL;
 
 export default api;
+
+// Home Workouts snapshot (Workout App tab). Read-only; the Mac ships the file.
+export const getWorkoutStatus = () => api.get('/workout/status').then((r) => r.data);
+export const getWorkoutDay = (date) => api.get(`/workout/day/${date}`, { validateStatus: (s) => s === 200 || s === 404 }).then((r) => r.data);
+export const getWorkoutRecent = (end, days = 30) => api.get('/workout/recent', { params: { end, days }, validateStatus: (s) => s === 200 || s === 404 }).then((r) => r.data);
+export const getWorkoutCatalog = () => api.get('/workout/catalog', { validateStatus: (s) => s === 200 || s === 404 }).then((r) => r.data);

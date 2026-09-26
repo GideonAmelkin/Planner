@@ -13,7 +13,7 @@ import { longDate } from '../utils/dayInfo';
 import {
   num, metersToMiles, gramsToLbs, mlToOz, secondsToHm, clock, localOffset, series, titleCase,
 } from '../utils/garminFormat';
-import { G, page, headerBand, sectionLabel, dateTitle, syncedText, outlineButton, statRow, card, cardBody, pillButton } from '../garminTheme';
+import { G, page, headerBand, sectionLabel, dateTitle, syncedText, outlineButton, card, cardBody, pillButton } from '../garminTheme';
 
 const COLUMN = 760;
 

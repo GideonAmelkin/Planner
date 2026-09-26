@@ -8,6 +8,7 @@ import { G, pillButton, chevronButton } from '../garminTheme';
 const TABS = [
   { section: 'agenda', label: 'Agenda' },
   { section: 'health', label: 'Garmin' },
+  { section: 'workout', label: 'Workout App' },
 ];
 
 // Header bar. `section` is the active tab; every date control stays inside it.

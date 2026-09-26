@@ -18,11 +18,15 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 |---|---|
 | `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
 | `pages/HealthView.jsx` | The Garmin tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
-| `components/TopNav.jsx` | Header bar: Agenda / Garmin tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). |
+| `components/TopNav.jsx` | Header bar: Agenda / Garmin tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). `theme="garmin"` swaps in the near-black thin-type Garmin look. |
 | `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
-| `components/health/HealthCard.jsx` | Paper card with an italic title, optional `aside` text and an empty state. `span={2}` takes the full row. |
-| `components/health/StatTile.jsx` | Label + headline number + sub line; `tileGrid(min)` is the auto-fill grid the cards use. |
-| `components/health/Sparkline.jsx` | Inline SVG single-series line or bars over a day with a hover crosshair and value readout. |
+| `garminTheme.js` | Tokens and style objects measured from connect.garmin.com (Open Sans, `#efefef` page, white 8px cards, blue `#1265c2`, per-metric colors). Only the Garmin tab uses it. |
+| `components/health/GarminCard.jsx` | Daily-summary card: colored icon + tracked uppercase title, body, and a footer link (`details` toggles a hidden block, `href` links out). |
+| `components/health/GarminStat.jsx` | `Headline` (48px thin number + caption), `Stat` (18px value over a 12px gray label), `HeadlineRow` (headline left, stats right). |
+| `components/health/ProgressBar.jsx` | The 20px square progress bar (steps, intensity minutes, floors, hydration). |
+| `components/health/ActivityCard.jsx` | The solid green activity block with distance, time, pace, HR, calories and a "View activity" footer. |
+| `components/health/GarminIcon.jsx` | 16px inline SVG glyphs per metric, filled with the metric color. |
+| `components/health/Sparkline.jsx` | Inline SVG single-series line (with area fill) or bars over a day with a hover crosshair and value readout. |
 | `components/health/EndpointExplorer.jsx` | Every registry endpoint grouped and collapsible, params as inputs (dates prefilled), Fetch / Refresh / Send, raw JSON below. Writes ask for confirmation. |
 | `utils/garminFormat.js` | `num`, `metersToMiles`, `gramsToLbs`, `mlToOz`, `secondsToHm`, `clock` (Garmin local timestamps read as UTC), `localOffset`, `series`, `titleCase`. |
 | `components/MiniCalendar.jsx` | Month grid in the date headline; the viewed day is the filled circle. |
@@ -53,6 +57,8 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
   intentionally blocked; use the keyboard.
 - Section vocabulary in conversation: Agenda tab = Planner (the spread), Monthly Goals,
   Calendar; Garmin tab = the Garmin cards.
-- Garmin tab charts are single-series ink-on-paper sparklines; sleep stages use one ink ramp
-  (deep darkest) and are always labeled. Text never takes the series color.
+- The Garmin tab mirrors connect.garmin.com's daily summary: colors, type and card styles
+  come from `garminTheme.js`, never from `COLORS` in `styles.js`. The page root carries the
+  `garmin-page` class (Open Sans). Sleep stages use Garmin's deep / light / REM / awake
+  colors and are always labeled; text never takes a series color.
 - No em dashes anywhere.

@@ -41,11 +41,12 @@ The Agenda has three stacked sections, referred to by these names:
 Recap and Settings are modals opened from the header. Settings holds the calendar
 connections and the Garmin Connect sign-in.
 
-The Garmin tab shows the day's Garmin data as paper cards: Day Summary (steps, distance,
+The Garmin tab mirrors connect.garmin.com's daily summary (Open Sans, white cards on gray,
+blue actions; tokens in `frontend/src/garminTheme.js`) and shows the day's data as cards: Day Summary (steps, distance,
 calories, floors, intensity minutes, resting HR, stress, Body Battery, active time, a
 steps-per-15-minutes chart), Sleep (duration, score, stages), Heart Rate, Stress, Body
-Battery (each with a hover sparkline), Recovery (HRV, SpO2, respiration), Training
-(readiness, status, VO2 max, fitness age), Body and Hydration, Activities, and a collapsed
+Battery (sparklines behind "View details"), Intensity Minutes, Floors, Calories, Pulse Ox,
+Respiration, Hydration, HRV, Training, Weight, green activity blocks, and a collapsed
 "All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
 the raw JSON it returns.
 
