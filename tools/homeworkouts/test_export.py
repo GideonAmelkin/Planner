@@ -147,14 +147,14 @@ class Fixture:
                     (a, ts, 1 if finished else 0, 80.0, 80.0, 5))
         self.lk.commit()
 
-    def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None):
+    def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None, sport_type=0):
         """timings: temp1 JSON as the app writes it today (eachActionTimeDicStr stays empty);
         legacy_times: the old {action_id: seconds} column for app versions that filled it."""
         n = len(legacy_times) if legacy_times else len(json.loads(timings)) if timings else 0
         each = json.dumps({'DB_Type': 'DB_Type_JSON', 'DB_Value': legacy_times}) if legacy_times else ''
         self.lk.execute(
             "INSERT INTO workout(ID,eachActionTimeDicStr,temp1,kcalStr,sportType,totalCount,during,updateTime,name,date,completeCount) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (id_, each, timings or '', '88.5', 0, n, 1200, day_utc_ms, name, day_utc_ms, n))
+            (id_, each, timings or '', '88.5', sport_type, n, 1200, day_utc_ms, name, day_utc_ms, n))
         self.lk.commit()
 
     def weight(self, kg, day_midnight_utc_ms, at_ms):
@@ -267,6 +267,14 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(snap['profile']['height_cm'], 183.0)
         self.assertEqual(snap['profile']['current_weight_kg'], 77.11069)
         self.assertFalse(snap['profile']['shows_kg'])
+
+    def test_home_session_type_names(self):
+        self.fx.home_session(8, DAY_UTC_MS, None, temp1([(0, local_ms(2026, 9, 26, 7, 0), 30)]), sport_type=12)
+        self.fx.home_session(9, DAY_UTC_MS + 86400000, None, temp1([(0, local_ms(2026, 9, 27, 7, 0), 30)]), sport_type=21)
+        self.fx.plan([])
+        by_id = {s['id'].split(':')[1]: s for s in self.build()['sessions']}
+        self.assertEqual((by_id['8']['title'], by_id['8']['focus'], by_id['8']['level']), ('Chest · Intermediate', 'Chest', 'Intermediate'))
+        self.assertEqual((by_id['9']['title'], by_id['9']['focus'], by_id['9']['level']), ('Workout', None, None))
 
     def test_home_session_keeps_app_day_after_midnight(self):
         # Started 23:48 local on the 25th; the app files it under the 26th (midnight UTC) and so do we.

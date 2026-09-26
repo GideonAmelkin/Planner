@@ -67,41 +67,17 @@ const mediaUrl = (kind, id) => `${API_BASE}/workout/media/${kind}/${id}`;
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
 
 // Ink-on-paper line of body weight over time; labels carry the unit.
-function WeightChart({ weights, unit, height = 64 }) {
-  const pts = (weights || []).filter((w) => w.kg !== null && w.date).map((w) => [Date.parse(`${w.date}T12:00:00`), toUnit(w.kg, unit)]);
-  if (pts.length < 2) return <div style={{ color: COLORS.muted, fontSize: 12 }}>One weigh-in so far; the chart starts with the second.</div>;
-  const W = 600; const H = height; const PAD = 2;
-  const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
-  const x0 = Math.min(...xs); const x1 = Math.max(...xs);
-  const y0 = Math.min(...ys); const y1 = Math.max(...ys);
-  const sx = (x) => (x1 === x0 ? W / 2 : PAD + ((x - x0) / (x1 - x0)) * (W - 2 * PAD));
-  const sy = (y) => (y1 === y0 ? H / 2 : H - PAD - ((y - y0) / (y1 - y0)) * (H - 2 * PAD));
-  const path = pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p[0]).toFixed(1)},${sy(p[1]).toFixed(1)}`).join(' ');
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: H, display: 'block' }} role="img" aria-label={`Body weight, ${num(y0, 1)} to ${num(y1, 1)} ${unit}`}>
-        <path d={path} fill="none" stroke={COLORS.accent} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-      </svg>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 4 }}>
-        <span>{shortDate(pts[0] && weights[0].date)}</span>
-        <span>{num(y0, 1)} to {num(y1, 1)} {unit}</span>
-        <span>{shortDate(weights[weights.length - 1].date)}</span>
-      </div>
-    </div>
-  );
-}
-
-// Sessions per bucket across a range: weekly buckets up to a year, monthly
-// beyond that. The busiest bucket sets the scale; empty ones show a faint stub.
 function RangeBars({ sessions, startISO, endISO }) {
   // Bucket size follows the span so there are never more than about 53 bars,
   // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
-  const unit = totalDays <= 366 ? 'week' : totalDays <= 4 * 366 ? 'month' : 'quarter';
+  const unit = totalDays <= 31 ? 'day' : totalDays <= 366 ? 'week' : totalDays <= 4 * 366 ? 'month' : 'quarter';
   const monthKey = (iso) => iso.slice(0, 7);
   const quarterKey = (iso) => `${iso.slice(0, 4)}-Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`;
   const keys = [];
-  if (unit === 'week') {
+  if (unit === 'day') {
+    for (let d = 0; d < totalDays; d++) keys.push(shiftISO(startISO, d));
+  } else if (unit === 'week') {
     for (let w = Math.ceil(totalDays / 7) - 1; w >= 0; w--) keys.push(String(w));
   } else {
     const step = unit === 'month' ? 1 : 3;
@@ -120,8 +96,8 @@ function RangeBars({ sessions, startISO, endISO }) {
   const end = Date.parse(`${endISO}T12:00:00`);
   for (const sess of sessions) {
     if (sess.date < startISO || sess.date > endISO) continue;
-    const k = unit === 'week'
-      ? String(Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / (7 * 86400000)))
+    const k = unit === 'day' ? sess.date
+      : unit === 'week' ? String(Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / (7 * 86400000)))
       : unit === 'month' ? monthKey(sess.date) : quarterKey(sess.date);
     if (counts.has(k)) counts.set(k, counts.get(k) + 1);
   }
@@ -130,7 +106,7 @@ function RangeBars({ sessions, startISO, endISO }) {
   const H = 40;
   const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
   const edgeLabel = (k, iso) => {
-    if (unit === 'week') return shortDate(iso);
+    if (unit === 'day' || unit === 'week') return shortDate(iso);
     if (unit === 'month') return monthLabel(k);
     return monthLabel(`${k.slice(0, 4)}-${String((Number(k.slice(6)) - 1) * 3 + 1).padStart(2, '0')}`);
   };
@@ -151,7 +127,7 @@ function RangeBars({ sessions, startISO, endISO }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
         <span>{edgeLabel(keys[0], startISO)}</span>
-        <span>sessions per {unit}</span>
+        <span>workouts per {unit}</span>
         <span>{edgeLabel(keys[keys.length - 1], endISO)}</span>
       </div>
     </div>
@@ -232,59 +208,38 @@ export default function WorkoutView() {
   const hasExercises = rangeSessions.some((s) => s.exercise_count);
   const hasLifted = rangeSessions.some((s) => s.total_weight_kg);
   const latestWeight = weights.length ? weights[weights.length - 1] : null;
+  const currentKg = latestWeight ? latestWeight.kg : profile.current_weight_kg;
+  // Weight change over the selected range: last weigh-in minus the first one inside it.
+  const rangeWeights = ((rangeRecent && rangeRecent.weights) || []).filter((w) => w.date >= rangeStart && w.date <= rangeEnd && w.kg !== null && w.kg !== undefined);
+  const weightDeltaKg = rangeWeights.length >= 2 ? rangeWeights[rangeWeights.length - 1].kg - rangeWeights[0].kg : 0;
+  const weightDelta = Math.abs(toUnit(weightDeltaKg, unit)) >= 0.05 ? toUnit(weightDeltaKg, unit) : 0;
+  // The log shows one row per day: types joined, durations and counts added up.
+  const dayRows = [];
+  {
+    const byDate = new Map();
+    for (const s of rangeSessions) {
+      let r = byDate.get(s.date);
+      if (!r) { r = { date: s.date, focus: [], kinds: [], duration_s: 0, calories: 0, exercise_count: 0, lifted_kg: 0, n: 0 }; byDate.set(s.date, r); dayRows.push(r); }
+      const f = s.focus || s.title || 'Workout';
+      if (!r.focus.includes(f)) r.focus.push(f);
+      const k = kindLabel(s);
+      if (!r.kinds.includes(k)) r.kinds.push(k);
+      r.duration_s += s.duration_s || 0;
+      r.calories += s.calories || 0;
+      r.exercise_count += s.exercise_count || 0;
+      r.lifted_kg += s.total_weight_kg || 0;
+      r.n += 1;
+    }
+  }
   const templatesList = (catalog && catalog.templates) || [];
 
   const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
   const controlStyle = { ...navButton, fontSize: 12, padding: '4px 8px', cursor: 'pointer' };
   const dateInputStyle = { background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.hairline}`, padding: '4px 8px', borderRadius: 8, fontSize: 13, colorScheme: 'light' };
 
-  // Header card: the date and its controls on the left, body weight in the
-  // middle, the month calendar (green checks on workout days) on the right.
-  const header = (
-    <div style={{ ...card, display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 24, alignItems: 'center' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'flex-start' }}>
-        <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1, whiteSpace: 'nowrap' }}>
-          {headlineLong(date)}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Link to={`/workout/${shiftISO(date, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-          <Link to={`/workout/${todayISO()}`} style={navButton}>Today</Link>
-          <Link to={`/workout/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => { if (e.target.value) navigate(`/workout/${e.target.value}`); }}
-            style={dateInputStyle}
-          />
-        </div>
-      </div>
-      <div style={{ background: COLORS.calloutBg, borderRadius: 12, padding: '12px 20px', alignSelf: 'stretch', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: COLORS.calloutText }}>
-          <span style={sectionDot(SECTION_DOTS.ongoing)} />
-          Body Weight
-        </div>
-        {latestWeight || profile.current_weight_kg ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '12px 24px', alignItems: 'center' }}>
-            <div style={{ ...tileGrid(96), gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px 12px' }}>
-              <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${new Date(`${latestWeight.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null} />
-              <WorkoutTile label="Target" value={num(toUnit(profile.target_weight_kg, unit), 1)} unit={unit} />
-              <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" sub={profile.bmi ? `BMI ${num(profile.bmi, 1)}` : null} />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <WeightChart weights={weights} unit={unit} height={48} />
-            </div>
-          </div>
-        ) : (
-          <div style={{ fontSize: 12, color: COLORS.muted }}>No weigh-ins in the snapshot.</div>
-        )}
-      </div>
-      <MiniCalendar dateISO={date} section="workout" marks={workoutDays} />
-    </div>
-  );
-
   const rangeControls = (
     <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      <select value={rangeKey} onChange={(e) => setRangeKey(e.target.value)} style={controlStyle} title="Summary range">
+      <select value={rangeKey} onChange={(e) => setRangeKey(e.target.value)} style={controlStyle} title="Range">
         {RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
       </select>
       {rangeKey === 'custom' ? (
@@ -295,6 +250,95 @@ export default function WorkoutView() {
         </>
       ) : null}
     </span>
+  );
+
+  const indicator = weightDelta
+    ? <span style={{ color: weightDelta > 0 ? COLORS.danger : COLORS.done, fontWeight: 600 }}>{weightDelta > 0 ? '▲' : '▼'} {num(Math.abs(weightDelta), 1)} {unit}</span>
+    : null;
+
+  // One header card: date and controls, six tiles with the range picker, the bars and
+  // the per-day log on the left; the month calendar (green checks) top right.
+  const header = (
+    <div style={card}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
+        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1, whiteSpace: 'nowrap' }}>
+              {headlineLong(date)}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Link to={`/workout/${shiftISO(date, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
+              <Link to={`/workout/${todayISO()}`} style={navButton}>Today</Link>
+              <Link to={`/workout/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => { if (e.target.value) navigate(`/workout/${e.target.value}`); }}
+                style={dateInputStyle}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+            <div style={{ ...tileGrid(110), flex: 1 }}>
+              <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" />
+              <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
+              <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
+              <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
+              <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
+              <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
+            </div>
+            {rangeControls}
+          </div>
+        </div>
+        <MiniCalendar dateISO={date} section="workout" marks={workoutDays} />
+      </div>
+      <div style={{ paddingTop: 16 }}>
+        {customValid ? <RangeBars sessions={rangeSessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
+      </div>
+      <button
+        type="button"
+        onClick={() => setLogOpen((o) => !o)}
+        style={{ marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: COLORS.page, border: 'none', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontWeight: 600, color: COLORS.ink, cursor: 'pointer' }}
+      >
+        <span>{rangeSessions.length} workout{rangeSessions.length === 1 ? '' : 's'} {range.sub === 'lifetime' ? 'lifetime' : range.sub}</span>
+        <span style={{ color: COLORS.accent }}>{logOpen ? '▾' : '▸'}</span>
+      </button>
+      {logOpen ? (
+        dayRows.length ? (
+          <div style={{ ...tableWrap, marginTop: 10 }}>
+            <table style={table}>
+              <thead>
+                <tr style={headRow}>
+                  {['Date', 'Workout', 'Type', 'Duration', ...(hasCalories ? ['Calories'] : []), ...(hasLifted ? [`Lifted (${unit})`] : []), ...(hasExercises ? ['Exercises'] : [])].map((h) => <th key={h} style={th}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {dayRows.map((r) => {
+                  const mine = r.date === date;
+                  const cell = (extra) => ({ ...extra, background: mine ? COLORS.calloutBg : undefined });
+                  return (
+                    <tr key={r.date}>
+                      <td style={cell(tdNum)}><Link to={`/workout/${r.date}`} style={tableLink}>{shortDate(r.date)}</Link></td>
+                      <td style={cell(td)}>{r.focus.join(', ')}{r.n > 1 ? <span style={{ color: COLORS.muted, fontSize: 11, marginLeft: 6 }}>{r.n} workouts</span> : null}</td>
+                      <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{r.kinds.join(', ')}</span></td>
+                      <td style={cell(tdNum)}>{secondsToHm(r.duration_s) || '-'}</td>
+                      {hasCalories ? <td style={cell(tdNum)}>{num(r.calories) || '-'}</td> : null}
+                      {hasLifted ? <td style={cell(tdNum)}>{r.lifted_kg ? num(toUnit(r.lifted_kg, unit)) : '-'}</td> : null}
+                      {hasExercises ? <td style={cell(tdNum)}>{r.exercise_count || '-'}</td> : null}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : <div style={{ marginTop: 10, fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>
+      ) : null}
+      {status && !counts.sessions ? (
+        <div style={{ marginTop: 12, fontSize: 12, color: COLORS.muted }}>
+          No workouts in the snapshot yet. Sync the Home Workouts app on the Mac to pull history.
+        </div>
+      ) : null}
+    </div>
   );
 
   const shell = (inner) => (
@@ -324,61 +368,6 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-        <WorkoutCard title="Activity" dot={COLORS.accent} actions={rangeControls}>
-          <div style={tileGrid(140)}>
-            <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
-            <WorkoutTile label="Active time" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
-            <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
-            <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
-          </div>
-          <div style={{ paddingTop: 16 }}>
-            {customValid ? <RangeBars sessions={rangeSessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
-          </div>
-          <button
-            type="button"
-            onClick={() => setLogOpen((o) => !o)}
-            style={{ marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: COLORS.page, border: 'none', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontWeight: 600, color: COLORS.ink, cursor: 'pointer' }}
-          >
-            <span>{rangeSessions.length} workout{rangeSessions.length === 1 ? '' : 's'} {range.sub === 'lifetime' ? 'lifetime' : range.sub}</span>
-            <span style={{ color: COLORS.accent }}>{logOpen ? '▾' : '▸'}</span>
-          </button>
-          {logOpen ? (
-            rangeSessions.length ? (
-              <div style={{ ...tableWrap, marginTop: 10 }}>
-                <table style={table}>
-                  <thead>
-                    <tr style={headRow}>
-                      {['Date', 'Workout', 'Type', 'Duration', ...(hasCalories ? ['Calories'] : []), ...(hasLifted ? [`Lifted (${unit})`] : []), ...(hasExercises ? ['Exercises'] : [])].map((h) => <th key={h} style={th}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rangeSessions.map((s) => {
-                      const mine = s.date === date;
-                      const cell = (extra) => ({ ...extra, background: mine ? COLORS.calloutBg : undefined });
-                      return (
-                        <tr key={s.id}>
-                          <td style={cell(tdNum)}><Link to={`/workout/${s.date}`} style={tableLink}>{shortDate(s.date)}</Link></td>
-                          <td style={cell(td)}>{s.title}</td>
-                          <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{kindLabel(s)}</span></td>
-                          <td style={cell(tdNum)}>{secondsToHm(s.duration_s) || '-'}</td>
-                          {hasCalories ? <td style={cell(tdNum)}>{num(s.calories) || '-'}</td> : null}
-                          {hasLifted ? <td style={cell(tdNum)}>{s.total_weight_kg ? num(toUnit(s.total_weight_kg, unit)) : '-'}</td> : null}
-                          {hasExercises ? <td style={cell(tdNum)}>{s.exercise_count || '-'}</td> : null}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : <div style={{ marginTop: 10, fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>
-          ) : null}
-          {!counts.sessions ? (
-            <div style={{ marginTop: 12, fontSize: 12, color: COLORS.muted }}>
-              No workouts in the snapshot yet. Sync the Home Workouts app on the Mac to pull history.
-            </div>
-          ) : null}
-        </WorkoutCard>
-
       <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {templatesList.map((t) => {

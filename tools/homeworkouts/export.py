@@ -26,6 +26,7 @@ import base64
 import glob
 import json
 import os
+import re
 import plistlib
 import shutil
 import sqlite3
@@ -338,6 +339,7 @@ def read_gym_sessions(lk, names, sets, counts):
             'id': 'gym:%s' % r['timeStamp'],
             'kind': 'gym',
             'title': r.get('title') or 'Gym workout',
+            'focus': gym_focus(r.get('title')),
             'template_id': r.get('templateId'),
             'started_at': local_iso(started),
             'date': local_date(started),
@@ -352,6 +354,26 @@ def read_gym_sessions(lk, names, sets, counts):
     counts['gym_sessions_deleted'] = deleted
     counts['gym_sessions_without_exercises'] = without
     return sessions
+
+
+# The app's classic home workouts by sportType: three levels per body area. Inferred from
+# the exercises the app logged under each id (action_record) and the app's own banner per
+# id (v32_classic_banner_<id>_m.webp); 21, 22, 78 and 10000 have no evidence and stay "Workout".
+HOME_SPORT_TYPES = {}
+for _base, _area in ((11, 'Chest'), (14, 'Abs'), (17, 'Arm'), (31, 'Leg'), (34, 'Shoulder & Back')):
+    for _i, _level in enumerate(('Beginner', 'Intermediate', 'Advanced')):
+        HOME_SPORT_TYPES[_base + _i] = (_area, _level)
+
+
+def gym_focus(title):
+    """"Chest Workout" -> "Chest", "StrongLifts 5x5 A" -> "StrongLifts"."""
+    t = (title or '').strip()
+    if not t:
+        return None
+    if t.lower().startswith('stronglifts'):
+        return 'StrongLifts'
+    t = re.sub(r'\s+workout$', '', t, flags=re.I)
+    return t or None
 
 
 def home_timings(raw):
@@ -399,10 +421,14 @@ def read_home_sessions(lk, names, counts):
             from_temp1 += 1
             exercises = [{'action_id': None, 'name': None, 'order': pos, 'seconds': int(round((end - start) / 1000.0)), 'sets': []}
                          for pos, start, end in timings]
+        area, level = HOME_SPORT_TYPES.get(to_int(r.get('sportType')), (None, None))
+        title = r.get('name') or r.get('localizedKey') or ('%s · %s' % (area, level) if area else 'Workout')
         sessions.append({
             'id': 'home:%s:%s' % (r['ID'], r.get('date')),
             'kind': 'home',
-            'title': r.get('name') or r.get('localizedKey') or 'Workout',
+            'title': title,
+            'focus': area,
+            'level': level,
             'sport_type': r.get('sportType'),
             'day_index': r.get('dayIndex'),
             'started_at': started_at,
