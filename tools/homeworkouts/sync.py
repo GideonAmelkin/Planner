@@ -2,7 +2,7 @@
 """Export the Home Workouts app's data on this Mac and ship the snapshot to the
 Planner backend on RT100.
 
-Runs from launchd every 30 minutes (com.gideon.planner.homeworkouts.plist) and
+Runs from launchd every 6 hours (com.gideon.planner.homeworkouts.plist) and
 by hand:  python3 tools/homeworkouts/sync.py
 
 The transport is rsync over the existing SSH key. There is no push endpoint on

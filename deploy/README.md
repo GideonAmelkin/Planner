@@ -150,7 +150,7 @@ One-time setup on the Mac (done 2026-09-26):
 #    container (macOS "App Data" protection) nor this repo under ~/Documents.
 #    System Settings > Privacy & Security > Full Disk Access > "+" > Cmd+Shift+G >
 #    /Library/Developer/CommandLineTools/usr/bin/python3 > Open, then toggle it on.
-# 2. Install the launchd agent (every 30 minutes, also at login)
+# 2. Install the launchd agent (every 6 hours, also at login)
 cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
 # 3. Run it once now and read the log

@@ -204,7 +204,7 @@ export default function WorkoutView() {
     return shell(
       <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.ink}`, padding: 20, maxWidth: 560, fontSize: 13, lineHeight: 1.6 }}>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>No Home Workouts snapshot on the server yet.</div>
-        <div>The Mac exports the app's data and ships it here every 30 minutes (<code>tools/homeworkouts/sync.py</code>). Run it by hand once, or check that the launchd job has Full Disk Access. See the Home Workouts section of <code>deploy/README.md</code>.</div>
+        <div>The Mac exports the app's data and ships it here every 6 hours (<code>tools/homeworkouts/sync.py</code>). Run it by hand once, or check that the launchd job has Full Disk Access. See the Home Workouts section of <code>deploy/README.md</code>.</div>
       </div>
     );
   }

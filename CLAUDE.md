@@ -54,7 +54,7 @@ the raw JSON it returns.
 
 The Workout App tab shows the Home Workouts app (Leap Health, bundle
 `com.abishkking.maleworkout`), which runs on the Mac as an iPhone app. The Mac exports its
-SQLite files to one JSON snapshot and rsyncs it to `backend/workout-state/` every 30 minutes
+SQLite files to one JSON snapshot and rsyncs it to `backend/workout-state/` every 6 hours
 (`tools/homeworkouts/`, launchd); the server only reads that file. Cards: Sessions for the
 day (exercises and sets), Totals (streak, count, active minutes), Body Weight, Last 30 Days,
 and a collapsed Plan and Templates catalog. Only what the Mac copy of the app has synced is

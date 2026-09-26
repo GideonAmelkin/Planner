@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Ships the Home Workouts snapshot to RT100 every 30 minutes. python3 is run
+  <!-- Ships the Home Workouts snapshot to RT100 every 6 hours. python3 is run
        directly (no shell) so it is the one binary that needs Full Disk Access.
        Install: cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
                 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
@@ -16,7 +16,7 @@
     <string>/Users/gideonamelkin/Documents/Planner/tools/homeworkouts/sync.py</string>
   </array>
   <key>StartInterval</key>
-  <integer>1800</integer>
+  <integer>21600</integer>
   <key>RunAtLoad</key>
   <true/>
   <key>StandardOutPath</key>
