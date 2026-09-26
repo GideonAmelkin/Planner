@@ -1,7 +1,7 @@
 // Workout App tab: read-only views over the Home Workouts snapshot the Mac ships to
 // backend/workout-state/. Nothing here writes; there is deliberately no upload route.
 const { Router } = require('express');
-const workout = require('../workoutService');
+const workout = require('./service');
 const { asyncHandler, isDate } = require('../lib/http');
 
 const router = Router();

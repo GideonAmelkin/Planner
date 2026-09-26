@@ -16,7 +16,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 // One router per tab. Every route file declares its own /api/... paths so they stay greppable.
 app.use('/api', agenda);
 app.use('/api', require('./garmin'));
-app.use('/api', require('./routes/workout'));
+app.use('/api', require('./workout'));
 
 // Anything thrown inside an asyncHandler lands here.
 app.use((err, req, res, _next) => {

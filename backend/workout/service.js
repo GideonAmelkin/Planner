@@ -5,7 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const STATE_DIR = process.env.WORKOUT_STATE_DIR || path.join(__dirname, 'workout-state');
+const STATE_DIR = process.env.WORKOUT_STATE_DIR || path.join(__dirname, '..', 'workout-state');
 const SNAPSHOT = path.join(STATE_DIR, 'home_workouts.json');
 const MEDIA_DIR = path.join(STATE_DIR, 'media');
 const MEDIA_KINDS = { video: { dir: 'videos', ext: '.mp4' }, thumb: { dir: 'thumbs', ext: '.jpg' } };
