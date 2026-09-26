@@ -18,7 +18,7 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
 
   const labelStyle = {
     fontSize: compact ? 9 : 10,
-    color: COLORS.muted,
+    color: COLORS.faint,
     fontWeight: 600,
     textAlign: 'center',
     width: compact ? cellSize - 6 : cellSize,
@@ -35,9 +35,8 @@ function MonthGrid({ monthDate, todayDate, compact = false }) {
     justifyContent: 'center',
     color: c.inMonth ? COLORS.ink : COLORS.faint,
     fontWeight: c.isToday ? 700 : (c.inMonth ? 500 : 400),
-    background: c.isToday ? COLORS.ink : 'transparent',
-    borderRadius: c.isToday ? '50%' : 0,
-    boxShadow: c.isToday ? `inset 0 0 0 1px ${COLORS.ink}` : 'none',
+    background: c.isToday ? COLORS.accent : 'transparent',
+    borderRadius: '50%',
   });
 
   return (

@@ -4,31 +4,30 @@ import RecapPanel from './RecapPanel';
 import { COLORS, navButton } from '../styles';
 
 const baseStyle = navButton;
-const activeStyle = { ...baseStyle, background: 'white', color: COLORS.ink };
+const activeStyle = { ...baseStyle, background: COLORS.page, borderColor: COLORS.page };
 
-export default function NavLinks() {
+// Recap and Settings buttons plus the modals they open. `direction="column"`
+// stacks them full width (the Agenda rail); the default row sits in a header.
+export default function NavLinks({ direction = 'row' }) {
   const [showSettings, setShowSettings] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
-  const styleFor = (active) => active ? activeStyle : baseStyle;
+  const column = direction === 'column';
+  const styleFor = (active) => ({
+    ...(active ? activeStyle : baseStyle),
+    cursor: 'pointer',
+    ...(column ? { width: '100%', textAlign: 'left', padding: '8px 12px' } : {}),
+  });
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setShowRecap(true)}
-        style={{ ...styleFor(showRecap), cursor: 'pointer' }}
-      >
+    <div style={{ display: 'flex', flexDirection: column ? 'column' : 'row', gap: column ? 6 : 8 }}>
+      <button type="button" onClick={() => setShowRecap(true)} style={styleFor(showRecap)}>
         Recap
       </button>
-      <button
-        type="button"
-        onClick={() => setShowSettings(true)}
-        style={{ ...styleFor(showSettings), cursor: 'pointer' }}
-      >
+      <button type="button" onClick={() => setShowSettings(true)} style={styleFor(showSettings)}>
         Settings
       </button>
       {showRecap ? <RecapPanel onClose={() => setShowRecap(false)} /> : null}
       {showSettings ? <SettingsPanel onClose={() => setShowSettings(false)} /> : null}
-    </>
+    </div>
   );
 }

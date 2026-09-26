@@ -1,7 +1,8 @@
 import React from 'react';
 import { COLORS } from '../styles';
 
-// Circular check used by Action Items, Monthly Goals and the Recap list.
+// Rounded-square check used by Action Items, Monthly Goals and the Recap list.
+// Open: a faint outline. Done: filled indigo with a white tick.
 // With no onClick it renders as a static indicator.
 export default function CheckMark({ done, onClick, size = 20 }) {
   return (
@@ -20,21 +21,22 @@ export default function CheckMark({ done, onClick, size = 20 }) {
       }}
     >
       <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true">
-        <circle
-          cx="10" cy="10" r="9"
-          fill={done ? COLORS.done : 'transparent'}
-          stroke={done ? COLORS.done : COLORS.accent}
+        <rect
+          x="2" y="2" width="16" height="16" rx="5"
+          fill={done ? COLORS.accent : 'transparent'}
+          stroke={done ? COLORS.accent : COLORS.faint}
           strokeWidth="1.5"
         />
-        <path
-          d="M5.6 10.4 L8.6 13.4 L14.4 7.2"
-          fill="none"
-          stroke={done ? 'white' : COLORS.accent}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={done ? 1 : 0.55}
-        />
+        {done ? (
+          <path
+            d="M5.6 10.4 L8.6 13.4 L14.4 7.2"
+            fill="none"
+            stroke="white"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        ) : null}
       </svg>
     </button>
   );

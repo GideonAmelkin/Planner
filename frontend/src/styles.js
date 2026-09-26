@@ -1,76 +1,132 @@
 // Design tokens and the style objects shared across the planner's inline styles.
-// The look is the Franklin Planner paper book: ink on cream, thin hairlines.
+// The look is a card app: white cards on a warm grey canvas, DM Sans, indigo accent.
+// Every key here is read by the Agenda, the Workout tab and the shared modals, so
+// values may change but keys stay.
 
 export const COLORS = {
-  ink: '#2D3436',        // text, strong rules, the nav bar
-  paper: '#FBF6E7',      // page surface
-  page: '#F0EAD6',       // body background behind the pages
-  hairline: '#C9BB9A',   // row rules
-  muted: '#6B5B40',      // secondary text, hour labels
-  accent: '#A89368',     // "+" affordances, placeholders, unchecked marks
-  faint: '#B5A88A',      // out-of-month days, dashed spread divider
-  todayCell: '#F4ECD2',  // today's cell in the Calendar section
-  danger: '#C62828',
-  dangerBg: '#FFEBEE',
-  done: '#2E7D32',       // completed check
-  google: '#1565C0',
-  outlook: '#00695C',
+  ink: '#1E1E1E',        // text
+  paper: '#FFFFFF',      // card surface
+  page: '#F5F4F0',       // canvas behind the cards
+  hairline: '#ECEBE6',   // dividers, card borders
+  muted: '#7B7B76',      // secondary text
+  accent: '#5B6BF0',     // indigo: checks, today, current time, primary actions
+  faint: '#C4C3BE',      // placeholders, out-of-month days, idle icons
+  todayCell: '#EEF0FE',  // indigo wash
+  danger: '#D64545',
+  dangerBg: '#FDECEA',
+  done: '#3BA55D',
+  google: '#4285F4',
+  outlook: '#0F6CBD',
   garmin: '#007CC3',
-  workout: '#B5471B',   // Workout App tab accent
+  workout: '#B5471B',
+  calloutBg: '#EEF0FE',  // the quote callout
+  calloutText: '#2F3A9E',
+  allDayBg: '#E8F0FE',
+  allDayText: '#1B4FBF',
 };
 
 export const INDENT_PX = 24;
+export const RADIUS = 12;
+export const CARD_SHADOW = '0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.04)';
 
-// Italic centered heading inside a section ("Appointment Schedule", "Tasks", ...).
+// A white card on the canvas.
+export const card = {
+  background: COLORS.paper,
+  borderRadius: RADIUS,
+  boxShadow: CARD_SHADOW,
+  padding: '20px 22px',
+};
+
+// Small grey pill (day badge, counts).
+export const pill = {
+  display: 'inline-block',
+  background: COLORS.page,
+  color: COLORS.muted,
+  borderRadius: 999,
+  padding: '4px 10px',
+  fontSize: 12,
+  fontWeight: 600,
+  fontVariantNumeric: 'tabular-nums',
+  whiteSpace: 'nowrap',
+};
+
+// Priority chips in Action Items.
+export const PRIORITY_CHIPS = {
+  A: { bg: '#FDE2DC', fg: '#B43E2B' },
+  B: { bg: '#FFF0C7', fg: '#8A5A00' },
+  C: { bg: '#E6E6F8', fg: '#4A4A9C' },
+};
+
+// Header washes on the two Monthly Goals cards.
+export const GOAL_WASH = {
+  personal: { bg: '#DDE8F7', fg: '#2B4C7E' },
+  business: { bg: '#F3E4CF', fg: '#7A4B12' },
+};
+
+// The coloured dot in front of each section title.
+export const SECTION_DOTS = {
+  schedule: '#4285F4',
+  action: COLORS.accent,
+  tasks: '#E2A33B',
+  ongoing: '#2AA198',
+  notes: '#9A9A94',
+};
+export const sectionDot = (color) => ({
+  display: 'inline-block',
+  width: 8,
+  height: 8,
+  borderRadius: '50%',
+  background: color,
+  marginRight: 8,
+  verticalAlign: 1,
+  flexShrink: 0,
+});
+
+// Section title inside a card ("Appointment Schedule", "Tasks", ...).
 export const sectionTitle = {
-  fontStyle: 'italic',
   fontSize: 13,
+  fontWeight: 600,
   color: COLORS.ink,
-  textAlign: 'center',
-  fontWeight: 500,
+  textAlign: 'left',
 };
 export const sectionHeader = {
   ...sectionTitle,
-  padding: '4px 0',
-  borderBottom: `1px solid ${COLORS.ink}`,
+  padding: '0 0 10px',
 };
 
-// Big uppercase headline used for the date and the Monthly Goals / Calendar titles.
+// Card title used for Monthly Goals, the Calendar month and the Workout page.
 export const uppercaseHeading = {
-  fontSize: 22,
-  fontWeight: 700,
-  letterSpacing: 1,
-  paddingTop: 4,
+  fontSize: 20,
+  fontWeight: 600,
+  letterSpacing: -0.3,
   lineHeight: 1.2,
-  textTransform: 'uppercase',
 };
 
-// Borderless text input that sits on a ruled row.
+// Borderless text input that sits on a row.
 export const rowInput = {
   border: 'none',
   background: 'transparent',
-  padding: '4px 8px',
-  fontSize: 14,
+  padding: '6px 10px',
+  fontSize: 15,
   width: '100%',
   color: COLORS.ink,
 };
-export const newRowInput = { ...rowInput, padding: '6px 8px' };
+export const newRowInput = { ...rowInput };
 
-// Ruled "add" row at the foot of a list.
+// "Add" row at the foot of a list.
 export const newRowShell = {
   alignItems: 'center',
-  borderBottom: `1px solid ${COLORS.hairline}`,
-  background: COLORS.paper,
+  background: 'transparent',
 };
 
-// The "-" bullet in front of a child row.
-export const childDash = { color: COLORS.accent, fontSize: 14, paddingLeft: 4, paddingRight: 4 };
+// Child rows are indented, no bullet.
+export const childDash = { display: 'none' };
 
 // The "+" that adds a sub-item to a parent row.
 export const addChildButton = {
   border: 'none',
   background: 'transparent',
-  color: COLORS.accent,
+  color: COLORS.faint,
   fontSize: 16,
   cursor: 'pointer',
   padding: 0,
@@ -80,41 +136,42 @@ export const addChildButton = {
 
 // Row borders while a drag hovers above or below it.
 export const dropZoneBorders = (dropZone) => ({
-  borderTop: dropZone === 'above' ? `2px solid ${COLORS.ink}` : 'none',
-  borderBottom: dropZone === 'below' ? `2px solid ${COLORS.ink}` : `1px solid ${COLORS.hairline}`,
+  borderTop: dropZone === 'above' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+  borderBottom: dropZone === 'below' ? `2px solid ${COLORS.accent}` : '2px solid transparent',
 });
 
-// White-on-ink outline button in the top nav (Prev / Today / Next / Recap / Settings).
+// Button in the rail and the light header (Prev / Today / Next / Recap / Settings).
 export const navButton = {
-  color: 'white',
+  color: COLORS.ink,
   textDecoration: 'none',
-  border: '1px solid white',
-  padding: '4px 12px',
-  fontSize: 12,
+  border: `1px solid ${COLORS.hairline}`,
+  padding: '5px 12px',
+  fontSize: 13,
   fontWeight: 600,
-  letterSpacing: 0.5,
-  borderRadius: 2,
-  background: 'transparent',
+  letterSpacing: 0,
+  borderRadius: 8,
+  background: COLORS.paper,
+  lineHeight: 1.3,
 };
 
 // Small outlined action button (Save / Delete / Connect / Disconnect).
 export const outlineButton = (color = COLORS.ink, { small = false, disabled = false } = {}) => ({
-  border: `1px solid ${color}`,
-  background: disabled ? COLORS.page : 'white',
-  color: disabled ? COLORS.accent : color,
+  border: `1px solid ${disabled ? COLORS.hairline : color}`,
+  background: disabled ? COLORS.page : COLORS.paper,
+  color: disabled ? COLORS.faint : color,
   fontSize: small ? 11 : 12,
   padding: small ? '3px 8px' : '5px 12px',
   cursor: disabled ? 'not-allowed' : 'pointer',
-  borderRadius: 2,
+  borderRadius: 8,
   fontWeight: 600,
-  letterSpacing: 0.3,
+  letterSpacing: 0.2,
 });
 
 // Modal shell shared by Settings and Recap.
 export const modalBackdrop = {
   position: 'fixed',
   inset: 0,
-  background: 'rgba(45, 52, 54, 0.5)',
+  background: 'rgba(30, 30, 30, 0.4)',
   display: 'flex',
   alignItems: 'flex-start',
   justifyContent: 'center',
@@ -123,15 +180,16 @@ export const modalBackdrop = {
 };
 export const modalCard = {
   background: COLORS.paper,
-  border: `1px solid ${COLORS.ink}`,
-  boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
+  border: 'none',
+  borderRadius: RADIUS,
+  boxShadow: '0 16px 48px rgba(0,0,0,0.18)',
   padding: 20,
 };
-export const modalTitle = { fontSize: 20, fontWeight: 500, color: COLORS.ink };
+export const modalTitle = { fontSize: 20, fontWeight: 600, color: COLORS.ink };
 export const modalClose = {
   border: 'none',
   background: 'transparent',
   fontSize: 22,
   cursor: 'pointer',
-  color: COLORS.ink,
+  color: COLORS.muted,
 };

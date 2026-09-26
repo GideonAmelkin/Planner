@@ -4,15 +4,15 @@ import { shiftISO, todayISO } from '../utils/dayInfo';
 import NavLinks from './NavLinks';
 import { COLORS, navButton } from '../styles';
 
-const TABS = [
+export const TABS = [
   { section: 'agenda', label: 'Agenda' },
   { section: 'health', label: 'Garmin' },
   { section: 'workout', label: 'Workout App' },
 ];
 
-// Header bar. `section` is the active tab; every date control stays inside it.
-// The Garmin tab does not use this bar: it renders its own connect.garmin.com
-// frame (components/health/GarminShell.jsx).
+// Light header bar. `section` is the active tab; every date control stays inside it.
+// The Agenda tab does not use this bar (it has AgendaRail) and neither does the
+// Garmin tab (components/health/GarminShell.jsx); the Workout tab still does.
 export default function TopNav({ dateISO, section = 'agenda' }) {
   const navigate = useNavigate();
 
@@ -21,48 +21,49 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
   };
 
   const linkStyle = navButton;
-  const arrowStyle = { ...navButton, padding: '4px 10px' };
+  const arrowStyle = { ...navButton, padding: '5px 10px' };
   const tabStyle = (active) => ({
     ...navButton,
-    background: active ? 'white' : 'transparent',
-    color: active ? COLORS.ink : 'white',
-    padding: '4px 14px',
+    background: active ? COLORS.page : 'transparent',
+    borderColor: active ? COLORS.page : 'transparent',
+    color: active ? COLORS.ink : COLORS.muted,
+    padding: '5px 14px',
   });
 
   return (
     <div style={{
-      background: COLORS.ink,
-      color: 'white',
+      background: COLORS.paper,
+      color: COLORS.ink,
       display: 'flex',
       alignItems: 'center',
       flexWrap: 'wrap',
       gap: 8,
       padding: '10px 16px',
-      borderBottom: `4px double ${COLORS.hairline}`,
+      borderBottom: `1px solid ${COLORS.hairline}`,
     }}>
-      <div className="serif" style={{ fontSize: 22, fontWeight: 500, letterSpacing: 1, marginRight: 8 }}>Planner</div>
-      <div style={{ display: 'flex', gap: 4, marginRight: 12 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3, marginRight: 8 }}>Planner</div>
+      <div style={{ display: 'flex', gap: 2, marginRight: 12 }}>
         {TABS.map((t) => (
           <Link key={t.section} to={`/${t.section}/${dateISO}`} style={tabStyle(t.section === section)}>
             {t.label}
           </Link>
         ))}
       </div>
-      <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle}>◀ Prev</Link>
+      <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle}>‹ Prev</Link>
       <Link to={`/${section}/${todayISO()}`} style={linkStyle}>Today</Link>
-      <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle}>Next ▶</Link>
+      <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle}>Next ›</Link>
       <input
         type="date"
         value={dateISO}
         onChange={onPickDate}
         style={{
-          background: 'transparent',
-          color: 'white',
-          border: '1px solid white',
-          padding: '3px 6px',
-          borderRadius: 2,
-          fontSize: 12,
-          colorScheme: 'dark',
+          background: COLORS.paper,
+          color: COLORS.ink,
+          border: `1px solid ${COLORS.hairline}`,
+          padding: '4px 8px',
+          borderRadius: 8,
+          fontSize: 13,
+          colorScheme: 'light',
         }}
       />
       <div style={{ flex: 1 }} />
