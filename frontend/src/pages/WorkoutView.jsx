@@ -5,13 +5,14 @@ import AgendaRail from '../components/AgendaRail';
 import MiniCalendar from '../components/MiniCalendar';
 import WorkoutCard from '../components/workout/WorkoutCard';
 import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
-import { getWorkoutStatus, getWorkoutDay, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from '../services/api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
-import { TEMPLATE_ART, templateBanner, templateHeader, templateThumb, planDayThumb, focusTile, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
+import { templateBanner, templateHeader, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
 
 const RANGES = [
+  { key: 'd1', label: '1 day', days: 1, sub: 'this day' },
   { key: 'd7', label: '7 days', days: 7, sub: 'last 7 days' },
   { key: 'd30', label: '30 days', days: 30, sub: 'last 30 days' },
   { key: 'd90', label: '90 days', days: 90, sub: 'last 90 days' },
@@ -24,7 +25,6 @@ const MAX_RANGE_DAYS = 3660;
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 
 const MAX_WIDTH = 1500;
-const HISTORY_DAYS = 30;   // the Last 30 Days table
 const MONTH_FETCH_DAYS = 45; // covers the mini calendar's six-week grid
 const KG_TO_LB = 2.20462;
 
@@ -32,38 +32,17 @@ const KG_TO_LB = 2.20462;
 const weightUnit = (profile) => (profile && profile.shows_kg ? 'kg' : 'lb');
 const toUnit = (kg, unit) => (kg === null || kg === undefined ? null : (unit === 'kg' ? kg : kg * KG_TO_LB));
 
-const clockOf = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : null);
 // Every date on this tab reads 'Mon, Sep 8, 2026'.
 const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-');
 const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
 // Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
 const exerciseName = (e) => (/^\d+$/.test(e.name || '') ? `Exercise ${e.name}` : e.name);
 
-// Session volume: sum of reps x weight over finished sets (all sets when none is flagged).
-function volumeKg(session) {
-  if (!session.exercises) return session.total_weight_kg || null;
-  let total = 0;
-  let any = false;
-  for (const e of session.exercises) {
-    for (const s of e.sets || []) {
-      if (s.reps && s.weight_kg) { total += s.reps * s.weight_kg; any = true; }
-    }
-  }
-  return any ? total : (session.total_weight_kg || null);
-}
-
 const setsText = (sets, unit) => {
   if (!sets || !sets.length) return '-';
   return sets.map((s) => `${s.reps || 0} x ${num(toUnit(s.weight_kg, unit), 0) || 0}`).join(', ');
 };
 
-// Thumbnail for a session row: the template's thumb, else the plan day's image, else a focus tile.
-const sessionThumb = (s) => {
-  if (TEMPLATE_ART[s.title]) return templateThumb(s.title);
-  if (s.day_index !== null && s.day_index !== undefined) return planDayThumb(Number(s.day_index) + 1);
-  return focusTile('full body');
-};
-const Thumb = ({ src, w = 36, h = 36, radius = 10 }) => (src ? <img src={src} alt="" style={{ width: w, height: h, borderRadius: radius, objectFit: 'cover', flexShrink: 0, display: 'block' }} /> : null);
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
 
 // Ink-on-paper line of body weight over time; labels carry the unit.
@@ -124,14 +103,17 @@ function RangeBars({ sessions, startISO, endISO }) {
     : shortDate(shiftISO(endISO, -(Number(k) * 7 + 6) < 0 ? 0 : -(Number(k) * 7 + 6))));
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 2 : 6, alignItems: 'end', height: H }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 2 : 6, alignItems: 'end', height: H, marginTop: 14 }}>
         {values.map((c, i) => (
           <div key={keys[i]} title={`${c} session${c === 1 ? '' : 's'}`} style={{
+            position: 'relative',
             height: c ? Math.max(6, Math.round((c / max) * H)) : 4,
             background: c ? COLORS.accent : COLORS.faint,
             borderRadius: 3,
             opacity: c ? 1 : 0.5,
-          }} />
+          }}>
+            {c ? <span style={{ position: 'absolute', top: -15, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 600, color: COLORS.accent }}>{c}</span> : null}
+          </div>
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
@@ -143,50 +125,10 @@ function RangeBars({ sessions, startISO, endISO }) {
   );
 }
 
-function SessionBlock({ session: s, unit }) {
-  const vol = volumeKg(s);
-  return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-        <Thumb src={sessionThumb(s)} />
-        <span style={{ fontWeight: 700, fontSize: 15 }}>{s.title}</span>
-        <span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{kindLabel(s)}</span>
-        <span style={{ fontSize: 12, color: COLORS.muted }}>
-          {[clockOf(s.started_at), secondsToHm(s.duration_s), s.calories ? `${num(s.calories)} cal` : null, vol ? `${num(toUnit(vol, unit))} ${unit} lifted` : null].filter(Boolean).join(' · ')}
-        </span>
-      </div>
-      {s.exercises && s.exercises.length ? (
-        <div style={tableWrap}>
-          <table style={table}>
-            <thead>
-              <tr style={headRow}>
-                <th style={th}>Exercise</th>
-                <th style={th}>{s.kind === 'gym' ? `Sets (reps x ${unit})` : 'Time'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {s.exercises.map((e) => (
-                <tr key={`${e.action_id}-${e.order}`}>
-                  <td style={td}>{exerciseName(e)}</td>
-                  <td style={tdNum}>{s.kind === 'gym' ? setsText(e.sets, unit) : (e.seconds ? `${e.seconds}s` : '-')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div style={{ fontSize: 12, color: COLORS.muted }}>No exercise detail in the snapshot for this session.</div>
-      )}
-    </div>
-  );
-}
-
 export default function WorkoutView() {
   const { date } = useParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState(null);
-  const [day, setDay] = useState(null);
-  const [recent, setRecent] = useState(null);       // 30-day window for the table
   const [monthRecent, setMonthRecent] = useState(null); // the mini calendar's month
   const [rangeRecent, setRangeRecent] = useState(null); // the Summary range
   const [rangeKey, setRangeKey] = useState('y365');
@@ -194,6 +136,7 @@ export default function WorkoutView() {
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
   const [openTemplate, setOpenTemplate] = useState(null);
+  const [logOpen, setLogOpen] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -203,15 +146,11 @@ export default function WorkoutView() {
     setLoading(true);
     setError(null);
     try {
-      const [s, d, r, m] = await Promise.all([
+      const [s, m] = await Promise.all([
         getWorkoutStatus(),
-        getWorkoutDay(date),
-        getWorkoutRecent(date, HISTORY_DAYS),
         getWorkoutRecent(monthEnd, MONTH_FETCH_DAYS),
       ]);
       setStatus(s);
-      setDay(d);
-      setRecent(r);
       setMonthRecent(m);
       if (!catalog) getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
     } catch (err) {
@@ -221,10 +160,10 @@ export default function WorkoutView() {
     }
   }, [date, monthEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setDay(null); load(); }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   // The Summary range: fixed windows end on the shown date; Custom uses its own dates.
-  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[4];
+  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[5];
   const customValid = rangeKey !== 'custom' || (customFrom && customTo && customFrom <= customTo);
   const rangeEnd = rangeKey === 'custom' ? customTo : date;
   const rangeDays = rangeKey === 'custom'
@@ -245,19 +184,17 @@ export default function WorkoutView() {
   const profile = (status && status.profile) || {};
   const awards = (status && status.awards) || {};
   const unit = weightUnit(profile);
-  const sessions = (day && day.sessions) || [];
-  const history = ((recent && recent.sessions) || []).filter((s) => s.date <= date);
-  const weights = (recent && recent.weights) || [];
+  const weights = (monthRecent && monthRecent.weights) || [];
   const counts = (status && status.counts) || {};
   const workoutDays = new Set(((monthRecent && monthRecent.sessions) || []).map((s) => s.date));
 
   const rangeSessions = ((rangeRecent && rangeRecent.sessions) || []).filter((s) => s.date >= rangeStart && s.date <= rangeEnd);
   const rangeGym = rangeSessions.filter((s) => s.kind === 'gym').length;
   const activeHours = rangeSessions.reduce((t, s) => t + (s.duration_s || 0), 0) / 3600;
-  const liftedKg = rangeSessions.reduce((t, s) => t + (s.total_weight_kg || 0), 0);
-  const rangeWeights = weights.filter((w) => w.date >= rangeStart && w.date <= rangeEnd && w.kg !== null);
-  const weightDeltaKg = rangeWeights.length >= 2 ? rangeWeights[rangeWeights.length - 1].kg - rangeWeights[0].kg : null;
   const lastInRange = rangeSessions.length ? rangeSessions[0] : null;
+  const hasCalories = rangeSessions.some((s) => s.calories);
+  const hasExercises = rangeSessions.some((s) => s.exercise_count);
+  const hasLifted = rangeSessions.some((s) => s.total_weight_kg);
   const latestWeight = weights.length ? weights[weights.length - 1] : null;
   const templatesList = (catalog && catalog.templates) || [];
 
@@ -351,53 +288,59 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-        <WorkoutCard title="Summary" dot={COLORS.accent} aside={`${rangeSessions.length} session${rangeSessions.length === 1 ? '' : 's'}`} actions={rangeControls}>
-          <div style={tileGrid(120)}>
-            <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
-            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} sub="all time" />
+        <WorkoutCard title="Activity" dot={COLORS.accent} actions={rangeControls}>
+          <div style={tileGrid(140)}>
+            <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home, ${range.sub}`} />
             <WorkoutTile label="Active time" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" sub={range.sub} />
-            <WorkoutTile label="Lifted" value={liftedKg ? num(toUnit(liftedKg, unit)) : null} unit={unit} sub={range.sub} />
-            <WorkoutTile label="Weight change" value={weightDeltaKg === null ? null : `${weightDeltaKg > 0 ? '+' : ''}${num(toUnit(weightDeltaKg, unit), 1)}`} unit={unit} sub={weightDeltaKg !== null ? `since ${shortDate(rangeWeights[0].date)}` : null} />
-            <WorkoutTile label="Last session" value={lastInRange ? shortDate(lastInRange.date) : null} size={16} sub={lastInRange ? lastInRange.title : null} />
+            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} sub="all time" />
+            <WorkoutTile label="Last workout" value={lastInRange ? shortDate(lastInRange.date) : null} size={16} sub={lastInRange ? `${lastInRange.title} · ${secondsToHm(lastInRange.duration_s) || '-'}` : null} />
           </div>
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 8 }}>
             {customValid ? <RangeBars sessions={rangeSessions} startISO={rangeStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
           </div>
+          <button
+            type="button"
+            onClick={() => setLogOpen((o) => !o)}
+            style={{ marginTop: 16, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: COLORS.page, border: 'none', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontWeight: 600, color: COLORS.ink, cursor: 'pointer' }}
+          >
+            <span>{rangeSessions.length} workout{rangeSessions.length === 1 ? '' : 's'} {range.sub === 'lifetime' ? 'lifetime' : range.sub}</span>
+            <span style={{ color: COLORS.accent }}>{logOpen ? '▾' : '▸'}</span>
+          </button>
+          {logOpen ? (
+            rangeSessions.length ? (
+              <div style={{ ...tableWrap, marginTop: 10 }}>
+                <table style={table}>
+                  <thead>
+                    <tr style={headRow}>
+                      {['Date', 'Workout', 'Type', 'Duration', ...(hasCalories ? ['Calories'] : []), ...(hasLifted ? [`Lifted (${unit})`] : []), ...(hasExercises ? ['Exercises'] : [])].map((h) => <th key={h} style={th}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rangeSessions.map((s) => {
+                      const mine = s.date === date;
+                      const cell = (extra) => ({ ...extra, background: mine ? COLORS.calloutBg : undefined });
+                      return (
+                        <tr key={s.id}>
+                          <td style={cell(tdNum)}><Link to={`/workout/${s.date}`} style={tableLink}>{shortDate(s.date)}</Link></td>
+                          <td style={cell(td)}>{s.title}</td>
+                          <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{kindLabel(s)}</span></td>
+                          <td style={cell(tdNum)}>{secondsToHm(s.duration_s) || '-'}</td>
+                          {hasCalories ? <td style={cell(tdNum)}>{num(s.calories) || '-'}</td> : null}
+                          {hasLifted ? <td style={cell(tdNum)}>{s.total_weight_kg ? num(toUnit(s.total_weight_kg, unit)) : '-'}</td> : null}
+                          {hasExercises ? <td style={cell(tdNum)}>{s.exercise_count || '-'}</td> : null}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : <div style={{ marginTop: 10, fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>
+          ) : null}
           {!counts.sessions ? (
             <div style={{ marginTop: 12, fontSize: 12, color: COLORS.muted }}>
               No workouts in the snapshot yet. Sync the Home Workouts app on the Mac to pull history.
             </div>
           ) : null}
-        </WorkoutCard>
-
-        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
-          {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
-        </WorkoutCard>
-
-        <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
-          <div style={tableWrap}>
-            <table style={table}>
-              <thead>
-                <tr style={headRow}>
-                  {['', 'Date', 'Workout', 'Type', 'Duration', 'Calories', `Lifted (${unit})`, 'Exercises'].map((h, i) => <th key={i} style={th}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((s) => (
-                  <tr key={s.id}>
-                    <td style={{ ...td, width: 44 }}><Thumb src={sessionThumb(s)} /></td>
-                    <td style={tdNum}><Link to={`/workout/${s.date}`} style={tableLink}>{shortDate(s.date)}</Link></td>
-                    <td style={td}>{s.title}</td>
-                    <td style={td}>{kindLabel(s)}</td>
-                    <td style={tdNum}>{secondsToHm(s.duration_s) || '-'}</td>
-                    <td style={tdNum}>{num(s.calories) || '-'}</td>
-                    <td style={tdNum}>{s.total_weight_kg ? num(toUnit(s.total_weight_kg, unit)) : '-'}</td>
-                    <td style={tdNum}>{s.exercise_count || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </WorkoutCard>
 
       <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
