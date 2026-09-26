@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import TopNav from '../components/TopNav';
+import GarminShell from '../components/health/GarminShell';
 import GarminCard from '../components/health/GarminCard';
 import GarminIcon from '../components/health/GarminIcon';
 import { Headline, Stat, HeadlineRow } from '../components/health/GarminStat';
@@ -9,13 +9,10 @@ import ActivityCard from '../components/health/ActivityCard';
 import Sparkline from '../components/health/Sparkline';
 import EndpointExplorer from '../components/health/EndpointExplorer';
 import { getGarminDay, getGarminStatus } from '../services/api';
-import { longDate } from '../utils/dayInfo';
 import {
   num, metersToMiles, gramsToLbs, mlToOz, secondsToHm, clock, localOffset, series, titleCase,
 } from '../utils/garminFormat';
-import { G, page, headerBand, sectionLabel, dateTitle, syncedText, outlineButton, card, cardBody, pillButton } from '../garminTheme';
-
-const COLUMN = 760;
+import { G, sectionLabel, card, cardBody, pillButton, column } from '../garminTheme';
 
 const pick = (r, key) => (r && r[key] && r[key].ok ? r[key].data : null);
 const first = (v) => (Array.isArray(v) ? v[0] : v);
@@ -101,37 +98,17 @@ export default function HealthView() {
   const sleepScore = sleepDto && sleepDto.sleepScores && sleepDto.sleepScores.overall ? sleepDto.sleepScores.overall.value : null;
   const intensityToday = (im.moderateMinutes || 0) + 2 * (im.vigorousMinutes || 0);
   const syncedAt = bundle && bundle.fetched_at
-    ? new Date(bundle.fetched_at).toLocaleString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    ? `${new Date(bundle.fetched_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })} @ ${new Date(bundle.fetched_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
     : null;
 
   const shell = (inner) => (
-    <div className="garmin-page" style={page}>
-      <TopNav dateISO={date} section="health" theme="garmin" />
-      <div style={headerBand}>
-        <div style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-          <div>
-            <div style={sectionLabel}>Daily Summary</div>
-            <div style={{ ...dateTitle, marginTop: 6 }}>
-              <GarminIcon name="calendar" color={G.blue} size={18} />
-              <span>{longDate(date).replace(/(\d+)(st|nd|rd|th)/, '$1,')}</span>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {syncedAt ? <span style={syncedText}>Synced {syncedAt}</span> : null}
-            <button disabled={loading || !connected} onClick={() => load(true)} style={outlineButton(loading || !connected)}>
-              {loading ? 'Loading...' : 'Refresh'}
-            </button>
-          </div>
-        </div>
-      </div>
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '20px min(24px, 4vw) 64px' }}>
-        {inner}
-      </div>
-    </div>
+    <GarminShell dateISO={date} syncedAt={syncedAt} loading={loading} connected={!!connected} onRefresh={() => load(true)}>
+      {inner}
+    </GarminShell>
   );
 
   const notice = (title, body) => (
-    <section style={{ ...card, maxWidth: COLUMN }}>
+    <section style={{ ...card, maxWidth: column.maxWidth }}>
       <div style={{ ...cardBody, textAlign: 'center', padding: '40px 24px' }}>
         <div style={{ fontSize: 18, fontWeight: 300, marginBottom: 8 }}>{title}</div>
         <div style={{ fontSize: 12, color: G.muted, lineHeight: 1.6 }}>{body}</div>
@@ -156,7 +133,7 @@ export default function HealthView() {
 
   return shell(
     <>
-      <div style={{ maxWidth: COLUMN, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={column}>
         {activities.length ? activities.map((a) => <ActivityCard key={a.activityId} activity={a} />) : (
           notice('No activities recorded', 'Activities recorded on this day show here as green cards.')
         )}
@@ -336,7 +313,7 @@ export default function HealthView() {
         ) : null}
       </div>
 
-      <section style={{ ...card, marginTop: 24 }}>
+      <section id="endpoints" style={{ ...card, marginTop: 24 }}>
         <button
           type="button"
           onClick={() => setShowExplorer((s) => !s)}

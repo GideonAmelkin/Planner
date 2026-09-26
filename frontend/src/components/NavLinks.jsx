@@ -2,26 +2,14 @@ import React, { useState } from 'react';
 import SettingsPanel from './SettingsPanel';
 import RecapPanel from './RecapPanel';
 import { COLORS, navButton } from '../styles';
-import { G } from '../garminTheme';
 
 const baseStyle = navButton;
 const activeStyle = { ...baseStyle, background: 'white', color: COLORS.ink };
 
-// Garmin theme: thin white text links, like the sidebar items on connect.garmin.com.
-const garminStyle = (active) => ({
-  background: 'transparent',
-  border: 'none',
-  color: 'white',
-  fontSize: 14,
-  fontWeight: active ? 400 : 300,
-  padding: '4px 8px',
-  fontFamily: G.font,
-});
-
-export default function NavLinks({ theme = 'paper' }) {
+export default function NavLinks() {
   const [showSettings, setShowSettings] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
-  const styleFor = (active) => (theme === 'garmin' ? garminStyle(active) : (active ? activeStyle : baseStyle));
+  const styleFor = (active) => active ? activeStyle : baseStyle;
 
   return (
     <>

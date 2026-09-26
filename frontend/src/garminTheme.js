@@ -201,3 +201,98 @@ export const activityFooter = {
   display: 'flex',
   justifyContent: 'flex-end',
 };
+
+// The Garmin Connect frame: sidebar, top bar, header, content ---------------------
+export const SIDEBAR_W = 268;
+export const COLUMN_W = 932;
+
+export const sidebar = {
+  width: SIDEBAR_W,
+  flex: `0 0 ${SIDEBAR_W}px`,
+  background: G.nav,
+  color: 'white',
+  position: 'sticky',
+  top: 0,
+  height: '100vh',
+  overflowY: 'auto',
+  fontFamily: G.font,
+};
+export const wordmark = {
+  fontSize: 30,
+  fontWeight: 300,
+  letterSpacing: 0.5,
+  color: 'white',
+  padding: '14px 18px 18px',
+  textDecoration: 'none',
+  display: 'block',
+  lineHeight: 1.1,
+};
+export const sidebarItem = (active = false) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  height: 40,
+  padding: '0 18px 0 18px',
+  borderLeft: `4px solid ${active ? 'white' : 'transparent'}`,
+  color: 'white',
+  fontSize: 16,
+  fontWeight: 300,
+  textDecoration: 'none',
+  background: 'transparent',
+  border: 'none',
+  borderLeftWidth: 4,
+  borderLeftStyle: 'solid',
+  width: '100%',
+  textAlign: 'left',
+  cursor: 'pointer',
+  fontFamily: G.font,
+  whiteSpace: 'nowrap',
+});
+export const sidebarDivider = { borderTop: '1px solid #3b3b3b', margin: '8px 0' };
+
+export const topBar = {
+  height: 60,
+  background: G.surface,
+  borderBottom: `1px solid ${G.faint}`,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '0 30px',
+};
+export const circleButton = {
+  width: 32,
+  height: 32,
+  borderRadius: '50%',
+  border: `1px solid ${G.faint}`,
+  background: 'white',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  color: G.muted,
+  textDecoration: 'none',
+  padding: 0,
+};
+export const iconButton = {
+  background: 'transparent',
+  border: 'none',
+  padding: 6,
+  cursor: 'pointer',
+  color: G.muted,
+  display: 'inline-flex',
+  alignItems: 'center',
+  fontFamily: G.font,
+};
+
+export const summaryHeader = {
+  background: G.surface,
+  borderBottom: `1px solid ${G.border}`,
+  padding: '18px 30px 16px',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 16,
+  flexWrap: 'wrap',
+};
+export const contentArea = { background: G.page, padding: 30, minHeight: 'calc(100vh - 60px)' };
+export const column = { maxWidth: COLUMN_W, display: 'flex', flexDirection: 'column', gap: 16 };
