@@ -10,10 +10,9 @@ import ProgressBar from '../components/health/ProgressBar';
 import ActivityCard from '../components/health/ActivityCard';
 import Sparkline from '../components/health/Sparkline';
 import EndpointExplorer from '../components/health/EndpointExplorer';
-import { getGarminDay, getGarminStatus } from '../services/api';
-import {
-  num, metersToMiles, gramsToLbs, mlToOz, secondsToHm, clock, localOffset, series, titleCase,
-} from '../utils/garminFormat';
+import { getGarminDay, getGarminStatus } from '../shared/api';
+import { metersToMiles, gramsToLbs, mlToOz, clock, localOffset, series } from '../utils/garminFormat';
+import { num, secondsToHm, titleCase } from '../shared/format';
 import { G, sectionLabel, card, cardBody, pillButton, column } from '../garminTheme';
 
 const pick = (r, key) => (r && r[key] && r[key].ok ? r[key].data : null);

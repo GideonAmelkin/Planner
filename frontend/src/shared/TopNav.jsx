@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { shiftISO, todayISO } from '../utils/dayInfo';
+import { shiftISO, todayISO } from './dayInfo';
 import NavLinks from './NavLinks';
-import { COLORS, navButton } from '../styles';
+import { COLORS, navButton } from './styles';
 
 export const TABS = [
   { section: 'agenda', label: 'Agenda' },

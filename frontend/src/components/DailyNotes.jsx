@@ -1,7 +1,7 @@
 import React from 'react';
-import { createNote, updateNote, deleteNote, reorderNotes } from '../services/api';
+import { createNote, updateNote, deleteNote, reorderNotes } from '../shared/api';
 import NestedListSection from './NestedListSection';
-import { SECTION_DOTS } from '../styles';
+import { SECTION_DOTS } from '../shared/styles';
 
 const api = { create: createNote, update: updateNote, remove: deleteNote, reorder: reorderNotes };
 

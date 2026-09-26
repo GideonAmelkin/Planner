@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { format, getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
-import { dateToISO, monthGrid } from '../utils/dayInfo';
-import { COLORS, card, uppercaseHeading } from '../styles';
+import { dateToISO, monthGrid } from '../shared/dayInfo';
+import { COLORS, card, uppercaseHeading } from '../shared/styles';
 
 // Per-day task/appointment markers were intentionally removed (planned to
 // rebuild later). When re-adding, restore the `summary` state + `getMonth`

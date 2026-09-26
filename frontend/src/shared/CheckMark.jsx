@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../styles';
+import { COLORS } from './styles';
 
 // Rounded-square check used by Action Items, Monthly Goals and the Recap list.
 // Open: a faint outline. Done: filled indigo with a white tick.

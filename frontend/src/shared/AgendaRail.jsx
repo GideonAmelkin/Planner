@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import NavLinks from './NavLinks';
 import { TABS } from './TopNav';
-import { COLORS, navButton } from '../styles';
+import { COLORS, navButton } from './styles';
 
 export const RAIL_WIDTH = 240;
 const STRIP_WIDTH = 44;

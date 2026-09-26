@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import MiniCalendar from './MiniCalendar';
+import MiniCalendar from '../shared/MiniCalendar';
 import { DayInfoBadge, QuoteCallout } from './QuoteHeader';
-import { headlineLong, shiftISO, todayISO } from '../utils/dayInfo';
-import { COLORS, card, navButton } from '../styles';
+import { headlineLong, shiftISO, todayISO } from '../shared/dayInfo';
+import { COLORS, card, navButton } from '../shared/styles';
 
 // The header card across the top of the spread: headline, day controls and
 // pills on the left, the quote callout in the middle, the mini calendar right.

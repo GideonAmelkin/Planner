@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import AgendaRail from '../components/AgendaRail';
+import AgendaRail from '../shared/AgendaRail';
 import DateCard from '../components/DateCard';
 import TimelineSchedule from '../components/TimelineSchedule';
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
@@ -9,13 +9,13 @@ import Ongoing from '../components/Ongoing';
 import DailyNotesText from '../components/DailyNotesText';
 import MonthlyGoals from '../components/MonthlyGoals';
 import CalendarSection from '../components/CalendarSection';
-import { COLORS, card } from '../styles';
+import { COLORS, card } from '../shared/styles';
 import {
   getDay,
   createTask, deleteTask,
   createNote, deleteNote,
   createOngoing, deleteOngoing,
-} from '../services/api';
+} from '../shared/api';
 
 const SPREAD_MAX_WIDTH = 1500;
 

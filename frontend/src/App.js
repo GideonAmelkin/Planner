@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from '
 import DailyView from './pages/DailyView';
 import HealthView from './pages/HealthView';
 import WorkoutView from './pages/WorkoutView';
-import CalendarToast from './components/CalendarToast';
-import { todayISO, isoToDate, dateToISO } from './utils/dayInfo';
+import CalendarToast from './shared/CalendarToast';
+import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 
 // Three top-level tabs, each with its own /<section>/:date route.
 export const SECTIONS = ['agenda', 'health', 'workout'];

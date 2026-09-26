@@ -4,8 +4,9 @@ import { MetricFrame, DailyTimeline, DailyBars, ok, first, Center, Para, pageTo 
 import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, DateControls, InfoDot } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, dateTitle, pillButton, chevronButton, syncedText } from '../../../garminTheme';
-import { num, metersToMiles, gramsToLbs, secondsToHm, clock, titleCase } from '../../../utils/garminFormat';
-import { shiftISO, todayISO, longDate } from '../../../utils/dayInfo';
+import { metersToMiles, gramsToLbs, clock } from '../../../utils/garminFormat';
+import { num, secondsToHm, titleCase } from '../../../shared/format';
+import { shiftISO, todayISO, longDate } from '../../../shared/dayInfo';
 
 const hm = (sec) => (sec ? secondsToHm(sec).replace('h ', 'h ').replace(/(\d+)m$/, '$1min') : '--');
 

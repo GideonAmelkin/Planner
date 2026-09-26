@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import SettingsPanel from './SettingsPanel';
 import RecapPanel from './RecapPanel';
-import { COLORS, navButton } from '../styles';
+import { COLORS, navButton } from './styles';
 
 const baseStyle = navButton;
 const activeStyle = { ...baseStyle, background: COLORS.page, borderColor: COLORS.page };

@@ -1,8 +1,8 @@
 import React from 'react';
 import { getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { dateToISO, isoToDate, monthGrid } from '../utils/dayInfo';
-import { COLORS } from '../styles';
+import { dateToISO, isoToDate, monthGrid } from './dayInfo';
+import { COLORS } from './styles';
 
 const cellSize = 22;
 

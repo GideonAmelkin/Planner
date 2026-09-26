@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../styles';
+import { COLORS } from './styles';
 
 const DOT = { ok: COLORS.done, error: COLORS.danger, off: COLORS.faint };
 

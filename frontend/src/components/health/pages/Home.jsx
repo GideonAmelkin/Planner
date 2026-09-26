@@ -4,8 +4,9 @@ import { ok, Para } from './common';
 import { PageContainer, EmptyState, BlueButton, OutlinedButton, HexBadge, Avatar, RangeControl, SectionHeading } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, pillButton, chevronButton, roundNav } from '../../../garminTheme';
-import { num, metersToMiles } from '../../../utils/garminFormat';
-import { shiftISO, todayISO } from '../../../utils/dayInfo';
+import { metersToMiles } from '../../../utils/garminFormat';
+import { num } from '../../../shared/format';
+import { shiftISO, todayISO } from '../../../shared/dayInfo';
 
 const hms = (sec) => { if (!sec) return '0:00'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
 const listOf = (v) => (Array.isArray(v) ? v : (v && (v.badgeChallenges || v.challenges || v.content)) || []);

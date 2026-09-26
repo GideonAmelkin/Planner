@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { getGarminStatus, garminLogin, garminMfa, garminLogout } from '../services/api';
-import ConnectionRow from './ConnectionRow';
-import { COLORS, outlineButton } from '../styles';
+import { getGarminStatus, garminLogin, garminMfa, garminLogout } from '../shared/api';
+import ConnectionRow from '../shared/ConnectionRow';
+import { COLORS, outlineButton } from '../shared/styles';
 
 const noticeStyle = { marginTop: 6, marginBottom: 6, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
 

@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import GarminIcon from './GarminIcon';
-import RecapPanel from '../RecapPanel';
-import SettingsPanel from '../SettingsPanel';
-import { shiftISO, todayISO, longDate } from '../../utils/dayInfo';
+import RecapPanel from '../../shared/RecapPanel';
+import SettingsPanel from '../../shared/SettingsPanel';
+import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
 import { NAV, groupOf } from '../../garminNav';
 import {
   G, page, sidebar, wordmark, sidebarItem, sidebarDivider, topBar, circleButton, iconButton,

@@ -1,8 +1,8 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
-import { sortByOrder } from '../utils/dayInfo';
+import { sortByOrder } from '../shared/dayInfo';
 import {
   COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionDot, sectionHeader,
-} from '../styles';
+} from '../shared/styles';
 
 const ROW = { minHeight: 36, borderRadius: 8, alignItems: 'center' };
 const CHILD_INDENT = INDENT_PX + 12;

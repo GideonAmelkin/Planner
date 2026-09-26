@@ -1,6 +1,6 @@
 import React from 'react';
-import { dayInfo, ordinal } from '../utils/dayInfo';
-import { COLORS, pill } from '../styles';
+import { dayInfo, ordinal } from '../shared/dayInfo';
+import { COLORS, pill } from '../shared/styles';
 
 // The daily quote in an indigo-tinted callout with a large opening quote mark.
 export function QuoteCallout({ quote }) {

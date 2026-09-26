@@ -4,7 +4,7 @@ import {
   G, emptyWrap, emptyCircle, emptyTitle, emptySub, blueButton, grayButton, outlinedButton, linkText,
   statPairValue, statPairLabel, noticeStrip,
 } from '../../garminTheme';
-import { num } from '../../utils/garminFormat';
+import { num } from '../../shared/format';
 
 export const BlueButton = ({ children, style, ...rest }) => <button type="button" style={{ ...blueButton, ...style }} {...rest}>{children}</button>;
 export const GrayButton = ({ children, style, ...rest }) => <button type="button" style={{ ...grayButton, ...style }} {...rest}>{children}</button>;

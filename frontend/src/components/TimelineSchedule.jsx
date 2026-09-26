@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createAppointment, updateAppointment, deleteAppointment } from '../services/api';
-import { todayISO } from '../utils/dayInfo';
-import { COLORS, SECTION_DOTS, outlineButton, sectionDot, sectionHeader } from '../styles';
+import { createAppointment, updateAppointment, deleteAppointment } from '../shared/api';
+import { todayISO } from '../shared/dayInfo';
+import { COLORS, SECTION_DOTS, outlineButton, sectionDot, sectionHeader } from '../shared/styles';
 
 const START_HOUR = 7;
 const END_HOUR = 20;          // 8 PM marker

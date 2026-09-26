@@ -1,11 +1,11 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
-import { createTask, updateTask, deleteTask, reorderTasks } from '../services/api';
-import { sortByOrder } from '../utils/dayInfo';
-import CheckMark from './CheckMark';
+import { createTask, updateTask, deleteTask, reorderTasks } from '../shared/api';
+import { sortByOrder } from '../shared/dayInfo';
+import CheckMark from '../shared/CheckMark';
 import {
   COLORS, INDENT_PX, PRIORITY_CHIPS, SECTION_DOTS, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell,
   rowInput, sectionDot, sectionHeader,
-} from '../styles';
+} from '../shared/styles';
 
 const ROW = { minHeight: 36, borderRadius: 8, alignItems: 'center' };
 const CHILD_INDENT = INDENT_PX + 12;

@@ -1,14 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { endOfMonth } from 'date-fns';
-import AgendaRail from '../components/AgendaRail';
-import MiniCalendar from '../components/MiniCalendar';
+import AgendaRail from '../shared/AgendaRail';
+import MiniCalendar from '../shared/MiniCalendar';
 import WorkoutCard from '../components/workout/WorkoutCard';
 import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
-import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../services/api';
-import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
-import { num, secondsToHm } from '../utils/garminFormat';
-import { COLORS, SECTION_DOTS, card, navButton, pill } from '../styles';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../shared/api';
+import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../shared/dayInfo';
+import { num, secondsToHm } from '../shared/format';
+import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
 import { templateBanner, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
 
 const RANGES = [

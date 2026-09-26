@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getCalendarAccounts, disconnectCalendarAccount, getDay, getWorkoutStatus, API_BASE } from '../services/api';
-import { todayISO } from '../utils/dayInfo';
+import { getCalendarAccounts, disconnectCalendarAccount, getDay, getWorkoutStatus, API_BASE } from './api';
+import { todayISO } from './dayInfo';
 import ConnectionRow from './ConnectionRow';
-import GarminSettings from './GarminSettings';
-import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton, pill, sectionHeader } from '../styles';
+import GarminSettings from '../components/GarminSettings';
+import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton, pill, sectionHeader } from './styles';
 
 const PROVIDERS = [
   { key: 'google', name: 'Google', color: COLORS.google, hint: 'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set in backend/.env' },

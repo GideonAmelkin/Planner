@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { MetricFrame, ok, Center } from './common';
 import { TwoCol, SectionHeading, StatPair, StatRow, RingGauge } from '../../garmin';
 import { G } from '../../../garminTheme';
-import { num, mlToOz } from '../../../utils/garminFormat';
-import { postGarmin } from '../../../services/api';
+import { mlToOz } from '../../../utils/garminFormat';
+import { num } from '../../../shared/format';
+import { postGarmin } from '../../../shared/api';
 
 const HOURS = ['7 AM', '8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM', '7 PM', '8 PM', '9 PM', '10 PM'];
 

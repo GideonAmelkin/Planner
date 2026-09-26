@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getGarminEndpoints, callGarmin, postGarmin } from '../../services/api';
+import { getGarminEndpoints, callGarmin, postGarmin } from '../../shared/api';
 import { G, pillButton, outlineButton } from '../../garminTheme';
-import { titleCase } from '../../utils/garminFormat';
+import { titleCase } from '../../shared/format';
 
 const GROUP_ORDER = ['profile', 'daily', 'sleep', 'heart', 'stress', 'body_battery', 'recovery', 'training', 'activities', 'workouts', 'body', 'hydration', 'nutrition', 'wellness', 'goals_badges', 'devices', 'gear', 'golf', 'system'];
 

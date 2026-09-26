@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import GarminIcon from '../health/GarminIcon';
-import { shiftISO, todayISO, longDate } from '../../utils/dayInfo';
+import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
 import {
   G, container, title44, title22, infoDot, sectionHeading, segmentTrack, segment, datePill, roundNav,
   tabRow, tab, yellowBanner, kebab,

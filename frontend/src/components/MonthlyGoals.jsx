@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import {
   getMasterTasks, createMasterTask, updateMasterTask, deleteMasterTask, reorderMasterTasks,
-} from '../services/api';
-import CheckMark from './CheckMark';
-import { sortByOrder } from '../utils/dayInfo';
-import { COLORS, GOAL_WASH, card, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../styles';
+} from '../shared/api';
+import CheckMark from '../shared/CheckMark';
+import { sortByOrder } from '../shared/dayInfo';
+import { COLORS, GOAL_WASH, card, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../shared/styles';
 
 function Column({ title, wash, items, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
   const [text, setText] = useState('');

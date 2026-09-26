@@ -1,7 +1,7 @@
 import React from 'react';
-import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from '../services/api';
+import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from '../shared/api';
 import NestedListSection from './NestedListSection';
-import { SECTION_DOTS } from '../styles';
+import { SECTION_DOTS } from '../shared/styles';
 
 const api = { create: createOngoing, update: updateOngoing, remove: deleteOngoing, reorder: reorderOngoing };
 

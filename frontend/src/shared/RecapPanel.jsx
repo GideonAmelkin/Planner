@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { getRecap } from '../services/api';
-import { longDate } from '../utils/dayInfo';
+import { getRecap } from './api';
+import { longDate } from './dayInfo';
 import CheckMark from './CheckMark';
-import { COLORS, PRIORITY_CHIPS, modalBackdrop, modalCard, modalClose, modalTitle, pill } from '../styles';
+import { COLORS, PRIORITY_CHIPS, modalBackdrop, modalCard, modalClose, modalTitle, pill } from './styles';
 
 export default function RecapPanel({ onClose }) {
   const [groups, setGroups] = useState([]);

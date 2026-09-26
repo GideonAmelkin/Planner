@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../../styles';
+import { COLORS } from '../../shared/styles';
 
 // Headline number + label. `value` null renders a dash so the grid keeps its shape.
 export default function WorkoutTile({ label, value, unit = '', sub = null, size = 22 }) {
