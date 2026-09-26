@@ -78,37 +78,49 @@ function WeightChart({ weights, unit, height = 64 }) {
 // Sessions per bucket across a range: weekly buckets up to a year, monthly
 // beyond that. The busiest bucket sets the scale; empty ones show a faint stub.
 function RangeBars({ sessions, startISO, endISO }) {
+  // Bucket size follows the span so there are never more than about 53 bars,
+  // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
-  const monthly = totalDays > 366;
+  const unit = totalDays <= 366 ? 'week' : totalDays <= 4 * 366 ? 'month' : 'quarter';
+  const monthKey = (iso) => iso.slice(0, 7);
+  const quarterKey = (iso) => `${iso.slice(0, 4)}-Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`;
   const keys = [];
-  if (monthly) {
-    let cur = new Date(`${startISO.slice(0, 7)}-01T12:00:00`);
-    const endKey = endISO.slice(0, 7);
+  if (unit === 'week') {
+    for (let w = Math.ceil(totalDays / 7) - 1; w >= 0; w--) keys.push(String(w));
+  } else {
+    const step = unit === 'month' ? 1 : 3;
+    const keyOf = unit === 'month' ? monthKey : quarterKey;
+    const cur = new Date(`${startISO.slice(0, 7)}-01T12:00:00`);
+    if (unit === 'quarter') cur.setMonth(Math.floor(cur.getMonth() / 3) * 3);
+    const endKey = keyOf(endISO);
     while (keys.length < 400) {
-      const k = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`;
+      const k = keyOf(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-01`);
       keys.push(k);
       if (k === endKey) break;
-      cur.setMonth(cur.getMonth() + 1);
+      cur.setMonth(cur.getMonth() + step);
     }
-  } else {
-    for (let w = Math.ceil(totalDays / 7) - 1; w >= 0; w--) keys.push(String(w));
   }
   const counts = new Map(keys.map((k) => [k, 0]));
   const end = Date.parse(`${endISO}T12:00:00`);
   for (const sess of sessions) {
     if (sess.date < startISO || sess.date > endISO) continue;
-    const k = monthly ? sess.date.slice(0, 7) : String(Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / (7 * 86400000)));
+    const k = unit === 'week'
+      ? String(Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / (7 * 86400000)))
+      : unit === 'month' ? monthKey(sess.date) : quarterKey(sess.date);
     if (counts.has(k)) counts.set(k, counts.get(k) + 1);
   }
   const values = keys.map((k) => counts.get(k));
   const max = Math.max(1, ...values);
   const H = 40;
-  const label = (k) => (monthly
-    ? new Date(`${k}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
-    : shortDate(shiftISO(endISO, -(Number(k) * 7 + 6) < 0 ? 0 : -(Number(k) * 7 + 6))));
+  const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  const edgeLabel = (k, iso) => {
+    if (unit === 'week') return shortDate(iso);
+    if (unit === 'month') return monthLabel(k);
+    return monthLabel(`${k.slice(0, 4)}-${String((Number(k.slice(6)) - 1) * 3 + 1).padStart(2, '0')}`);
+  };
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 2 : 6, alignItems: 'end', height: H, marginTop: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 4 : 6, alignItems: 'end', height: H, marginTop: 24 }}>
         {values.map((c, i) => (
           <div key={keys[i]} title={`${c} session${c === 1 ? '' : 's'}`} style={{
             position: 'relative',
@@ -122,9 +134,9 @@ function RangeBars({ sessions, startISO, endISO }) {
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
-        <span>{monthly ? label(keys[0]) : shortDate(startISO)}</span>
-        <span>sessions per {monthly ? 'month' : 'week'}</span>
-        <span>{monthly ? label(keys[keys.length - 1]) : shortDate(endISO)}</span>
+        <span>{edgeLabel(keys[0], startISO)}</span>
+        <span>sessions per {unit}</span>
+        <span>{edgeLabel(keys[keys.length - 1], endISO)}</span>
       </div>
     </div>
   );
@@ -197,6 +209,8 @@ export default function WorkoutView() {
   const rangeGym = rangeSessions.filter((s) => s.kind === 'gym').length;
   const activeHours = rangeSessions.reduce((t, s) => t + (s.duration_s || 0), 0) / 3600;
   const lastInRange = rangeSessions.length ? rangeSessions[0] : null;
+  // Lifetime starts the chart at the first workout instead of ten empty years back.
+  const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
   const hasCalories = rangeSessions.some((s) => s.calories);
   const hasExercises = rangeSessions.some((s) => s.exercise_count);
   const hasLifted = rangeSessions.some((s) => s.total_weight_kg);
@@ -301,7 +315,7 @@ export default function WorkoutView() {
             <WorkoutTile label="Last workout" value={lastInRange ? shortDate(lastInRange.date) : null} size={16} sub={lastInRange ? `${lastInRange.title} · ${secondsToHm(lastInRange.duration_s) || '-'}` : null} />
           </div>
           <div style={{ paddingTop: 16 }}>
-            {customValid ? <RangeBars sessions={rangeSessions} startISO={rangeStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
+            {customValid ? <RangeBars sessions={rangeSessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
           </div>
           <button
             type="button"
