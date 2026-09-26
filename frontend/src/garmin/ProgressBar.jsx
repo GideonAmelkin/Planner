@@ -1,5 +1,5 @@
 import React from 'react';
-import { track, fill } from '../../garminTheme';
+import { track, fill } from './theme';
 
 // The 20px square-cornered bar from the Steps and Intensity Minutes cards.
 export default function ProgressBar({ value, goal, color, style }) {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Sparkline from './Sparkline';
-import { G, statValue, statLabel } from '../../garminTheme';
-import { num } from '../../shared/format';
+import { G, statValue, statLabel } from './theme';
+import { num } from '../shared/format';
 
 // Generic Garmin-style rendering of any endpoint payload:
 //   [[ts, value], ...]  -> sparkline

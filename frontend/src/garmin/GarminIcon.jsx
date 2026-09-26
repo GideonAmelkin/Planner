@@ -1,5 +1,5 @@
 import React from 'react';
-import { G } from '../../garminTheme';
+import { G } from './theme';
 
 // 16px glyphs in the spirit of Garmin Connect's metric icons. Paths are drawn on
 // a 24-unit grid and filled with the metric color.

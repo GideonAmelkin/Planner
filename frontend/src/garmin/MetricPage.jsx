@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 import GarminCard from './GarminCard';
 import GarminIcon from './GarminIcon';
 import AutoData from './AutoData';
-import { garminBatch, callGarmin } from '../../shared/api';
-import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
-import { RANGES, rangeDays, garminUrl } from '../../garminNav';
-import { G, card, cardBody, column, chevronButton, footerLink, summaryHeader } from '../../garminTheme';
+import { garminBatch, callGarmin } from './api';
+import { shiftISO, todayISO, longDate } from '../shared/dayInfo';
+import { RANGES, rangeDays, garminUrl } from './nav';
+import { G, card, cardBody, column, chevronButton, footerLink, summaryHeader } from './theme';
 import PAGE_COMPONENTS from './pages';
 
 const ICON_FOR = {

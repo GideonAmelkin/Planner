@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { getCalendarAccounts, disconnectCalendarAccount, getDay, getWorkoutStatus, API_BASE } from './api';
 import { todayISO } from './dayInfo';
 import ConnectionRow from './ConnectionRow';
-import GarminSettings from '../components/GarminSettings';
+import GarminSettings from '../garmin/GarminSettings';
 import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton, pill, sectionHeader } from './styles';
 
 const PROVIDERS = [

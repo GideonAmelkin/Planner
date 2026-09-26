@@ -1,11 +1,11 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import GarminIcon from '../health/GarminIcon';
+import GarminIcon from '../GarminIcon';
 import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
 import {
   G, container, title44, title22, infoDot, sectionHeading, segmentTrack, segment, datePill, roundNav,
   tabRow, tab, yellowBanner, kebab,
-} from '../../garminTheme';
+} from '../theme';
 
 // The white 1280px box every Garmin sub-page sits in.
 export function PageContainer({ children, narrow = false, style, flush = false }) {

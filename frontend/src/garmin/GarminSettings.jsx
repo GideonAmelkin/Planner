@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getGarminStatus, garminLogin, garminMfa, garminLogout } from '../shared/api';
+import { getGarminStatus, garminLogin, garminMfa, garminLogout } from './api';
 import ConnectionRow from '../shared/ConnectionRow';
 import { COLORS, outlineButton } from '../shared/styles';
 

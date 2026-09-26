@@ -1,9 +1,9 @@
 import React from 'react';
-import { PageContainer, PageTitle, ControlsRow, DateControls, RangeControl, TabStrip, SectionHeading } from '../../garmin';
+import { PageContainer, PageTitle, ControlsRow, DateControls, RangeControl, TabStrip, SectionHeading } from '../primitives';
 import Sparkline from '../Sparkline';
-import { G } from '../../../garminTheme';
-import { RANGES } from '../../../garminNav';
-import { series, localOffset } from '../../../utils/garminFormat';
+import { G } from '../theme';
+import { RANGES } from '../nav';
+import { series, localOffset } from '../format';
 
 export const ok = (results, key) => (results && results[key] && results[key].ok ? results[key].data : null);
 export const first = (v) => (Array.isArray(v) ? v[0] : v);

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ok, Center, Para } from './common';
-import { PageContainer, PageTitle, TabStrip, EmptyState, BlueButton, GrayButton, OutlinedButton, Illustration, MapView, Notice, InfoDot } from '../../garmin';
+import { PageContainer, PageTitle, TabStrip, EmptyState, BlueButton, GrayButton, OutlinedButton, Illustration, MapView, Notice, InfoDot } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, sectionLabel, title22 } from '../../../garminTheme';
-import { titleCase } from '../../../shared/format';
+import { G, sectionLabel, title22 } from '../theme';
+import { titleCase } from '../../shared/format';
 
 const lastPos = (results) => { const a = ok(results, 'last'); return a && a.startLatitude ? [a.startLatitude, a.startLongitude] : [25.79, -80.13]; };
 const inputStyle = { border: `1px solid ${G.faint}`, borderRadius: 4, padding: '6px 10px', fontSize: 12, fontFamily: G.font, background: 'white' };

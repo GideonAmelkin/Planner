@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { G } from '../../garminTheme';
+import { G } from '../theme';
 
 // Leaflet map (window.L from the cdnjs include in public/index.html). Draws an optional
 // polyline of [lat, lon] pairs and fits it; otherwise centers on `center`.

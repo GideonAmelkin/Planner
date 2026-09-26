@@ -1,8 +1,8 @@
 import React from 'react';
 import GarminIcon from './GarminIcon';
-import { activityCard, activityFooter, cardTitle, footerLink } from '../../garminTheme';
-import { metersToMiles } from '../../utils/garminFormat';
-import { num, secondsToHm, titleCase } from '../../shared/format';
+import { activityCard, activityFooter, cardTitle, footerLink } from './theme';
+import { metersToMiles } from './format';
+import { num, secondsToHm, titleCase } from '../shared/format';
 
 const hms = (sec) => {
   if (!sec && sec !== 0) return '--';

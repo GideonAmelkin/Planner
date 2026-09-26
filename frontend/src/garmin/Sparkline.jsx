@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { G } from '../../garminTheme';
-import { clock } from '../../utils/garminFormat';
+import { G } from './theme';
+import { clock } from './format';
 
 const H = 64;
 const PAD = 2;

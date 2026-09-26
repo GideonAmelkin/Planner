@@ -1,19 +1,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import GarminShell from '../components/health/GarminShell';
-import MetricPage, { MetricHeader, hasBespoke } from '../components/health/MetricPage';
-import { pageFor } from '../garminNav';
-import GarminCard from '../components/health/GarminCard';
-import GarminIcon from '../components/health/GarminIcon';
-import { Headline, Stat, HeadlineRow } from '../components/health/GarminStat';
-import ProgressBar from '../components/health/ProgressBar';
-import ActivityCard from '../components/health/ActivityCard';
-import Sparkline from '../components/health/Sparkline';
-import EndpointExplorer from '../components/health/EndpointExplorer';
-import { getGarminDay, getGarminStatus } from '../shared/api';
-import { metersToMiles, gramsToLbs, mlToOz, clock, localOffset, series } from '../utils/garminFormat';
+import GarminShell from './GarminShell';
+import MetricPage, { MetricHeader, hasBespoke } from './MetricPage';
+import { pageFor } from './nav';
+import GarminCard from './GarminCard';
+import GarminIcon from './GarminIcon';
+import { Headline, Stat, HeadlineRow } from './GarminStat';
+import ProgressBar from './ProgressBar';
+import ActivityCard from './ActivityCard';
+import Sparkline from './Sparkline';
+import EndpointExplorer from './EndpointExplorer';
+import { getGarminDay, getGarminStatus } from './api';
+import { metersToMiles, gramsToLbs, mlToOz, clock, localOffset, series } from './format';
 import { num, secondsToHm, titleCase } from '../shared/format';
-import { G, sectionLabel, card, cardBody, pillButton, column } from '../garminTheme';
+import { G, sectionLabel, card, cardBody, pillButton, column } from './theme';
 
 const pick = (r, key) => (r && r[key] && r[key].ok ? r[key].data : null);
 const first = (v) => (Array.isArray(v) ? v[0] : v);
@@ -33,7 +33,7 @@ const detailsBlock = (label, node) => (
   </div>
 );
 
-export default function HealthView() {
+export default function GarminView() {
   const params = useParams();
   const date = params.date;
   const activityId = params.id || null;

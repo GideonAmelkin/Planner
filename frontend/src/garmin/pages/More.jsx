@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { ok, Center, Para } from './common';
 import { Leaderboard } from './Home';
-import { PageContainer, PageTitle, TabStrip, EmptyState, BlueButton, HexBadge, Avatar, DataTable, TileCard, InfoDot } from '../../garmin';
+import { PageContainer, PageTitle, TabStrip, EmptyState, BlueButton, HexBadge, Avatar, DataTable, TileCard, InfoDot } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, title22 } from '../../../garminTheme';
-import { metersToMiles } from '../../../utils/garminFormat';
-import { num } from '../../../shared/format';
+import { G, title22 } from '../theme';
+import { metersToMiles } from '../format';
+import { num } from '../../shared/format';
 
 const hms = (sec) => { if (!sec && sec !== 0) return '--'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
 const selectStyle = { border: `1px solid ${G.faint}`, borderRadius: 4, padding: '4px 10px', fontSize: 11, display: 'inline-flex', gap: 8, background: 'white' };

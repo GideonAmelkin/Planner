@@ -2,8 +2,8 @@
 // every item. A page lists the registry calls to batch for a context of
 // { date, start, end, range, profileId }. Items Garmin does not expose through its API
 // have no `calls` and render a link to the Garmin page instead.
-import { G } from './garminTheme';
-import { shiftISO } from './shared/dayInfo';
+import { G } from './theme';
+import { shiftISO } from '../shared/dayInfo';
 
 const BLUE = G.metric.steps;      // Garmin's sidebar icon blue
 const GREEN = G.green;

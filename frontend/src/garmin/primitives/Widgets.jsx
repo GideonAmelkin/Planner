@@ -1,9 +1,9 @@
 import React from 'react';
-import GarminIcon from '../health/GarminIcon';
+import GarminIcon from '../GarminIcon';
 import {
   G, emptyWrap, emptyCircle, emptyTitle, emptySub, blueButton, grayButton, outlinedButton, linkText,
   statPairValue, statPairLabel, noticeStrip,
-} from '../../garminTheme';
+} from '../theme';
 import { num } from '../../shared/format';
 
 export const BlueButton = ({ children, style, ...rest }) => <button type="button" style={{ ...blueButton, ...style }} {...rest}>{children}</button>;

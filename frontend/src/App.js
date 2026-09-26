@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import AgendaView from './agenda/AgendaView';
-import HealthView from './pages/HealthView';
+import GarminView from './garmin/GarminView';
 import WorkoutView from './pages/WorkoutView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
@@ -61,9 +61,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<TodayRedirect />} />
         <Route path="/agenda/:date" element={<Dated section="agenda"><AgendaView /></Dated>} />
-        <Route path="/health/:date" element={<Dated section="health"><HealthView /></Dated>} />
-        <Route path="/health/:date/:page" element={<Dated section="health"><HealthView /></Dated>} />
-        <Route path="/health/:date/activity/:id" element={<Dated section="health"><HealthView /></Dated>} />
+        <Route path="/health/:date" element={<Dated section="health"><GarminView /></Dated>} />
+        <Route path="/health/:date/:page" element={<Dated section="health"><GarminView /></Dated>} />
+        <Route path="/health/:date/activity/:id" element={<Dated section="health"><GarminView /></Dated>} />
         <Route path="/workout/:date" element={<Dated section="workout"><WorkoutView /></Dated>} />
         <Route path="/day/:date" element={<LegacyDayRedirect />} />
         <Route path="*" element={<TodayRedirect />} />

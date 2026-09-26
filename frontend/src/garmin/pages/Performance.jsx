@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MetricFrame, DailyBars, ok, first, Center, Para, pageTo } from './common';
-import { PageContainer, Banner, SideIndex, RangeControl, EmptyState, StatPair, StatRow, ArcGauge, InfoDot, DateControls, LinkButton } from '../../garmin';
+import { PageContainer, Banner, SideIndex, RangeControl, EmptyState, StatPair, StatRow, ArcGauge, InfoDot, DateControls, LinkButton } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, title22 } from '../../../garminTheme';
-import { num } from '../../../shared/format';
+import { G, title22 } from '../theme';
+import { num } from '../../shared/format';
 
 const REPORT_RANGES = [{ key: '4w', label: 'Most Recent' }, { key: '4w2', label: '4 Weeks' }, { key: '6m', label: '6 Months' }, { key: '1y', label: '1 Year' }];
 const hms = (sec) => { if (!sec && sec !== 0) return '--'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };

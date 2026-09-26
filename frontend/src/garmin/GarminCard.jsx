@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import GarminIcon from './GarminIcon';
-import { G, card, cardHeader, cardTitle, cardBody, cardFooter, footerLink } from '../../garminTheme';
+import { G, card, cardHeader, cardTitle, cardBody, cardFooter, footerLink } from './theme';
 
 // A connect.garmin.com daily-summary card: icon + tracked uppercase title, a body,
 // and a VIEW DETAILS footer. With `details` (a node) the footer toggles it inline

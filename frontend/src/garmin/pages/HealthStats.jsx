@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MetricFrame, DailyTimeline, DailyBars, ok, first, Center, Para, pageTo } from './common';
-import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, DateControls, InfoDot } from '../../garmin';
+import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, DateControls, InfoDot } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, sectionLabel, dateTitle, pillButton, chevronButton, syncedText } from '../../../garminTheme';
-import { metersToMiles, gramsToLbs, clock } from '../../../utils/garminFormat';
-import { num, secondsToHm, titleCase } from '../../../shared/format';
-import { shiftISO, todayISO, longDate } from '../../../shared/dayInfo';
+import { G, sectionLabel, dateTitle, pillButton, chevronButton, syncedText } from '../theme';
+import { metersToMiles, gramsToLbs, clock } from '../format';
+import { num, secondsToHm, titleCase } from '../../shared/format';
+import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
 
 const hm = (sec) => (sec ? secondsToHm(sec).replace('h ', 'h ').replace(/(\d+)m$/, '$1min') : '--');
 

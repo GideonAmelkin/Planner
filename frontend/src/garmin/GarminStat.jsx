@@ -1,5 +1,5 @@
 import React from 'react';
-import { headline, headlineUnit, statValue, statLabel, statRow } from '../../garminTheme';
+import { headline, headlineUnit, statValue, statLabel, statRow } from './theme';
 
 const show = (v) => (v === null || v === undefined || v === '' ? '--' : v);
 

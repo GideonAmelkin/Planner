@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import GarminIcon from './GarminIcon';
-import RecapPanel from '../../shared/RecapPanel';
-import SettingsPanel from '../../shared/SettingsPanel';
-import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
-import { NAV, groupOf } from '../../garminNav';
+import RecapPanel from '../shared/RecapPanel';
+import SettingsPanel from '../shared/SettingsPanel';
+import { shiftISO, todayISO, longDate } from '../shared/dayInfo';
+import { NAV, groupOf } from './nav';
 import {
   G, page, sidebar, wordmark, sidebarItem, sidebarDivider, topBar, circleButton, iconButton,
   summaryHeader, sectionLabel, dateTitle, syncedText, pillButton, chevronButton, contentArea,
-} from '../../garminTheme';
+} from './theme';
 
 const OPEN_KEY = 'garminNavOpen';
 

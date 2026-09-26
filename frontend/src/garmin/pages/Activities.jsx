@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ok, first } from './common';
-import { PageContainer, PageTitle, EmptyState, StatPair, StatRow, BlueButton, MapView, SectionHeading } from '../../garmin';
+import { PageContainer, PageTitle, EmptyState, StatPair, StatRow, BlueButton, MapView, SectionHeading } from '../primitives';
 import GarminIcon from '../GarminIcon';
 import Sparkline from '../Sparkline';
-import { G, sectionLabel, linkText } from '../../../garminTheme';
-import { metersToMiles } from '../../../utils/garminFormat';
-import { num, titleCase } from '../../../shared/format';
+import { G, sectionLabel, linkText } from '../theme';
+import { metersToMiles } from '../format';
+import { num, titleCase } from '../../shared/format';
 
 const hms = (sec) => { if (!sec && sec !== 0) return '--'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
 const pace = (sec, meters) => { const mi = metersToMiles(meters); if (!sec || !mi) return '--'; const spm = sec / mi; return `${Math.floor(spm / 60)}:${String(Math.round(spm % 60)).padStart(2, '0')} /mi`; };
