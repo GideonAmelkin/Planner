@@ -1,6 +1,7 @@
 import React from 'react';
 import { createOngoing, updateOngoing, deleteOngoing, reorderOngoing } from '../services/api';
 import NestedListSection from './NestedListSection';
+import { SECTION_DOTS } from '../styles';
 
 const api = { create: createOngoing, update: updateOngoing, remove: deleteOngoing, reorder: reorderOngoing };
 
@@ -9,6 +10,7 @@ export default function Ongoing({ ongoing, onChange, onDropTask, onDropNote }) {
   return (
     <NestedListSection
       title="Ongoing"
+      dot={SECTION_DOTS.ongoing}
       items={ongoing}
       onChange={onChange}
       api={api}

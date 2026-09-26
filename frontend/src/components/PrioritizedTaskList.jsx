@@ -3,8 +3,28 @@ import { createTask, updateTask, deleteTask, reorderTasks } from '../services/ap
 import { sortByOrder } from '../utils/dayInfo';
 import CheckMark from './CheckMark';
 import {
-  COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionTitle,
+  COLORS, INDENT_PX, PRIORITY_CHIPS, SECTION_DOTS, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell,
+  rowInput, sectionDot, sectionHeader,
 } from '../styles';
+
+const ROW = { minHeight: 36, borderRadius: 8, alignItems: 'center' };
+const CHILD_INDENT = INDENT_PX + 12;
+
+// A/B/C chip in front of a prioritised task.
+function PriorityChip({ priority }) {
+  const c = PRIORITY_CHIPS[priority];
+  if (!c) return null;
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      minWidth: 22, height: 20, padding: '0 7px', marginLeft: 10, marginRight: -4,
+      borderRadius: 999, background: c.bg, color: c.fg,
+      fontSize: 11, fontWeight: 700, letterSpacing: 0.3, flexShrink: 0,
+    }}>
+      {priority}
+    </span>
+  );
+}
 
 // Row input that greys out and strikes through once the task is done.
 const doneInput = (done) => ({
@@ -82,13 +102,13 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
         onDragOver={handleRowDragOver}
         onDragLeave={handleRowDragLeave}
         onDrop={handleRowDrop}
+        className="row-hover"
         style={{
           display: 'grid',
           gridTemplateColumns: '1fr 28px',
-          alignItems: 'flex-start',
+          ...ROW,
           ...dropZoneBorders(dropZone),
-          minHeight: 30,
-          paddingLeft: INDENT_PX,
+          paddingLeft: CHILD_INDENT,
           cursor: 'grab',
         }}
       >
@@ -116,22 +136,25 @@ function TaskRow({ task, isChild, onPatch, onDelete, onDragStart, onIndent, onUn
       onDragOver={handleRowDragOver}
       onDragLeave={handleRowDragLeave}
       onDrop={handleRowDrop}
+      className="row-hover"
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 28px 24px',
-        alignItems: 'flex-start',
+        ...ROW,
         ...dropZoneBorders(dropZone),
-        minHeight: 30,
         cursor: 'grab',
       }}
     >
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commitText}
-        onKeyDown={onKeyDown}
-        style={doneInput(done)}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+        <PriorityChip priority={task.priority} />
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commitText}
+          onKeyDown={onKeyDown}
+          style={doneInput(done)}
+        />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'center' }}>
         <CheckMark done={done} onClick={toggleDone} />
       </div>
@@ -167,7 +190,7 @@ function NewChildTaskRow({ dateISO, parentId, siblingOrderStart, onCreate, onCan
   };
 
   return (
-    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: INDENT_PX }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: CHILD_INDENT }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={childDash}>-</span>
         <input
@@ -211,7 +234,7 @@ function NewTaskRow({ dateISO, onCreate }) {
         placeholder="Add task..."
         style={newRowInput}
       />
-      <div style={{ color: COLORS.accent, textAlign: 'center', fontSize: 16 }}>+</div>
+      <div style={{ color: COLORS.faint, textAlign: 'center', fontSize: 16 }}>+</div>
     </div>
   );
 }
@@ -327,20 +350,14 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
-        borderBottom: `1px solid ${COLORS.ink}`,
-        background: dragOver ? 'rgba(201, 187, 154, 0.18)' : 'transparent',
+        borderRadius: 8,
+        background: dragOver ? 'rgba(91, 107, 240, 0.08)' : 'transparent',
         transition: 'background 100ms',
       }}
     >
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
-        alignItems: 'center',
-        padding: '4px 0',
-        borderBottom: `1px solid ${COLORS.ink}`,
-      }}>
-        <span />
-        <span style={sectionTitle}>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ display: 'flex', alignItems: 'center' }}>
+          <span style={sectionDot(SECTION_DOTS.action)} />
           Action Items
         </span>
         <button
@@ -348,27 +365,27 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
           onClick={onPullForward}
           title="Pull unfinished tasks and notes from prior days into this day"
           style={{
-            justifySelf: 'end',
             border: 'none',
-            background: 'transparent',
-            color: COLORS.muted,
-            fontSize: 11,
+            background: COLORS.calloutBg,
+            color: COLORS.accent,
+            fontSize: 12,
+            fontWeight: 600,
             cursor: 'pointer',
-            padding: '0 6px',
-            fontStyle: 'italic',
+            padding: '3px 10px',
+            borderRadius: 999,
           }}
         >
-          Pull forward →
+          Pull forward
         </button>
       </div>
       {pullStatus ? (
         <div style={{
-          padding: '3px 8px',
-          fontSize: 11,
-          fontStyle: 'italic',
+          padding: '6px 10px',
+          marginBottom: 6,
+          fontSize: 12,
+          borderRadius: 8,
           color: pullStatus.error ? COLORS.danger : COLORS.muted,
-          background: pullStatus.error ? COLORS.dangerBg : COLORS.paper,
-          borderBottom: `1px solid ${COLORS.hairline}`,
+          background: pullStatus.error ? COLORS.dangerBg : COLORS.page,
         }}>
           {pullStatus.message}
         </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { createNote, updateNote, deleteNote, reorderNotes } from '../services/api';
 import NestedListSection from './NestedListSection';
+import { SECTION_DOTS } from '../styles';
 
 const api = { create: createNote, update: updateNote, remove: deleteNote, reorder: reorderNotes };
 
@@ -9,6 +10,7 @@ export default function DailyNotes({ dateISO, notes, onChange, onDropTask, onDro
   return (
     <NestedListSection
       title="Tasks"
+      dot={SECTION_DOTS.tasks}
       items={notes}
       onChange={onChange}
       api={api}

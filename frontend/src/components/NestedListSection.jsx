@@ -1,8 +1,11 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { sortByOrder } from '../utils/dayInfo';
 import {
-  COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionHeader,
+  COLORS, INDENT_PX, addChildButton, childDash, dropZoneBorders, newRowInput, newRowShell, rowInput, sectionDot, sectionHeader,
 } from '../styles';
+
+const ROW = { minHeight: 36, borderRadius: 8, alignItems: 'center' };
+const CHILD_INDENT = INDENT_PX + 12;
 
 // A one-level nested list (parent rows with optional child rows) with inline
 // editing, Tab/Shift+Tab indent, drag-to-reorder within a level, and drops
@@ -12,6 +15,7 @@ import {
 //
 // Props:
 //   title         section heading
+//   dot           colour of the dot in front of the title
 //   items         flat array of rows { id, text, parent_id, order_index }
 //   onChange      called with the full replacement array
 //   api           { create, update, remove, reorder } from services/api
@@ -79,13 +83,13 @@ function Row({ item, isChild, mime, api, onPatch, onDelete, onIndent, onUnindent
       onDragOver={handleRowDragOver}
       onDragLeave={handleRowDragLeave}
       onDrop={handleRowDrop}
+      className="row-hover"
       style={{
         display: 'grid',
         gridTemplateColumns: isChild ? '1fr' : '1fr 24px',
-        alignItems: 'flex-start',
+        ...ROW,
         ...dropZoneBorders(dropZone),
-        minHeight: 30,
-        paddingLeft: isChild ? INDENT_PX : 0,
+        paddingLeft: isChild ? CHILD_INDENT : 0,
         cursor: 'grab',
       }}
     >
@@ -135,7 +139,7 @@ function NewChildRow({ api, dateISO, parentId, siblingOrderStart, onCreate, onCa
   };
 
   return (
-    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: INDENT_PX }}>
+    <div style={{ ...newRowShell, display: 'grid', gridTemplateColumns: '1fr', paddingLeft: CHILD_INDENT }}>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <span style={childDash}>-</span>
         <input
@@ -179,13 +183,13 @@ function NewRow({ api, dateISO, placeholder, onCreate }) {
         placeholder={placeholder}
         style={newRowInput}
       />
-      <div style={{ color: COLORS.accent, textAlign: 'center', fontSize: 16 }}>+</div>
+      <div style={{ color: COLORS.faint, textAlign: 'center', fontSize: 16 }}>+</div>
     </div>
   );
 }
 
 export default function NestedListSection({
-  title, items, onChange, api, mime, dateISO, placeholder = 'Add item...', externalDrops = {},
+  title, dot, items, onChange, api, mime, dateISO, placeholder = 'Add item...', externalDrops = {},
 }) {
   const list = Array.isArray(items) ? items : [];
   const [addingChildOf, setAddingChildOf] = useState(null);
@@ -294,13 +298,13 @@ export default function NestedListSection({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       style={{
-        borderBottom: `1px solid ${COLORS.ink}`,
-        marginTop: 28,
-        background: dragOver ? 'rgba(201, 187, 154, 0.18)' : 'transparent',
+        borderRadius: 8,
+        background: dragOver ? 'rgba(91, 107, 240, 0.08)' : 'transparent',
         transition: 'background 100ms',
       }}
     >
-      <div style={sectionHeader}>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
+        {dot ? <span style={sectionDot(dot)} /> : null}
         {title}
       </div>
       {topLevel.map((n) => {

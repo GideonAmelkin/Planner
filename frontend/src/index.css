@@ -47,3 +47,7 @@ a { color: inherit; text-decoration: none; }
 }
 .garmin-page a:hover { color: #0a59b2; }
 .garmin-page input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+.row-hover:hover {
+  background: #F5F4F0;
+}
