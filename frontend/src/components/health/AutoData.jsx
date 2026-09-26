@@ -15,6 +15,7 @@ const MAX_COLS = 8;
 
 export const humanize = (k) => String(k)
   .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  .replace(/([a-zA-Z])(\d)/g, '$1 $2')
   .replace(/[_-]+/g, ' ')
   .replace(/\b(gmt|hr|bpm|vo2|spo2|hrv|bmi|km)\b/gi, (m) => m.toUpperCase())
   .replace(/^./, (c) => c.toUpperCase());

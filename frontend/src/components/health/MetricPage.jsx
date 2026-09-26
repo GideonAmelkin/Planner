@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import GarminCard from './GarminCard';
 import GarminIcon from './GarminIcon';
@@ -58,8 +58,10 @@ export default function MetricPage({ page, slug, dateISO, range, connected, refr
   const icon = ICON_FOR[page.group] || 'chart';
   const href = garminUrl(page, dateISO);
 
+  const seq = useRef(0);
   const load = useCallback(async (refresh = false) => {
     if (!page.calls) return;
+    const mine = ++seq.current;   // a later load supersedes this one
     setLoading(true);
     setError(null);
     try {
@@ -71,13 +73,13 @@ export default function MetricPage({ page, slug, dateISO, range, connected, refr
       const end = dateISO;
       const start = shiftISO(dateISO, -rangeDays(range));
       const calls = page.calls({ date: dateISO, start, end, range, profileId });
-      if (!calls.length) { setResults({}); return; }
+      if (!calls.length) { if (mine === seq.current) setResults({}); return; }
       const out = await garminBatch(calls, { refresh });
-      setResults(out.results || {});
+      if (mine === seq.current) setResults(out.results || {});
     } catch (err) {
-      setError(err.message || String(err));
+      if (mine === seq.current) setError(err.message || String(err));
     } finally {
-      setLoading(false);
+      if (mine === seq.current) setLoading(false);
     }
   }, [page, dateISO, range]);
 
