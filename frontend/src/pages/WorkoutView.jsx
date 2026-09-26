@@ -104,7 +104,7 @@ function RangeBars({ sessions, startISO, endISO }) {
   const values = keys.map((k) => counts.get(k));
   const max = Math.max(1, ...values);
   const H = 40;
-  const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const edgeLabel = (k, iso) => {
     if (unit === 'day' || unit === 'week') return shortDate(iso);
     if (unit === 'month') return monthLabel(k);
