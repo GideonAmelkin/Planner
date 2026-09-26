@@ -291,7 +291,7 @@ export default function WorkoutView() {
             <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
             <WorkoutTile label="Active time" value={yearSessions.length ? num(activeHours, 1) : null} unit="h" sub="last 12 months" />
             <WorkoutTile label="Lifted" value={liftedKg ? num(toUnit(liftedKg, unit)) : null} unit={unit} sub="last 12 months" />
-            <WorkoutTile label="Weight change" value={weightDeltaKg === null ? null : `${weightDeltaKg > 0 ? '+' : ''}${num(toUnit(weightDeltaKg, unit), 1)}`} unit={unit} sub={firstWeight ? `since ${shortDate(firstWeight.date)}` : null} />
+            <WorkoutTile label="Weight change" value={weightDeltaKg === null ? null : `${weightDeltaKg > 0 ? '+' : ''}${num(toUnit(weightDeltaKg, unit), 1)}`} unit={unit} sub={weightDeltaKg !== null && firstWeight ? `since ${shortDate(firstWeight.date)}` : null} />
             <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
           </div>
           <div style={{ marginTop: 16 }}>
