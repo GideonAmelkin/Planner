@@ -4,9 +4,9 @@ import {
 } from '../services/api';
 import CheckMark from './CheckMark';
 import { sortByOrder } from '../utils/dayInfo';
-import { COLORS, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../styles';
+import { COLORS, GOAL_WASH, card, dropZoneBorders, newRowInput, rowInput, uppercaseHeading } from '../styles';
 
-function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
+function Column({ title, wash, items, onCreate, onPatch, onDelete, onDragStart, onDropRow }) {
   const [text, setText] = useState('');
 
   const submit = async () => {
@@ -17,20 +17,23 @@ function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragSt
   };
 
   return (
-    <div style={{ borderRight: title === 'Personal' ? `1px solid ${COLORS.ink}` : 'none' }}>
-      <div style={{ fontStyle: 'italic', fontSize: 13, color: COLORS.muted, textAlign: 'center', padding: '4px 0', borderBottom: `1px solid ${COLORS.ink}` }}>
+    <div style={{ ...card, padding: '0 0 10px', overflow: 'hidden' }}>
+      <div style={{
+        background: wash.bg, color: wash.fg,
+        fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase',
+        padding: '12px 20px', marginBottom: 8,
+      }}>
         {title}
       </div>
-      <div>
+      <div style={{ padding: '0 10px' }}>
         {items.map((m) => (
           <Row key={m.id} item={m} onPatch={onPatch} onDelete={onDelete} onDragStart={onDragStart} onDropRow={onDropRow} />
         ))}
         <div style={{
           display: 'grid', gridTemplateColumns: '28px 1fr',
-          alignItems: 'center', borderTop: `1px solid ${COLORS.hairline}`,
-          background: COLORS.paper,
+          alignItems: 'center', minHeight: 36,
         }}>
-          <div style={{ textAlign: 'center', color: COLORS.accent }}>+</div>
+          <div style={{ textAlign: 'center', color: COLORS.faint, fontSize: 16 }}>+</div>
           <input
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -40,9 +43,6 @@ function Column({ title, items, rowTarget, onCreate, onPatch, onDelete, onDragSt
             style={newRowInput}
           />
         </div>
-        {Array.from({ length: Math.max(0, rowTarget - items.length) }).map((_, i) => (
-          <div key={`pad-${i}`} style={{ borderTop: `1px solid ${COLORS.hairline}`, minHeight: 26 }} />
-        ))}
       </div>
     </div>
   );
@@ -94,10 +94,12 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      className="row-hover"
       style={{
-        display: 'grid', gridTemplateColumns: '1fr 28px', alignItems: 'flex-start',
+        display: 'grid', gridTemplateColumns: '1fr 28px', alignItems: 'center',
         ...dropZoneBorders(dropZone),
-        minHeight: 30,
+        minHeight: 36,
+        borderRadius: 8,
         cursor: 'grab',
       }}
     >
@@ -108,6 +110,7 @@ function Row({ item, onPatch, onDelete, onDragStart, onDropRow }) {
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
         style={{
           ...rowInput,
+          color: item.status === 'done' ? COLORS.muted : COLORS.ink,
           textDecoration: item.status === 'done' ? 'line-through' : 'none',
           textDecorationColor: COLORS.muted,
         }}
@@ -180,16 +183,13 @@ export default function MonthlyGoals({ year, month }) {
   };
 
   const sheet = (
-    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '0 24px', background: COLORS.paper, border: `1px solid ${COLORS.hairline}`, boxShadow: '0 4px 18px rgba(0,0,0,0.06)' }}>
-      <div style={{ padding: '18px 0 12px 0' }}>
-        <div style={uppercaseHeading}>Monthly Goals</div>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ ...uppercaseHeading, padding: '0 0 12px' }}>Monthly Goals</div>
+      {error && <div style={{ padding: '0 0 12px', color: COLORS.danger }}>{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+        <Column title="Personal" wash={GOAL_WASH.personal} items={personal} onCreate={handleCreate('personal')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
+        <Column title="Business" wash={GOAL_WASH.business} items={business} onCreate={handleCreate('business')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
       </div>
-      {error && <div style={{ padding: 16, color: COLORS.danger }}>{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderTop: `1px solid ${COLORS.ink}`, borderBottom: `1px solid ${COLORS.ink}` }}>
-        <Column title="Personal" items={personal} rowTarget={Math.max(personal.length, business.length) + 4} onCreate={handleCreate('personal')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
-        <Column title="Business" items={business} rowTarget={Math.max(personal.length, business.length) + 4} onCreate={handleCreate('business')} onPatch={handlePatch} onDelete={handleDelete} onDragStart={handleDragStart} onDropRow={handleReorder} />
-      </div>
-      <div style={{ height: 24 }} />
     </div>
   );
 

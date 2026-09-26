@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { format, getDate, isSameDay, isSameMonth, startOfMonth } from 'date-fns';
 import { dateToISO, monthGrid } from '../utils/dayInfo';
-import { COLORS, uppercaseHeading } from '../styles';
+import { COLORS, card, uppercaseHeading } from '../styles';
 
 // Per-day task/appointment markers were intentionally removed (planned to
 // rebuild later). When re-adding, restore the `summary` state + `getMonth`
@@ -19,19 +19,17 @@ export default function CalendarSection({ year, month }) {
 
   const monthLabel = format(monthStart, 'MMMM yyyy');
   const sheet = (
-    <div style={{ maxWidth: '100%', margin: '0 auto', padding: 0 }}>
-      <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.ink}` }}>
-        <div style={{ padding: '18px 24px 12px 24px', borderBottom: `1px solid ${COLORS.ink}` }}>
-            <div style={uppercaseHeading}>{monthLabel}</div>
-          </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: `1px solid ${COLORS.ink}` }}>
+    <div style={{ minWidth: 0 }}>
+      <div style={{ ...uppercaseHeading, padding: '0 0 12px' }}>{monthLabel}</div>
+      <div style={card}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 6 }}>
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-            <div key={d} style={{ padding: '8px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, color: COLORS.muted, letterSpacing: 0.5 }}>{d}</div>
+            <div key={d} style={{ padding: '4px 0', textAlign: 'center', fontSize: 12, fontWeight: 600, color: COLORS.faint, letterSpacing: 0.6, textTransform: 'uppercase' }}>{d}</div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateRows: `repeat(${rows.length}, minmax(110px, auto))` }}>
+        <div style={{ display: 'grid', gridTemplateRows: `repeat(${rows.length}, minmax(96px, auto))`, gap: 4 }}>
           {rows.map((week, ri) => (
-            <div key={ri} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+            <div key={ri} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
               {week.map((d, ci) => {
                 const inMonth = isSameMonth(d, monthStart);
                 const isToday = isSameDay(d, today);
@@ -41,24 +39,26 @@ export default function CalendarSection({ year, month }) {
                     key={ci}
                     to={`/agenda/${iso}`}
                     style={{
-                      borderTop: ri === 0 ? 'none' : `1px solid ${COLORS.hairline}`,
-                      borderLeft: ci === 0 ? 'none' : `1px solid ${COLORS.hairline}`,
-                      padding: 8,
-                      minHeight: 110,
+                      padding: '8px 10px',
+                      minHeight: 96,
                       display: 'flex', flexDirection: 'column',
-                      background: isToday ? COLORS.todayCell : 'transparent',
+                      background: inMonth ? COLORS.page : 'transparent',
+                      borderRadius: 6,
                       textDecoration: 'none',
                       color: inMonth ? COLORS.ink : COLORS.faint,
                     }}
                   >
-                    <div style={{
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 28, height: 28, margin: '-4px 0 0 -6px', borderRadius: '50%',
                       fontVariantNumeric: 'tabular-nums',
                       fontWeight: isToday ? 700 : 500,
                       fontSize: 14,
-                      alignSelf: 'flex-end',
+                      background: isToday ? COLORS.accent : 'transparent',
+                      color: isToday ? '#FFFFFF' : 'inherit',
                     }}>
                       {getDate(d)}
-                    </div>
+                    </span>
                   </Link>
                 );
               })}
