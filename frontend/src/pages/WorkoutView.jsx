@@ -9,7 +9,7 @@ import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from '../servic
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
-import { templateBanner, templateHeader, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
+import { templateBanner, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
 
 const RANGES = [
   { key: 'd1', label: '1 day', days: 1, sub: 'this day' },
@@ -38,10 +38,15 @@ const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
 // Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
 const exerciseName = (e) => (/^\d+$/.test(e.name || '') ? `Exercise ${e.name}` : e.name);
 
-const setsText = (sets, unit) => {
+// "8" when every set has the same reps, otherwise the list ("12, 10, 8").
+const repsText = (sets) => {
   if (!sets || !sets.length) return '-';
-  return sets.map((s) => `${s.reps || 0} x ${num(toUnit(s.weight_kg, unit), 0) || 0}`).join(', ');
+  const reps = sets.map((s) => s.reps || 0);
+  return reps.every((r) => r === reps[0]) ? String(reps[0]) : reps.join(', ');
 };
+
+// The app bundle has no per-exercise URLs, so link to a video search for named exercises.
+const videoUrl = (e) => (/^\d+$/.test(e.name || '') || !e.name ? null : `https://www.youtube.com/results?search_query=${encodeURIComponent(`${e.name.replace(/ · /g, ' ')} exercise form`)}`);
 
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
 
@@ -344,53 +349,59 @@ export default function WorkoutView() {
         </WorkoutCard>
 
       <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
-          {templatesList.map((t) => {
-            const [a, b] = titleLines(t.name);
-            const open = openTemplate === t.id;
-            const strong = /StrongLifts/.test(t.name);
-            return (
-              <React.Fragment key={t.id}>
-                <div
-                  onClick={() => setOpenTemplate(open ? null : t.id)}
-                  title={t.name}
-                  style={{
-                    position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                    background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
-                    outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
-                  }}
-                >
-                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
-                    {a}<br />{b}
-                    {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
-                  </div>
-                </div>
-                {open ? (
-                  <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '200px 1fr', background: COLORS.page, borderRadius: 12, overflow: 'hidden' }}>
-                    <img src={templateHeader(t.name) || ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                    <div style={{ padding: '14px 18px', minWidth: 0 }}>
-                      <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{t.name}</div>
-                      <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
-                        <span style={pill}>{t.exercises.length} exercises</span>
-                        <span style={pill}>{maxSets(t)} sets</span>
-                      </div>
-                      <div style={tableWrap}>
-                        <table style={table}>
-                          <thead><tr style={headRow}><th style={th}>Exercise</th><th style={th}>Default sets (reps x {unit})</th></tr></thead>
-                          <tbody>
-                            {t.exercises.map((e) => (
-                              <tr key={`${e.action_id}-${e.order}`}><td style={td}>{exerciseName(e)}</td><td style={tdNum}>{setsText(e.sets, unit)}</td></tr>
-                            ))}
-                          </tbody>
-                        </table>
+        {templatesList.length ? (() => {
+          const selected = templatesList.find((t) => t.id === openTemplate) || templatesList[0];
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 16, alignItems: 'start' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320 }}>
+                {templatesList.map((t) => {
+                  const [a, b] = titleLines(t.name);
+                  const open = selected.id === t.id;
+                  const strong = /StrongLifts/.test(t.name);
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => setOpenTemplate(t.id)}
+                      title={t.name}
+                      style={{
+                        position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
+                        background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
+                        outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
+                      }}
+                    >
+                      <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
+                        {a}<br />{b}
+                        {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
                       </div>
                     </div>
-                  </div>
-                ) : null}
-              </React.Fragment>
-            );
-          })}
-        </div>
+                  );
+                })}
+              </div>
+              <div style={{ background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0, gridColumn: 'span 2' }}>
+                <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{selected.name}</div>
+                <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
+                  <span style={pill}>{selected.exercises.length} exercises</span>
+                  <span style={pill}>{maxSets(selected)} sets</span>
+                </div>
+                <div style={tableWrap}>
+                  <table style={table}>
+                    <thead><tr style={headRow}><th style={th}>Exercise</th><th style={{ ...th, textAlign: 'right' }}>Sets</th><th style={{ ...th, textAlign: 'right' }}>Reps</th><th style={{ ...th, textAlign: 'right' }}>Video</th></tr></thead>
+                    <tbody>
+                      {selected.exercises.map((e) => (
+                        <tr key={`${e.action_id}-${e.order}`}>
+                          <td style={td}>{exerciseName(e)}</td>
+                          <td style={tdNum}>{(e.sets || []).length || '-'}</td>
+                          <td style={tdNum}>{repsText(e.sets)}</td>
+                          <td style={tdNum}>{videoUrl(e) ? <a href={videoUrl(e)} target="_blank" rel="noreferrer" style={tableLink}>Video ↗</a> : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          );
+        })() : null}
       </WorkoutCard>
       </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
