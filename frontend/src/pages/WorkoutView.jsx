@@ -240,13 +240,6 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
-          {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
-          {day && day.plan_day ? (
-            <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
-          ) : null}
-        </WorkoutCard>
-
         <WorkoutCard title="Body Weight" dot={SECTION_DOTS.ongoing} empty={!latestWeight && !profile.current_weight_kg}>
           <div style={tileGrid(100)}>
             <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${shortDate(latestWeight.date)}` : null} />
@@ -263,6 +256,13 @@ export default function WorkoutView() {
             <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
             <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
           </div>
+        </WorkoutCard>
+
+        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
+          {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
+          {day && day.plan_day ? (
+            <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
+          ) : null}
         </WorkoutCard>
 
         <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
