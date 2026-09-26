@@ -70,11 +70,14 @@ export function RacesEvents() {
 }
 
 // Map page shell: left panel + full-height map.
+const isNarrow = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches;
+
 function MapPage({ left, center, leftWidth = 320, height = 640 }) {
+  const narrow = isNarrow();
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `minmax(0, ${leftWidth}px) minmax(0, 1fr)`, margin: -30, minHeight: height }}>
-      <div style={{ background: 'white', padding: 16, borderRight: `1px solid ${G.border}`, minWidth: 0 }}>{left}</div>
-      <MapView center={center} zoom={12} height={height} />
+    <div style={{ display: 'grid', gridTemplateColumns: narrow ? 'minmax(0, 1fr)' : `minmax(0, ${leftWidth}px) minmax(0, 1fr)`, margin: narrow ? -16 : -30, minHeight: narrow ? 0 : height }}>
+      <div style={{ background: 'white', padding: 16, borderRight: narrow ? 'none' : `1px solid ${G.border}`, minWidth: 0, overflow: 'hidden' }}>{left}</div>
+      <MapView center={center} zoom={12} height={narrow ? 360 : height} />
     </div>
   );
 }
@@ -107,17 +110,17 @@ export function PacePro() {
 export function Segments({ results }) {
   const [tabv, setTab] = useState('mine');
   return (
-    <div style={{ margin: -30 }}>
+    <div style={{ margin: isNarrow() ? -16 : -30 }}>
       <div style={{ display: 'flex', gap: 8, padding: 10, background: 'white', borderBottom: `1px solid ${G.border}`, flexWrap: 'wrap' }}>
         <input placeholder="Location" style={{ ...inputStyle, width: 160 }} />
         {['Activity Type', 'Segment Type', 'Surface', 'Avg Grade'].map((f) => <span key={f} style={selectStyle}>▾ {f}</span>)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 320px) minmax(0, 1fr)', minHeight: 600 }}>
-        <div style={{ background: 'white', padding: 12, borderRight: `1px solid ${G.border}` }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow() ? 'minmax(0, 1fr)' : 'minmax(0, 320px) minmax(0, 1fr)', minHeight: isNarrow() ? 0 : 600 }}>
+        <div style={{ background: 'white', padding: 12, borderRight: `1px solid ${G.border}`, minWidth: 0, overflow: 'hidden' }}>
           <TabStrip tabs={[{ key: 'mine', label: 'Your Segments' }, { key: 'fav', label: 'Favorites' }, { key: 'near', label: 'Nearby Segments' }]} value={tabv} onChange={setTab} />
           <Para style={{ textAlign: 'center', marginTop: 30, color: G.text }}>Create segments from your activities to compete in the places that you ride or run.</Para>
         </div>
-        <MapView center={lastPos(results)} zoom={12} height={600} />
+        <MapView center={lastPos(results)} zoom={12} height={isNarrow() ? 360 : 600} />
       </div>
     </div>
   );
@@ -139,8 +142,8 @@ export function Trails({ results }) {
 
 export function Heatmap({ results }) {
   return (
-    <div style={{ margin: -30, position: 'relative' }}>
-      <MapView center={lastPos(results)} zoom={11} height={660} />
+    <div style={{ margin: isNarrow() ? -16 : -30, position: 'relative' }}>
+      <MapView center={lastPos(results)} zoom={11} height={isNarrow() ? 420 : 660} />
       <div style={{ position: 'absolute', top: 10, left: 10, display: 'flex', gap: 8, zIndex: 500 }}>
         <input placeholder="Location" style={{ ...inputStyle, width: 150 }} /><span style={selectStyle}>▾ Running</span>
       </div>
