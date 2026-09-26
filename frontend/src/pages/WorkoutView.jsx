@@ -314,7 +314,7 @@ export default function WorkoutView() {
           Body Weight
         </div>
         {latestWeight || profile.current_weight_kg ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: '12px 28px', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(160px, 100%), 1fr))', gap: '12px 24px', alignItems: 'center' }}>
             <div style={{ ...tileGrid(96), gap: '10px 18px' }}>
               <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${shortDate(latestWeight.date)}` : null} />
               <WorkoutTile label="Target" value={num(toUnit(profile.target_weight_kg, unit), 1)} unit={unit} />
