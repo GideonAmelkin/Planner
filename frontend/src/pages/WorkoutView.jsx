@@ -239,21 +239,12 @@ export default function WorkoutView() {
 
   return shell(
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
-        <WorkoutCard title="Sessions" dot={COLORS.workout} span={2} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+        <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
           {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
           {day && day.plan_day ? (
             <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
           ) : null}
-        </WorkoutCard>
-
-        <WorkoutCard title="Totals" dot={COLORS.accent}>
-          <div style={tileGrid(100)}>
-            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
-            <WorkoutTile label="Workouts" value={awards.workout_count} sub={status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
-            <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
-            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
-          </div>
         </WorkoutCard>
 
         <WorkoutCard title="Body Weight" dot={SECTION_DOTS.ongoing} empty={!latestWeight && !profile.current_weight_kg}>
@@ -265,7 +256,16 @@ export default function WorkoutView() {
           <div style={{ marginTop: 14 }}><WeightChart weights={weights} unit={unit} /></div>
         </WorkoutCard>
 
-        <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} span={2} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
+        <WorkoutCard title="Totals" dot={COLORS.accent}>
+          <div style={tileGrid(100)}>
+            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
+            <WorkoutTile label="Workouts" value={awards.workout_count} sub={status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
+            <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
+            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
+          </div>
+        </WorkoutCard>
+
+        <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
           <div style={tableWrap}>
             <table style={table}>
               <thead>
