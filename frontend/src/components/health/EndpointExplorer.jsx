@@ -15,7 +15,7 @@ const kindPill = (kind) => ({
 // Every Garmin endpoint in the registry, with its parameters as inputs and the raw
 // JSON result underneath. Dates default to the day being viewed.
 export default function EndpointExplorer({ dateISO }) {
-  const [endpoints, setEndpoints] = useState([]);
+  const [endpoints, setEndpoints] = useState(null);
   const [error, setError] = useState(null);
   const [openGroups, setOpenGroups] = useState({});
   const [filter, setFilter] = useState('');
@@ -27,7 +27,7 @@ export default function EndpointExplorer({ dateISO }) {
   const groups = useMemo(() => {
     const q = filter.trim().toLowerCase();
     const by = {};
-    for (const e of endpoints) {
+    for (const e of endpoints || []) {
       if (q && !e.name.includes(q) && !e.group.includes(q)) continue;
       (by[e.group] = by[e.group] || []).push(e);
     }
@@ -35,6 +35,7 @@ export default function EndpointExplorer({ dateISO }) {
   }, [endpoints, filter]);
 
   if (error) return <div style={{ color: COLORS.danger, fontSize: 12 }}>{error}</div>;
+  if (!endpoints) return <div style={{ color: COLORS.muted, fontSize: 12 }}>Loading endpoints...</div>;
 
   return (
     <div>

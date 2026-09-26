@@ -85,13 +85,14 @@ export default function HealthView() {
   })();
 
   const stepPoints = steps.map((b) => [Date.parse(`${String(b.startGMT).replace(/\.\d+$/, '')}Z`), b.steps]).filter((p) => !Number.isNaN(p[0]));
+  const hasStepSeries = stepPoints.some((p) => p[1] > 0);
   const stageTotal = sleepDto ? STAGES.reduce((n, s) => n + (sleepDto[s.key] || 0), 0) : 0;
   const sleepScore = sleepDto && sleepDto.sleepScores && sleepDto.sleepScores.overall ? sleepDto.sleepScores.overall.value : null;
 
   const shell = (inner) => (
     <div>
       <TopNav dateISO={date} section="health" />
-      <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
+      <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '32px min(24px, 4vw) 64px min(24px, 4vw)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
           <div>
             <div style={uppercaseHeading}>Health</div>
@@ -133,7 +134,7 @@ export default function HealthView() {
 
   return shell(
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(300px, 100%), 1fr))', gap: 16 }}>
         <HealthCard title="Day Summary" span={2} empty={!summary}>
           {summary ? (
             <div style={tileGrid(120)}>
@@ -148,7 +149,7 @@ export default function HealthView() {
               <StatTile label="Active Time" value={secondsToHm(summary.activeSeconds)} sub={summary.sedentarySeconds ? `${secondsToHm(summary.sedentarySeconds)} sedentary` : null} />
             </div>
           ) : null}
-          {stepPoints.length ? (
+          {hasStepSeries ? (
             <div style={{ marginTop: 14 }}>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, marginBottom: 4 }}>Steps per 15 minutes</div>
               <Sparkline points={stepPoints} bars offset={localOffset(hr || stress || summary)} min={0} />
@@ -220,8 +221,8 @@ export default function HealthView() {
               <div style={tileGrid(90)}>
                 <StatTile label="Charged" value={num(bb.charged)} />
                 <StatTile label="Drained" value={num(bb.drained)} />
-                <StatTile label="High" value={bbPts.length ? Math.max(...bbPts.map((p) => p[1])) : null} />
-                <StatTile label="Low" value={bbPts.length ? Math.min(...bbPts.map((p) => p[1])) : null} />
+                <StatTile label="High" value={bbPts.length ? Math.max(...bbPts.map((p) => p[1])) : (summary ? summary.bodyBatteryHighestValue : null)} />
+                <StatTile label="Low" value={bbPts.length ? Math.min(...bbPts.map((p) => p[1])) : (summary ? summary.bodyBatteryLowestValue : null)} />
               </div>
               <div style={{ marginTop: 14 }}><Sparkline points={bbPts} offset={localOffset(bb)} min={0} max={100} color={COLORS.garmin} /></div>
             </>
