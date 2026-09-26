@@ -18,8 +18,8 @@ rejects raw-IP / plain-HTTP redirect URIs).
 The Mac repo (`~/Documents/Planner`, git) is the source of truth. The server checkout at
 `~/apps/planner` is a plain copy with no git. **Never rsync the whole tree**: the server's
 `backend/.env` (live HTTPS/OAuth config and Garmin credentials), `backend/planner.db` (real
-data) and `backend/garmin-state/` (Garmin session) must never be overwritten by the Mac
-copies. Push only the files you changed.
+data), `backend/garmin-state/` (Garmin session) and `backend/workout-state/` (the Home
+Workouts snapshot) must never be overwritten by the Mac copies. Push only the files you changed.
 
 ```bash
 # 1. Mac: push the changed source files (and delete removed ones by name)
@@ -128,6 +128,45 @@ cd ~/apps/planner/backend/garmin && .venv/bin/python bridge.py status
 curl -s http://127.0.0.1:5002/api/garmin/status
 curl -s "http://127.0.0.1:5002/api/garmin/get_user_summary?cdate=$(date +%F)" | head -c 300
 ```
+
+## Home Workouts (Workout App tab)
+
+The "Workout App" tab shows data from the Home Workouts iPhone app
+(`com.abishkking.maleworkout`), which is installed on the Mac as an iPhone-on-Mac app.
+Its SQLite files live in the app container on the Mac, so the Mac exports them and ships
+one JSON snapshot to the server; the server only reads that file. There is no push
+endpoint (the API has no auth), the transport is rsync over the existing SSH key.
+
+```
+Mac: ~/Library/Containers/com.abishkking.maleworkout/Data  --tools/homeworkouts/export.py-->
+     ~/Library/Application Support/PlannerHomeWorkouts/home_workouts.json  --rsync-->
+RT100: ~/apps/planner/backend/workout-state/home_workouts.json  --> GET /api/workout/*
+```
+
+One-time setup on the Mac (done 2026-09-26):
+
+```bash
+# 1. Full Disk Access for the interpreter, or the background job cannot read the
+#    app container (macOS "App Data" protection). System Settings > Privacy & Security >
+#    Full Disk Access > "+" > add /Library/Developer/CommandLineTools/usr/bin/python3
+#    (use Cmd+Shift+G in the file picker to type the path).
+# 2. Install the launchd agent (every 30 minutes, also at login)
+cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
+# 3. Run it once now and read the log
+launchctl kickstart -k gui/$(id -u)/com.gideon.planner.homeworkouts
+tail -20 ~/Library/Application\ Support/PlannerHomeWorkouts/sync.log
+```
+
+By hand at any time: `bash tools/homeworkouts/sync.sh` (same log). Tests:
+`python3 -m unittest tools/homeworkouts/test_export.py`. The exporter prints a per-table
+reconciliation and exits non-zero if a source row was neither emitted nor counted as
+excluded.
+
+Freshness: the Mac copy of the app only has what it last synced from the app's own cloud
+backup. Open the app on the Mac (Me tab, same account as the phone) to pull new history;
+the tab shows the snapshot time. `backend/workout-state/` is never pushed or deleted by
+`deploy/push.sh`. Runs and walks (a Realm file) are not exported.
 
 ## OAuth (calendar sync)
 

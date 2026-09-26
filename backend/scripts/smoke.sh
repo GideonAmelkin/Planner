@@ -35,6 +35,14 @@ check garmin-status     200 GET  /garmin/status
 check garmin-endpoints  200 GET  /garmin/endpoints
 check garmin-unknown    404 GET  /garmin/no_such_endpoint
 check garmin-bad-date   400 GET  /garmin/day/not-a-date
+check workout-status    200 GET  /workout/status
+check workout-bad-date  400 GET  /workout/day/not-a-date
+check workout-bad-days  400 GET  "/workout/recent?days=0"
+# 200 once the Mac has shipped a snapshot, 404 before that; both are healthy
+WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/day/$TODAY")
+if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-day ($WCODE)"; else echo "FAIL workout-day: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
+WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/catalog")
+if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-catalog ($WCODE)"; else echo "FAIL workout-catalog: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
 
 check task-create 200 POST  /tasks "{\"date\":\"$TODAY\",\"text\":\"SMOKE-TEST task\",\"priority\":\"C\"}"; TID=$(id)
 check task-patch    200 PATCH "/tasks/$TID" '{"text":"SMOKE-TEST task edited","status":"completed"}'

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Ships the Home Workouts snapshot to RT100 every 30 minutes.
+       Install: cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
+       Run now: launchctl kickstart -k gui/$(id -u)/com.gideon.planner.homeworkouts
+       Log:     ~/Library/Application Support/PlannerHomeWorkouts/sync.log -->
+  <key>Label</key>
+  <string>com.gideon.planner.homeworkouts</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/gideonamelkin/Documents/Planner/tools/homeworkouts/sync.sh</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>1800</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/gideonamelkin/Library/Application Support/PlannerHomeWorkouts/launchd.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/gideonamelkin/Library/Application Support/PlannerHomeWorkouts/launchd.log</string>
+</dict>
+</plist>
