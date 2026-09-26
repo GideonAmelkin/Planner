@@ -41,6 +41,15 @@ export function dayInfo(iso) {
   };
 }
 
+// 'Saturday, September 26' (the Agenda headline; the year lives in the date field)
+export function headlineLong(iso) {
+  try {
+    return format(isoToDate(iso), 'EEEE, MMMM d');
+  } catch (_) {
+    return iso;
+  }
+}
+
 // 'Saturday, September 12th 2026'
 export function longDate(iso) {
   try {

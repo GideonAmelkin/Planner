@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import TopNav from '../components/TopNav';
-import MiniCalendar from '../components/MiniCalendar';
+import AgendaRail from '../components/AgendaRail';
+import DateCard from '../components/DateCard';
 import TimelineSchedule from '../components/TimelineSchedule';
 import PrioritizedTaskList from '../components/PrioritizedTaskList';
 import DailyNotes from '../components/DailyNotes';
 import Ongoing from '../components/Ongoing';
 import DailyNotesText from '../components/DailyNotesText';
-import QuoteHeader from '../components/QuoteHeader';
 import MonthlyGoals from '../components/MonthlyGoals';
 import CalendarSection from '../components/CalendarSection';
-import { dayInfo } from '../utils/dayInfo';
-import { COLORS, uppercaseHeading } from '../styles';
+import { COLORS, card } from '../styles';
 import {
   getDay, pullForwardDay,
   createTask, deleteTask,
@@ -51,7 +49,7 @@ export default function DailyView() {
       const t = result.rolledTasks || 0;
       const n = result.movedNotes || 0;
       if (t === 0 && n === 0) {
-        setPullStatus({ message: 'Nothing to pull — all caught up.', error: false });
+        setPullStatus({ message: 'Nothing to pull, all caught up.', error: false });
       } else {
         const parts = [];
         if (t) parts.push(`${t} task${t === 1 ? '' : 's'}`);
@@ -94,61 +92,39 @@ export default function DailyView() {
     };
   }, [date]);
 
+  const shell = (children) => (
+    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
+      <AgendaRail dateISO={date} section="agenda" />
+      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+    </div>
+  );
+
   if (error) {
-    return (
-      <div>
-        <TopNav dateISO={date} section="agenda" />
-        <div style={{ padding: 32, color: COLORS.danger }}>Error: {error}</div>
-      </div>
-    );
+    return shell(<div style={{ padding: 32, color: COLORS.danger }}>Error: {error}</div>);
   }
 
   if (!data) {
-    return (
-      <div>
-        <TopNav dateISO={date} section="agenda" />
-        <div style={{ padding: 32, color: COLORS.muted }}>Loading…</div>
-      </div>
-    );
+    return shell(<div style={{ padding: 32, color: COLORS.muted }}>Loading...</div>);
   }
 
-  const info = dayInfo(date);
+  const columnCard = { ...card, display: 'flex', flexDirection: 'column' };
 
-  const cellBase = {
-    background: COLORS.paper,
-    padding: '18px 18px',
-  };
-  const cellLeftBorder = { borderRight: `1px dashed ${COLORS.faint}` };
-
-  return (
-    <div>
-      <TopNav dateISO={date} section="agenda" />
+  return shell(
+    <>
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
         gridTemplateRows: 'auto 1fr',
-        gap: 0,
+        gap: 20,
         maxWidth: SPREAD_MAX_WIDTH,
         margin: '0 auto',
-        padding: '32px 24px 0 24px',
+        padding: '24px 24px 0 24px',
       }}>
-        {/* Top-left: single-line date + mini-calendar */}
-        <div style={{ ...cellBase, ...cellLeftBorder, paddingBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
-            <div style={uppercaseHeading}>
-              {info.headlineDate}
-            </div>
-            <MiniCalendar dateISO={date} />
-          </div>
-        </div>
+        {/* Top, both columns: headline, day controls, pills, quote, mini calendar */}
+        <DateCard dateISO={date} quote={data.quote} />
 
-        {/* Top-right: quote on left, day-info badge on right */}
-        <div style={{ ...cellBase, paddingBottom: 12 }}>
-          <QuoteHeader dateISO={date} quote={data.quote} />
-        </div>
-
-        {/* Bottom-left: appointment schedule (time-block timeline) */}
-        <div style={{ ...cellBase, ...cellLeftBorder, paddingTop: 0 }}>
+        {/* Left: appointment schedule (time-block timeline) */}
+        <div style={columnCard}>
           <TimelineSchedule
             dateISO={date}
             appointments={data.appointments}
@@ -158,44 +134,58 @@ export default function DailyView() {
           />
         </div>
 
-        {/* Bottom-right: action items + daily notes */}
-        <div style={{ ...cellBase, paddingTop: 0, display: 'flex', flexDirection: 'column' }}>
-          <PrioritizedTaskList
-            dateISO={date}
-            tasks={data.tasks}
-            onChange={setTasks}
-            onPullForward={handlePullForward}
-            onDropNote={movers.noteToTasks}
-            onDropOngoing={movers.ongoingToTasks}
-            pullStatus={pullStatus}
-          />
-          <DailyNotes
-            dateISO={date}
-            notes={data.notes}
-            onChange={setNotes}
-            onDropTask={movers.taskToNotes}
-            onDropOngoing={movers.ongoingToNotes}
-          />
-          <Ongoing
-            ongoing={data.ongoing || []}
-            onChange={setOngoing}
-            onDropTask={movers.taskToOngoing}
-            onDropNote={movers.noteToOngoing}
-          />
-          <DailyNotesText
-            dateISO={date}
-            value={data.notes_text}
-            onChange={setNotesText}
-          />
+        {/* Right: one card per list */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+          <div style={columnCard}>
+            <PrioritizedTaskList
+              dateISO={date}
+              tasks={data.tasks}
+              onChange={setTasks}
+              onPullForward={handlePullForward}
+              onDropNote={movers.noteToTasks}
+              onDropOngoing={movers.ongoingToTasks}
+              pullStatus={pullStatus}
+            />
+          </div>
+          <div style={columnCard}>
+            <DailyNotes
+              dateISO={date}
+              notes={data.notes}
+              onChange={setNotes}
+              onDropTask={movers.taskToNotes}
+              onDropOngoing={movers.ongoingToNotes}
+            />
+          </div>
+          <div style={columnCard}>
+            <Ongoing
+              ongoing={data.ongoing || []}
+              onChange={setOngoing}
+              onDropTask={movers.taskToOngoing}
+              onDropNote={movers.noteToOngoing}
+            />
+          </div>
+          <div style={columnCard}>
+            <DailyNotesText
+              dateISO={date}
+              value={data.notes_text}
+              onChange={setNotesText}
+            />
+          </div>
         </div>
       </div>
 
-      <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 0 24px' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 20,
+        alignItems: 'start',
+        maxWidth: SPREAD_MAX_WIDTH,
+        margin: '0 auto',
+        padding: '32px 24px 64px 24px',
+      }}>
         <MonthlyGoals year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
-      </section>
-      <section style={{ maxWidth: SPREAD_MAX_WIDTH, margin: '0 auto', padding: '32px 24px 64px 24px' }}>
         <CalendarSection year={Number(date.slice(0, 4))} month={Number(date.slice(5, 7))} />
-      </section>
-    </div>
+      </div>
+    </>
   );
 }
