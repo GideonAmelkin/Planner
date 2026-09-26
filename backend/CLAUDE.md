@@ -3,29 +3,34 @@
 Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT100
 (`deploy/ecosystem.config.js`). `npm start` is plain `node server.js`.
 
+One folder per tab: `agenda/`, `garmin/`, `workout/`. Each exports an express `Router` from
+its `index.js` that `server.js` mounts at `/api`, and requires only `../db` and `../lib/*`,
+never another tab. `db.js`, `lib/` and `scripts/` are shared.
+
 ## Files
 
 | File | Role |
 |---|---|
-| `server.js` | Setup, mounts every router under `/api`, error middleware, `startScheduler()`. |
-| `routes/day.js` | `GET /api/day/:date` (the whole spread in one payload) and pull-forward. |
-| `routes/tasks.js`, `notes.js`, `ongoing.js`, `appointments.js`, `masterTasks.js` | CRUD per resource. Each declares its full `/api/...` paths. |
-| `routes/summaries.js` | `GET /api/month/:y/:m` counts and `GET /api/recap`. |
-| `routes/calendar.js` | Accounts list/disconnect plus connect/callback for every provider in the registry. |
-| `queries.js` | Priority ordering expression, column lists, month and recap aggregations. |
+| `server.js` | Setup, mounts the three tab routers under `/api`, error middleware, `agenda.startScheduler()` and `startWarmCache()`. |
+| `agenda/index.js` | The Agenda router: mounts every file in `agenda/routes/` and re-exports `startScheduler`. |
+| `agenda/routes/day.js` | `GET /api/day/:date` (the whole spread in one payload) and pull-forward. |
+| `agenda/routes/tasks.js`, `notes.js`, `ongoing.js`, `appointments.js`, `masterTasks.js` | CRUD per resource. Each declares its full `/api/...` paths. |
+| `agenda/routes/summaries.js` | `GET /api/month/:y/:m` counts and `GET /api/recap`. |
+| `agenda/routes/calendar.js` | Accounts list/disconnect plus connect/callback for every provider in the registry. |
+| `agenda/queries.js` | Priority ordering expression, column lists, month and recap aggregations. |
 | `lib/http.js` | `asyncHandler`, `isDate`/`isDateTime`/`isYearMonth`, and the generic `patchRow`, `reorderRows`, `deleteRow` handlers. |
 | `lib/dates.js` | `localISO`, `nextDayISO`, `toLocalDateTime`, `dayWindow`, `monthPrefix`. Everything is local time. |
 | `db.js` | Opens `planner.db`, creates tables, applies best-effort `ALTER TABLE` migrations. Exports `run / get / all`. |
-| `rollover.js` | `pullForward(sourceDate)`: copy open tasks and notes to the next day with dedup. |
-| `autoRollover.js` | Nightly 23:59 run, startup and hourly catch-up, `pull_forward_runs` bookkeeping. |
-| `quoteService.js` | `getQuoteForDate(date)`: ZenQuotes + UNIQUE-index dedup + fallback list. |
-| `calendarService.js` | `providers.{google,outlook}` registry plus provider-agnostic account storage, token refresh and per-day fetch. |
-| `garminService.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Garmin bundle warm, holds the sign-in child during an MFA hand-off. |
+| `agenda/rollover.js` | `pullForward(sourceDate)`: copy open tasks and notes to the next day with dedup. |
+| `agenda/autoRollover.js` | Nightly 23:59 run, startup and hourly catch-up, `pull_forward_runs` bookkeeping. |
+| `agenda/quoteService.js` | `getQuoteForDate(date)`: ZenQuotes + UNIQUE-index dedup + fallback list. |
+| `agenda/calendarService.js` | `providers.{google,outlook}` registry plus provider-agnostic account storage, token refresh and per-day fetch. |
+| `garmin/service.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Garmin bundle warm, holds the sign-in child during an MFA hand-off. |
 | `garmin/bridge.py` | Python 3.12 CLI over the `garminconnect` client: `status`, `login` (reads the MFA code from stdin), `logout`, `call` (a batch of registry methods, one process). Tokens in `garmin-state/garmin_tokens.json`. |
 | `garmin/registry.json` | One entry per garminconnect method: `name`, `group`, `kind` (read / write / unsupported), `params` with types. Read by both sides. |
-| `workoutService.js` | Reads `workout-state/home_workouts.json` (shipped by the Mac, see `tools/homeworkouts/`), re-parses on mtime change, filters sessions by local date. Never writes. |
-| `routes/workout.js` | `GET /api/workout/{status,day/:date,recent,catalog}`. No upload route on purpose: the API has no auth. |
-| `routes/garmin.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
+| `workout/service.js` | Reads `workout-state/home_workouts.json` (shipped by the Mac, see `tools/homeworkouts/`), re-parses on mtime change, filters sessions by local date. Never writes. |
+| `workout/index.js` | `GET /api/workout/{status,day/:date,recent,catalog}`. No upload route on purpose: the API has no auth. |
+| `garmin/index.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
 | `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
@@ -94,7 +99,7 @@ Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}`
 Errors are always `{error}` JSON. Anything thrown inside an `asyncHandler` becomes a 500 via
 the middleware in `server.js`.
 
-## Pull-forward (`rollover.js`)
+## Pull-forward (`agenda/rollover.js`)
 
 `pullForward(sourceDate)` runs `pushTasksForward` then `pushNotesForward`. Each reads the
 eligible source rows (tasks: status not completed or forwarded; notes: all), builds a
@@ -102,7 +107,7 @@ eligible source rows (tasks: status not completed or forwarded; notes: all), bui
 keys, parents first so children re-parent onto the new (or pre-existing) target parent.
 Returns the number of rows actually inserted.
 
-## Calendars (`calendarService.js`)
+## Calendars (`agenda/calendarService.js`)
 
 Each provider implements `configured`, `authUrl`, `exchangeCode`, `refresh`, `fetchEvents`.
 `connectAccount` upserts on `(provider, email)`. `freshAccessToken` refreshes when the token
@@ -111,9 +116,9 @@ account in parallel with `Promise.allSettled`; one account's failure lands in
 `calendar_errors` without blocking the rest. Events are normalized to
 `{id, provider, account_id, calendar_email, title, location, start_at, end_at, all_day, organizer, link}`.
 
-## Garmin (`garminService.js`)
+## Garmin (`garmin/service.js`)
 
-`spawnBridge(command, payload)` runs `garmin/bridge.py` with `GARMIN_PYTHON` (default
+`spawnBridge(command, payload)` runs `bridge.py` (same folder) with `GARMIN_PYTHON` (default
 `garmin/.venv/bin/python`) and streams JSON lines; every run goes through one promise
 queue so two processes never refresh the token file at once. `login()` resolves early with
 `{needs_mfa:true}` when the bridge prints that event and keeps the child alive for

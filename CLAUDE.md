@@ -50,14 +50,14 @@ Recap and Settings are modals opened from the header. Settings holds the calenda
 connections and the Garmin Connect sign-in.
 
 The Garmin tab mirrors connect.garmin.com's daily summary (Open Sans, white cards on gray,
-blue actions; tokens in `frontend/src/garminTheme.js`) and shows the day's data as cards: Day Summary (steps, distance,
+blue actions; tokens in `frontend/src/garmin/theme.js`) and shows the day's data as cards: Day Summary (steps, distance,
 calories, floors, intensity minutes, resting HR, stress, Body Battery, active time, a
 steps-per-15-minutes chart), Sleep (duration, score, stages), Heart Rate, Stress, Body
 Battery (sparklines behind "View details"), Intensity Minutes, Floors, Calories, Pulse Ox,
 Respiration, Hydration, HRV, Training, Weight, green activity blocks, and a collapsed
 "All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
 the raw JSON it returns. Its sidebar is Garmin's own navigation tree; every item opens a
-sub-page at `/health/:date/<slug>` fed by the mapped endpoints (`frontend/src/garminNav.js`),
+sub-page at `/health/:date/<slug>` fed by the mapped endpoints (`frontend/src/garmin/nav.js`),
 each laid out like the matching Garmin page (rings, timelines, tables, badges, maps), and items Garmin keeps off its API render Garmin's empty state with a link out.
 
 The Workout App tab shows the Home Workouts app (Leap Health, bundle
@@ -77,28 +77,25 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
         |                    |                 |     garminconnect, one run at a time)
 +-------v--------------------v-----------------v-----------------v---+
 |  Express backend (port 5002)                          |
-|    server.js        setup, mounts, error middleware   |
-|    routes/*.js      one file per resource             |
-|    queries.js       shared SQL fragments + aggregates |
+|    server.js        setup, one router per tab, errors |
+|    db.js            planner.db (SQLite, WAL), tables  |
 |    lib/http.js      asyncHandler, patch/reorder/delete|
 |    lib/dates.js     local-day helpers                 |
-|    rollover.js      pull-forward with dedup           |
-|    autoRollover.js  nightly + catch-up scheduler      |
-|    quoteService.js  one unique quote per date         |
-|    calendarService.js  provider registry (google/outlook)
-|    garminService.js  bridge queue, read cache, warm  |
-|    workoutService.js  Home Workouts snapshot reader   |
-|    garmin/registry.json  every Garmin endpoint       |
-|    planner.db (SQLite, WAL)                           |
+|    agenda/          routes/*.js, queries, rollover,   |
+|                     autoRollover, quotes, calendars   |
+|    garmin/          index.js router, service.js,      |
+|                     bridge.py, registry.json          |
+|    workout/         index.js router, service.js       |
 +----------------------------^--------------------------+
                              | axios, retry-once
 +----------------------------v--------------------------+
 |  React 19 frontend (react-scripts build)              |
-|    pages/DailyView.jsx      the Agenda tab            |
-|    pages/HealthView.jsx     the Garmin tab            |
-|    pages/WorkoutView.jsx    the Workout App tab       |
-|    components/*             sections and widgets      |
-|    styles.js                design tokens             |
+|    App.js           routes, one view per tab          |
+|    agenda/          AgendaView + the spread's cards   |
+|    garmin/          GarminView, cards, pages, theme   |
+|    workout/         WorkoutView, card, tile, art      |
+|    shared/          api client, dayInfo, styles, rail,|
+|                     modals, mini calendar             |
 +-------------------------------------------------------+
 ```
 
@@ -123,7 +120,7 @@ Details: [backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/C
 
 ## Conventions
 
-- Styling is inline JS objects; tokens and shared objects live in `frontend/src/styles.js`.
+- Styling is inline JS objects; tokens and shared objects live in `frontend/src/shared/styles.js`.
 - Inputs save on blur, textareas after an 800 ms debounce.
 - Drag-and-drop uses four MIME types (`application/x-planner-task`, `-note`, `-ongoing`,
   `-master-task`). A row accepts its own type to reorder; a section accepts the other
@@ -138,7 +135,19 @@ Planner/
   CALENDAR_SETUP.md       Google Cloud + Azure one-time setup
   deploy/                 push.sh, README.md runbook, nginx + pm2 configs
   backend/                Express API, see backend/CLAUDE.md
-  backend/garmin/         bridge.py, registry.json, requirements.txt (+ .venv on the server)
+    agenda/               the Agenda tab: routes/, queries, rollover, quotes, calendars
+    garmin/               the Garmin tab: router, service, bridge.py, registry.json (+ .venv on the server)
+    workout/              the Workout tab: router, snapshot reader
+    lib/                  http + date helpers used by all three
+  frontend/src/           React app, see frontend/CLAUDE.md
+    agenda/ garmin/ workout/   one folder per tab: its view, its components, its api.js
+    shared/               what every tab uses: api client, dayInfo, format, styles, rail, modals
   tools/homeworkouts/     Mac-side Home Workouts exporter, sync job, launchd plist, tests
-  frontend/               React app, see frontend/CLAUDE.md
 ```
+
+One folder per tab on both sides. A tab folder imports from `shared/` (frontend) or
+`../db` and `../lib` (backend), never from another tab. The one exception is
+`frontend/src/shared/SettingsPanel.jsx`, which renders `garmin/GarminSettings.jsx` and reads
+the snapshot status from `workout/api.js`, because Settings is where the connections live.
+The server-only data (`backend/planner.db`, `backend/garmin-state/`, `backend/workout-state/`,
+`backend/garmin/.venv`) stays where it is; the services reach it with `..`.

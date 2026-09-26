@@ -23,8 +23,11 @@ Workouts snapshot) must never be overwritten by the Mac copies. Push only the fi
 
 ```bash
 # 1. Mac: push the changed source files (and delete removed ones by name)
-bash deploy/push.sh backend/server.js frontend/src/pages/DailyView.jsx
-bash deploy/push.sh --delete frontend/src/components/Old.jsx
+bash deploy/push.sh backend/server.js frontend/src/agenda/AgendaView.jsx
+bash deploy/push.sh --delete frontend/src/agenda/Old.jsx
+# ...or mirror whole source folders (adds, updates and deletes; the protected server
+# files are excluded; DRY=1 previews)
+bash deploy/push.sh --dir frontend/src backend/agenda backend/garmin backend/workout
 
 # 2. Server: install deps only when a package.json changed
 ssh gamelkin@70.42.223.139 'cd ~/apps/planner/backend  && npm ci --omit=dev'
