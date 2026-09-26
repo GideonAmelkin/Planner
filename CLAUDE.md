@@ -113,6 +113,8 @@ Details: [backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/C
   tasks and all notes to the next day, skipping any row whose `(text, parent)` already exists
   there. The nightly scheduler in `autoRollover.js` runs the same function at 23:59 local and
   catches up missed days on startup and hourly; `pull_forward_runs` records what was done.
+  Since 2026-09-26 the nightly run is the only trigger: the Agenda has no Pull forward button
+  (checked action items stay where they are, open ones move).
 - **Garmin is unofficial and serialized.** There is no personal Garmin API; the
   `garminconnect` Python client replays the mobile app's sign-in and Garmin can break it
   without notice. Only one bridge process talks to Garmin at a time, reads are cached in

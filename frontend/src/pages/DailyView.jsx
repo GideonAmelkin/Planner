@@ -11,26 +11,23 @@ import MonthlyGoals from '../components/MonthlyGoals';
 import CalendarSection from '../components/CalendarSection';
 import { COLORS, card } from '../styles';
 import {
-  getDay, pullForwardDay,
+  getDay,
   createTask, deleteTask,
   createNote, deleteNote,
   createOngoing, deleteOngoing,
 } from '../services/api';
 
-const PULL_STATUS_MS = 2500;
 const SPREAD_MAX_WIDTH = 1500;
 
 export default function DailyView() {
   const { date } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [pullStatus, setPullStatus] = useState(null);
 
   useEffect(() => {
     let alive = true;
     setData(null);
     setError(null);
-    setPullStatus(null);
     getDay(date)
       .then((d) => { if (alive) setData(d); })
       .catch((err) => { if (alive) setError(err.message || String(err)); });
@@ -42,28 +39,6 @@ export default function DailyView() {
   const setNotes = useCallback((notes) => setData((d) => d ? { ...d, notes } : d), []);
   const setOngoing = useCallback((ongoing) => setData((d) => d ? { ...d, ongoing } : d), []);
   const setNotesText = useCallback((notes_text) => setData((d) => d ? { ...d, notes_text } : d), []);
-
-  const handlePullForward = useCallback(async () => {
-    try {
-      const result = await pullForwardDay(date);
-      const t = result.rolledTasks || 0;
-      const n = result.movedNotes || 0;
-      if (t === 0 && n === 0) {
-        setPullStatus({ message: 'Nothing to pull, all caught up.', error: false });
-      } else {
-        const parts = [];
-        if (t) parts.push(`${t} task${t === 1 ? '' : 's'}`);
-        if (n) parts.push(`${n} note${n === 1 ? '' : 's'}`);
-        setPullStatus({ message: `Pulled ${parts.join(' and ')} forward.`, error: false });
-        const fresh = await getDay(date);
-        setData(fresh);
-      }
-    } catch (err) {
-      console.error('Pull forward failed:', err);
-      setPullStatus({ message: `Pull forward failed: ${err.message || err}`, error: true });
-    }
-    setTimeout(() => setPullStatus(null), PULL_STATUS_MS);
-  }, [date]);
 
   // Moving a row between sections = recreate it (and its children) in the
   // target section, delete the originals, then reload the day.
@@ -141,10 +116,8 @@ export default function DailyView() {
             dateISO={date}
             tasks={data.tasks}
             onChange={setTasks}
-            onPullForward={handlePullForward}
             onDropNote={movers.noteToTasks}
             onDropOngoing={movers.ongoingToTasks}
-            pullStatus={pullStatus}
           />
           <div style={sectionDivider} />
           <DailyNotes

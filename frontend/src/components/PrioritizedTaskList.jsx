@@ -239,7 +239,7 @@ function NewTaskRow({ dateISO, onCreate }) {
   );
 }
 
-export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullForward, onDropNote, onDropOngoing, pullStatus }) {
+export default function PrioritizedTaskList({ dateISO, tasks, onChange, onDropNote, onDropOngoing }) {
   const handleCreate = (t) => onChange([...tasks, t]);
   const handlePatch = (t) => onChange(tasks.map((x) => x.id === t.id ? t : x));
   const handleDelete = (id) =>
@@ -355,41 +355,10 @@ export default function PrioritizedTaskList({ dateISO, tasks, onChange, onPullFo
         transition: 'background 100ms',
       }}
     >
-      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={sectionDot(SECTION_DOTS.action)} />
-          Action Items
-        </span>
-        <button
-          type="button"
-          onClick={onPullForward}
-          title="Pull unfinished tasks and notes from prior days into this day"
-          style={{
-            border: 'none',
-            background: COLORS.calloutBg,
-            color: COLORS.accent,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            padding: '3px 10px',
-            borderRadius: 999,
-          }}
-        >
-          Pull forward
-        </button>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center' }}>
+        <span style={sectionDot(SECTION_DOTS.action)} />
+        Action Items
       </div>
-      {pullStatus ? (
-        <div style={{
-          padding: '6px 10px',
-          marginBottom: 6,
-          fontSize: 12,
-          borderRadius: 8,
-          color: pullStatus.error ? COLORS.danger : COLORS.muted,
-          background: pullStatus.error ? COLORS.dangerBg : COLORS.page,
-        }}>
-          {pullStatus.message}
-        </div>
-      ) : null}
       {topLevel.map((t) => {
         const kids = childrenOf(t.id);
         const nextOrder = kids.length

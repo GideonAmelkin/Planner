@@ -46,7 +46,7 @@ load any `/<section>/:date` snaps back to today in that section (`BootRedirectTo
 | `components/MiniCalendar.jsx` | Month grid in the Agenda's date card and the Workout header; the viewed day is the filled indigo circle. `section` picks the route the days link to; `marks` (a Set of ISO dates) draws a small green check on those days. |
 | `components/QuoteHeader.jsx` | `QuoteCallout` (the quote in an indigo-tinted box with a large quote mark) and `DayInfoBadge` (`269th Day  96 Left  Week 39` as pills). |
 | `components/TimelineSchedule.jsx` | Appointment Schedule, 7am to 8pm at 60 px/hour. Solid rounded blocks (provider colour, ink for manual), greedy column packing for overlaps, all-day pills, an indigo current-time line on today, click-to-add with 15-minute snap. |
-| `components/PrioritizedTaskList.jsx` | Action Items: A/B/C priority sort with chips, `CheckMark` done toggle, sub-items, reorder, Pull forward pill. |
+| `components/PrioritizedTaskList.jsx` | Action Items: A/B/C priority sort with chips, `CheckMark` done toggle, sub-items, reorder. No manual pull-forward; the backend rolls open items at 23:59. |
 | `components/NestedListSection.jsx` | Generic one-level nested list with inline edit, Tab/Shift+Tab indent, reorder and external drops. |
 | `components/DailyNotes.jsx`, `Ongoing.jsx` | Thin wrappers around `NestedListSection` for the "Tasks" (per date) and "Ongoing" (no date) sections. |
 | `components/DailyNotesText.jsx` | Free-form textarea ("Notes") on a grey rounded field, debounced save. |
