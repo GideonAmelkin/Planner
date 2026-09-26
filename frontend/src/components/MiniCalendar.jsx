@@ -72,7 +72,7 @@ function MonthGrid({ monthDate, todayDate, compact = false, section = 'agenda', 
 }
 
 // `section` is the route the day links open; `marks` is a Set of ISO dates that
-// get a small green check (the Workout tab uses it for days with a session).
+// are filled green, the same circle as the selected day (the Workout tab uses it for days with a session).
 export default function MiniCalendar({ dateISO, section = 'agenda', marks = null }) {
   const today = isoToDate(dateISO);
   return <MonthGrid monthDate={today} todayDate={today} section={section} marks={marks} />;
