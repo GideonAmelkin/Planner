@@ -6,8 +6,9 @@ React 19, `react-scripts 5.0.1`, inline styles. Built on the server with
 
 ## Routes (`src/App.js`)
 
-`/day/:date` renders `pages/DailyView`; `/` and unknown paths redirect to today. On a fresh
-page load any `/day/:date` snaps back to today (`BootRedirectToToday`). `src/index.js` turns
+`/agenda/:date` renders `pages/DailyView` and `/health/:date` renders `pages/HealthView`;
+`/`, the legacy `/day/:date` and unknown paths redirect to today's agenda. On a fresh page
+load any `/<section>/:date` snaps back to today in that section (`BootRedirectToToday`). `src/index.js` turns
 `?connected=` / `?calendar_error=` query params from the OAuth callback into a toast in
 `sessionStorage` (`plannerCalendarToast`) that `CalendarToast` shows once.
 
@@ -15,8 +16,15 @@ page load any `/day/:date` snaps back to today (`BootRedirectToToday`). `src/ind
 
 | File | Role |
 |---|---|
-| `pages/DailyView.jsx` | The single page: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
-| `components/TopNav.jsx` | Header bar: Prev / Today / Next, date picker, `NavLinks` (Recap, Settings). |
+| `pages/DailyView.jsx` | The Agenda tab: loads `GET /api/day/:date`, lays out the 4-cell spread, then the Monthly Goals and Calendar sections. Owns the cross-section movers (`movers.noteToTasks` etc.). |
+| `pages/HealthView.jsx` | The Health tab: loads `GET /api/garmin/day/:date` and `GET /api/garmin/status`, renders the cards, the failed-endpoint line and the collapsed endpoint explorer. Shows a sign-in notice when Garmin is not connected. |
+| `components/TopNav.jsx` | Header bar: Agenda / Health tabs, Prev / Today / Next, date picker (all scoped to the active `section`), `NavLinks` (Recap, Settings). |
+| `components/GarminSettings.jsx` | The Garmin Connect block in Settings: status, Sign in, verification-code box, Sign out. |
+| `components/health/HealthCard.jsx` | Paper card with an italic title, optional `aside` text and an empty state. `span={2}` takes the full row. |
+| `components/health/StatTile.jsx` | Label + headline number + sub line; `tileGrid(min)` is the auto-fill grid the cards use. |
+| `components/health/Sparkline.jsx` | Inline SVG single-series line or bars over a day with a hover crosshair and value readout. |
+| `components/health/EndpointExplorer.jsx` | Every registry endpoint grouped and collapsible, params as inputs (dates prefilled), Fetch / Refresh / Send, raw JSON below. Writes ask for confirmation. |
+| `utils/garminFormat.js` | `num`, `metersToMiles`, `gramsToLbs`, `mlToOz`, `secondsToHm`, `clock` (Garmin local timestamps read as UTC), `localOffset`, `series`, `titleCase`. |
 | `components/MiniCalendar.jsx` | Month grid in the date headline; the viewed day is the filled circle. |
 | `components/QuoteHeader.jsx` | Quote plus the day-info badge (`255th Day  110 Left  Week 37`). |
 | `components/TimelineSchedule.jsx` | Appointment Schedule, 7am to 8pm at 60 px/hour. Manual and external blocks, greedy column packing for overlaps, all-day pills, click-to-add with 15-minute snap. |
@@ -29,7 +37,7 @@ page load any `/day/:date` snaps back to today (`BootRedirectToToday`). `src/ind
 | `components/CheckMark.jsx` | The circular check used by Action Items, Monthly Goals and Recap. |
 | `components/RecapPanel.jsx`, `SettingsPanel.jsx` | Modals: completed items by date; connected calendar accounts and Connect buttons. |
 | `components/CalendarToast.jsx` | The post-OAuth toast. |
-| `services/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx). One export per endpoint. `API_BASE` is used by Settings to build the connect URL. |
+| `services/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx). One export per endpoint, including the Garmin calls (`getGarminDay`, `callGarmin`, `postGarmin`, sign-in). `API_BASE` is used by Settings to build the connect URL. |
 | `utils/dayInfo.js` | `todayISO`, `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |
 | `styles.js` | `COLORS` tokens, `INDENT_PX`, and the shared style objects (section header, row input, nav button, outline button, modal shell, drop-zone borders). |
 
@@ -43,5 +51,8 @@ page load any `/day/:date` snaps back to today (`BootRedirectToToday`). `src/ind
   `-master-task`. A row accepts its own type (reorder within the same level); a section accepts
   the other sections' types (move across, children come along). Cross-level reorder by drag is
   intentionally blocked; use the keyboard.
-- Section vocabulary in conversation: Planner (the spread), Monthly Goals, Calendar.
+- Section vocabulary in conversation: Agenda tab = Planner (the spread), Monthly Goals,
+  Calendar; Health tab = the Garmin cards.
+- Health charts are single-series ink-on-paper sparklines; sleep stages use one ink ramp
+  (deep darkest) and are always labeled. Text never takes the series color.
 - No em dashes anywhere.

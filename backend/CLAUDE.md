@@ -20,11 +20,16 @@ Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT1
 | `autoRollover.js` | Nightly 23:59 run, startup and hourly catch-up, `pull_forward_runs` bookkeeping. |
 | `quoteService.js` | `getQuoteForDate(date)`: ZenQuotes + UNIQUE-index dedup + fallback list. |
 | `calendarService.js` | `providers.{google,outlook}` registry plus provider-agnostic account storage, token refresh and per-day fetch. |
+| `garminService.js` | Spawns `garmin/bridge.py` one run at a time, coerces params from `garmin/registry.json`, caches reads in `garmin_cache`, keeps today's Health bundle warm, holds the sign-in child during an MFA hand-off. |
+| `garmin/bridge.py` | Python 3.12 CLI over the `garminconnect` client: `status`, `login` (reads the MFA code from stdin), `logout`, `call` (a batch of registry methods, one process). Tokens in `garmin-state/garmin_tokens.json`. |
+| `garmin/registry.json` | One entry per garminconnect method: `name`, `group`, `kind` (read / write / unsupported), `params` with types. Read by both sides. |
+| `routes/garmin.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
-| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets. Gitignored; the server copy is the live one. |
+| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Gitignored; the server copy is the live one. |
+| `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
-## Schema (10 tables)
+## Schema (11 tables)
 
 ```
 tasks                Action Items: priority A/B/C + number, status in_process|completed|forwarded,
@@ -38,6 +43,7 @@ quotes               PRIMARY KEY date, UNIQUE(text).
 calendar_accounts    One row per connected account: provider, email, tokens, expires_at (epoch ms).
 pull_forward_runs    Which dates were pulled forward and by what trigger (manual|auto).
 daily_tracker        Legacy; no route reads or writes it.
+garmin_cache         Garmin read results: (name, params JSON) -> payload, fetched_at epoch ms.
 ```
 
 ## API
@@ -63,6 +69,19 @@ daily_tracker        Legacy; no route reads or writes it.
 | DELETE | `/api/calendar/accounts/:id` | |
 | GET | `/api/calendar/{google\|outlook}/connect` | 302 to the provider consent page |
 | GET | `/api/calendar/{google\|outlook}/callback` | registered with Google and Microsoft; never rename |
+| GET | `/api/garmin/status` | `{configured, python_ok, token_file, connected, signing_in, needs_mfa, profile}` |
+| POST | `/api/garmin/login` | starts the sign-in; `{ok:true}` or `{needs_mfa:true}` |
+| POST | `/api/garmin/login/mfa` | `{code}` finishes a sign-in that asked for a code |
+| POST | `/api/garmin/logout` | deletes the token file and the cache |
+| GET | `/api/garmin/endpoints` | the registry |
+| GET | `/api/garmin/day/:date` | the Health page bundle (18 endpoints, cached per endpoint); `?refresh=1` |
+| POST | `/api/garmin/batch` | `{calls:[{key, name, params}], refresh}` for read endpoints |
+| GET | `/api/garmin/:name` | any read endpoint; query params are validated against the registry |
+| POST | `/api/garmin/:name` | any write endpoint; JSON body is validated against the registry |
+
+Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}` or
+`{endpoint, params, ok:false, error, code}` with status 502; `code` is one of `auth`,
+`mfa_required`, `rate_limited`, `not_found`, `connection`, `garmin`, `bad_request`.
 
 Errors are always `{error}` JSON. Anything thrown inside an `asyncHandler` becomes a 500 via
 the middleware in `server.js`.
@@ -83,3 +102,14 @@ has under a minute left and writes the new credentials back. `listEventsForDate`
 account in parallel with `Promise.allSettled`; one account's failure lands in
 `calendar_errors` without blocking the rest. Events are normalized to
 `{id, provider, account_id, calendar_email, title, location, start_at, end_at, all_day, organizer, link}`.
+
+## Garmin (`garminService.js`)
+
+`spawnBridge(command, payload)` runs `garmin/bridge.py` with `GARMIN_PYTHON` (default
+`garmin/.venv/bin/python`) and streams JSON lines; every run goes through one promise
+queue so two processes never refresh the token file at once. `login()` resolves early with
+`{needs_mfa:true}` when the bridge prints that event and keeps the child alive for
+`submitMfa(code)`. `callMany(calls)` answers reads from `garmin_cache` first (today 30 min,
+past days 24 h) and sends the rest to Garmin in one bridge run; `dayBundle(date)` is the
+fixed 18-call set behind `/api/garmin/day/:date`. `startWarmCache()` re-fetches today's
+bundle every 30 minutes while a token file exists.

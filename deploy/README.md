@@ -17,8 +17,9 @@ rejects raw-IP / plain-HTTP redirect URIs).
 
 The Mac repo (`~/Documents/Planner`, git) is the source of truth. The server checkout at
 `~/apps/planner` is a plain copy with no git. **Never rsync the whole tree**: the server's
-`backend/.env` (live HTTPS/OAuth config) and `backend/planner.db` (real data) must never be
-overwritten by the Mac copies. Push only the files you changed.
+`backend/.env` (live HTTPS/OAuth config and Garmin credentials), `backend/planner.db` (real
+data) and `backend/garmin-state/` (Garmin session) must never be overwritten by the Mac
+copies. Push only the files you changed.
 
 ```bash
 # 1. Mac: push the changed source files (and delete removed ones by name)
@@ -91,6 +92,42 @@ ssh gamelkin@70.42.223.139 '
 Ports 80/443 are already open in firewalld; only 8080 needed adding. Auto-renewal runs via
 `certbot-renew.timer` (verify with `sudo certbot renew --dry-run` - note it inserts a random
 delay of up to ~8 min on non-interactive runs, so give it time).
+
+## Garmin Connect (Health tab)
+
+One-time, done 2026-09-26. No sudo: `uv` lives in `~/.local/bin` and downloads its own
+Python 3.12 (`garminconnect` needs 3.12; the box only ships 3.9).
+
+```bash
+ssh gamelkin@70.42.223.139 '
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  cd ~/apps/planner/backend/garmin
+  ~/.local/bin/uv venv --python 3.12 .venv
+  ~/.local/bin/uv pip install --python .venv/bin/python -r requirements.txt
+  mkdir -p ~/apps/planner/backend/garmin-state && chmod 700 ~/apps/planner/backend/garmin-state
+'
+# backend/.env on the server: GARMIN_EMAIL=... GARMIN_PASSWORD=...  then chmod 600 backend/.env
+ssh gamelkin@70.42.223.139 'pm2 restart planner-backend --update-env'
+```
+
+Then open Settings in the app and click **Sign in** under Garmin Connect (enter the
+verification code if Garmin sends one). The token file refreshes itself afterwards; the
+password is only used again if Garmin revokes the session. Fallback when uv cannot fetch a
+Python: run `sudo dnf install -y python3.12` in Terminal.app, then
+`python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt` in `backend/garmin`.
+
+Upgrading the client: bump `backend/garmin/requirements.txt`, push it, rerun the `uv pip
+install` line, restart the backend. If sign-in starts failing with a Cloudflare 429 or an
+auth error after Garmin changes something, check the `python-garminconnect` project for a
+release before touching the bridge.
+
+Quick checks on the box:
+
+```bash
+cd ~/apps/planner/backend/garmin && .venv/bin/python bridge.py status
+curl -s http://127.0.0.1:5002/api/garmin/status
+curl -s "http://127.0.0.1:5002/api/garmin/get_user_summary?cdate=$(date +%F)" | head -c 300
+```
 
 ## OAuth (calendar sync)
 

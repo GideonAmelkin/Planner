@@ -1,8 +1,10 @@
 # Planner
 
 A two-page-per-day digital agenda modeled after a Franklin Planner Compass-Monarch paper
-book. Single user, persists to SQLite, pulls events from Google Calendar and Outlook so the
-daily timeline shows real meetings next to whatever was typed by hand.
+book, plus a Health tab fed by Garmin Connect. Single user, persists to SQLite, pulls events
+from Google Calendar and Outlook so the daily timeline shows real meetings next to whatever
+was typed by hand, and pulls the same day's steps, sleep, heart rate and the rest from the
+user's Garmin account.
 
 ## Where it runs
 
@@ -14,15 +16,20 @@ The app lives on RT100 and that is where all work happens. There is no localhost
 - Frontend: static build served from `/var/www/planner/build`.
 - Source of truth: this Mac repo (git, `origin` on GitHub). Push files with
   `deploy/push.sh`, build and restart on the server. Runbook: [deploy/README.md](deploy/README.md).
-- Never copy `backend/.env` or `backend/planner.db` to the server; the server's copies hold
-  the live OAuth config and the real data.
+- Never copy `backend/.env`, `backend/planner.db` or `backend/garmin-state/` to the server;
+  the server's copies hold the live OAuth config, the real data and the Garmin session.
+- Garmin needs Python 3.12 in `backend/garmin/.venv` on the server (installed with `uv`, no
+  sudo). Setup steps are in [deploy/README.md](deploy/README.md).
 
 Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 
 ## What is on the page
 
-One route, `/day/:date` (`/` and anything else redirect to today). Three stacked sections,
-referred to by these names:
+Two tabs in the header, each with its own route: **Agenda** at `/agenda/:date` and
+**Health** at `/health/:date` (`/`, `/day/:date` and anything else redirect to today's
+agenda). Prev / Today / Next and the date picker stay inside the current tab.
+
+The Agenda has three stacked sections, referred to by these names:
 
 1. **Planner**: the daily spread. Date headline + mini calendar, quote + day-info badge,
    Appointment Schedule timeline, and the right-hand column of Action Items, Tasks,
@@ -31,14 +38,25 @@ referred to by these names:
 2. **Monthly Goals**: Personal | Business running lists for the month (`MonthlyGoals.jsx`).
 3. **Calendar**: the month grid; clicking a day opens that day's spread (`CalendarSection.jsx`).
 
-Recap and Settings are modals opened from the header.
+Recap and Settings are modals opened from the header. Settings holds the calendar
+connections and the Garmin Connect sign-in.
+
+The Health tab shows the day's Garmin data as paper cards: Day Summary (steps, distance,
+calories, floors, intensity minutes, resting HR, stress, Body Battery, active time, a
+steps-per-15-minutes chart), Sleep (duration, score, stages), Heart Rate, Stress, Body
+Battery (each with a hover sparkline), Recovery (HRV, SpO2, respiration), Training
+(readiness, status, VO2 max, fitness age), Body and Hydration, Activities, and a collapsed
+"All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
+the raw JSON it returns.
 
 ## Architecture
 
 ```
-ZenQuotes (random)    Google Calendar    Microsoft Graph
-        |                    |                 |
-+-------v--------------------v-----------------v--------+
+ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
+        |                    |                 |                 |
+        |                    |                 |     garmin/bridge.py (Python 3.12,
+        |                    |                 |     garminconnect, one run at a time)
++-------v--------------------v-----------------v-----------------v---+
 |  Express backend (port 5002)                          |
 |    server.js        setup, mounts, error middleware   |
 |    routes/*.js      one file per resource             |
@@ -49,12 +67,15 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph
 |    autoRollover.js  nightly + catch-up scheduler      |
 |    quoteService.js  one unique quote per date         |
 |    calendarService.js  provider registry (google/outlook)
+|    garminService.js  bridge queue, read cache, warm  |
+|    garmin/registry.json  every Garmin endpoint       |
 |    planner.db (SQLite, WAL)                           |
 +----------------------------^--------------------------+
                              | axios, retry-once
 +----------------------------v--------------------------+
 |  React 19 frontend (react-scripts build)              |
-|    pages/DailyView.jsx      the single page           |
+|    pages/DailyView.jsx      the Agenda tab            |
+|    pages/HealthView.jsx     the Health tab            |
 |    components/*             sections and widgets      |
 |    styles.js                design tokens             |
 +-------------------------------------------------------+
@@ -62,7 +83,7 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph
 
 Details: [backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/CLAUDE.md).
 
-## Two invariants worth knowing
+## Three invariants worth knowing
 
 - **`quotes.text` has a UNIQUE index.** That index, not application logic, guarantees a quote
   never repeats. The fetch retries ZenQuotes a few times on collision, then falls back to a
@@ -71,6 +92,11 @@ Details: [backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/C
   tasks and all notes to the next day, skipping any row whose `(text, parent)` already exists
   there. The nightly scheduler in `autoRollover.js` runs the same function at 23:59 local and
   catches up missed days on startup and hourly; `pull_forward_runs` records what was done.
+- **Garmin is unofficial and serialized.** There is no personal Garmin API; the
+  `garminconnect` Python client replays the mobile app's sign-in and Garmin can break it
+  without notice. Only one bridge process talks to Garmin at a time, reads are cached in
+  `garmin_cache` (today 30 min, past days 24 h, `?refresh=1` bypasses) and today's bundle
+  is re-warmed every 30 minutes, so the tab opens from cache.
 
 ## Conventions
 
@@ -89,5 +115,6 @@ Planner/
   CALENDAR_SETUP.md       Google Cloud + Azure one-time setup
   deploy/                 push.sh, README.md runbook, nginx + pm2 configs
   backend/                Express API, see backend/CLAUDE.md
+  backend/garmin/         bridge.py, registry.json, requirements.txt (+ .venv on the server)
   frontend/               React app, see frontend/CLAUDE.md
 ```
