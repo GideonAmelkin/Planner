@@ -72,7 +72,7 @@ export default function HealthView() {
   const tstatus = pick(r, 'training_status') || {};
   const maxMet = first(pick(r, 'max_metrics')) || {};
   const fitAge = pick(r, 'fitness_age') || {};
-  const activities = pick(r, 'activities') || [];
+  const activities = [...(pick(r, 'activities') || [])].sort((a, b) => String(a.startTimeLocal || '').localeCompare(String(b.startTimeLocal || '')));
   const weighIns = pick(r, 'weigh_ins');
   const weight = weighIns && Array.isArray(weighIns.dateWeightList) ? weighIns.dateWeightList[0] : null;
   const hydration = pick(r, 'hydration') || {};
