@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ok, first, Center, Para } from './common';
+import { ok, Center, Para } from './common';
 import { PageContainer, PageTitle, TabStrip, EmptyState, BlueButton, GrayButton, OutlinedButton, Illustration, MapView, Notice, InfoDot } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, title22 } from '../../../garminTheme';

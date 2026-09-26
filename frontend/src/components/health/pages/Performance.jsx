@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MetricFrame, DailyBars, ok, first, Center, Para, pageTo } from './common';
-import { PageContainer, PageTitle, Banner, SideIndex, RangeControl, EmptyState, StatPair, StatRow, ArcGauge, InfoDot, DateControls, LinkButton } from '../../garmin';
+import { PageContainer, Banner, SideIndex, RangeControl, EmptyState, StatPair, StatRow, ArcGauge, InfoDot, DateControls, LinkButton } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, title22 } from '../../../garminTheme';
 import { num } from '../../../utils/garminFormat';

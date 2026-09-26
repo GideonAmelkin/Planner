@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ok, Center, Para } from './common';
-import { PageContainer, PageTitle, EmptyState, BlueButton, OutlinedButton, HexBadge, Avatar, RangeControl, TwoCol, SectionHeading } from '../../garmin';
+import { ok, Para } from './common';
+import { PageContainer, EmptyState, BlueButton, OutlinedButton, HexBadge, Avatar, RangeControl, SectionHeading } from '../../garmin';
 import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, pillButton, chevronButton, roundNav } from '../../../garminTheme';
-import { num, metersToMiles, titleCase } from '../../../utils/garminFormat';
+import { num, metersToMiles } from '../../../utils/garminFormat';
 import { shiftISO, todayISO } from '../../../utils/dayInfo';
 
 const hms = (sec) => { if (!sec) return '0:00'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
