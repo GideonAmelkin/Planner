@@ -30,8 +30,6 @@ export const planDayThumb = (day) => {
   return `${BASE}/webp_v40_img_personalized_thumb_m${String(n).padStart(2, '0')}.webp`;
 };
 
-export const PLAN_HERO = `${BASE}/jpg_img_ppm_banner_full.jpg`;
-
 const FOCUS_FILE = { chest: 'chest', shoulder: 'shoulder', shoulders: 'shoulder', leg: 'leg', legs: 'leg', abs: 'abs', arm: 'arm', arms: 'arm', back: 'back' };
 export const focusTile = (name) => `${BASE}/v28_img_focusarea_${FOCUS_FILE[String(name || '').toLowerCase()] || 'fullbody'}_m_l.webp`;
 
@@ -44,6 +42,4 @@ export function titleLines(name) {
 }
 
 export const APP_BLUE = '#0055FF';
-export const APP_BLUE_WASH = '#E8F2FF';
-export const APP_GREEN = '#27C566';
 export const POPPINS = "'Poppins', 'DM Sans', sans-serif";

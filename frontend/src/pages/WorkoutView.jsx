@@ -9,7 +9,7 @@ import { getWorkoutStatus, getWorkoutDay, getWorkoutRecent, getWorkoutCatalog } 
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot } from '../styles';
-import { TEMPLATE_ART, templateBanner, templateHeader, templateThumb, planDayThumb, focusTile, PLAN_HERO, titleLines, APP_BLUE, APP_BLUE_WASH, APP_GREEN, POPPINS } from '../workoutArt';
+import { TEMPLATE_ART, templateBanner, templateHeader, templateThumb, planDayThumb, focusTile, titleLines, APP_BLUE, POPPINS } from '../workoutArt';
 
 const RANGES = [
   { key: 'd7', label: '7 days', days: 7, sub: 'last 7 days' },
@@ -65,7 +65,6 @@ const sessionThumb = (s) => {
 };
 const Thumb = ({ src, w = 36, h = 36, radius = 10 }) => (src ? <img src={src} alt="" style={{ width: w, height: h, borderRadius: radius, objectFit: 'cover', flexShrink: 0, display: 'block' }} /> : null);
 const maxSets = (t) => Math.max(0, ...t.exercises.map((e) => (e.sets || []).length));
-const weekOf = (day) => Math.floor((day - 1) / 7) + 1;
 
 // Ink-on-paper line of body weight over time; labels carry the unit.
 function WeightChart({ weights, unit, height = 64 }) {
@@ -194,7 +193,6 @@ export default function WorkoutView() {
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
-  const [openDay, setOpenDay] = useState(null);
   const [openTemplate, setOpenTemplate] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -261,13 +259,7 @@ export default function WorkoutView() {
   const weightDeltaKg = rangeWeights.length >= 2 ? rangeWeights[rangeWeights.length - 1].kg - rangeWeights[0].kg : null;
   const lastInRange = rangeSessions.length ? rangeSessions[0] : null;
   const latestWeight = weights.length ? weights[weights.length - 1] : null;
-  const plan = (catalog && catalog.plan) || null;
   const templatesList = (catalog && catalog.templates) || [];
-  const currentDay = plan ? (plan.current_day_index || 0) + 1 : 1;
-  const planDone = plan ? plan.days.filter((x) => x.done_at).length : 0;
-  const nextDay = plan ? (plan.days[currentDay - 1] || plan.days[0]) : null;
-  const planWeeks = plan ? Array.from({ length: Math.ceil(plan.days.length / 7) }, (_, i) => i + 1) : [];
-  const shownDay = openDay === null ? currentDay : openDay;
 
   const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
   const controlStyle = { ...navButton, fontSize: 12, padding: '4px 8px', cursor: 'pointer' };
@@ -380,9 +372,6 @@ export default function WorkoutView() {
 
         <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
           {sessions.map((s) => <SessionBlock key={s.id} session={s} unit={unit} />)}
-          {day && day.plan_day ? (
-            <div style={{ fontSize: 12, color: COLORS.muted }}>Plan day {day.plan_day.day} ({day.plan_day.name}) was completed on this day.</div>
-          ) : null}
         </WorkoutCard>
 
         <WorkoutCard title={`Last ${HISTORY_DAYS} Days`} dot={SECTION_DOTS.tasks} empty={history.length === 0} aside={history.length ? `${history.length} sessions` : null} emptyText={`No sessions in the ${HISTORY_DAYS} days ending on this date.`}>
@@ -410,69 +399,6 @@ export default function WorkoutView() {
             </table>
           </div>
         </WorkoutCard>
-
-      {plan ? (
-        <WorkoutCard title="Plan" dot={APP_BLUE} aside={`Day ${currentDay} of ${plan.total_days}`}>
-          <div style={{ position: 'relative', height: 120, borderRadius: 12, overflow: 'hidden', background: `url(${PLAN_HERO}) center / cover, ${COLORS.ink}` }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.05) 60%)' }} />
-            <div style={{ position: 'absolute', left: 20, bottom: 14, color: '#FFFFFF', fontFamily: POPPINS }}>
-              <div style={{ fontWeight: 800, fontSize: 22, lineHeight: 1, textTransform: 'uppercase' }}>{plan.total_days} Day Plan</div>
-              <div style={{ fontWeight: 500, fontSize: 12, marginTop: 6, opacity: 0.95 }}>
-                {plan.days.length} workouts{nextDay ? ` · up next Day ${currentDay}, ${nextDay.name}` : ''}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '12px 0 4px', fontSize: 12, color: COLORS.muted }}>
-            <span>{planDone} / {plan.total_days} days</span>
-            <div style={{ flex: 1, height: 6, background: COLORS.page, borderRadius: 999, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${Math.max(2, (planDone / plan.total_days) * 100)}%`, background: APP_BLUE, borderRadius: 999 }} />
-            </div>
-            <span>Week {weekOf(currentDay)} of {planWeeks.length}</span>
-          </div>
-          {planWeeks.map((w) => (
-            <div key={w}>
-              <div style={{ margin: '14px 0 6px', fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', color: COLORS.muted, fontWeight: 700 }}>Week {w}</div>
-              {plan.days.filter((x) => weekOf(x.day) === w).map((x) => {
-                const isCurrent = x.day === currentDay;
-                const isOpen = shownDay === x.day;
-                return (
-                  <React.Fragment key={x.day}>
-                    <div
-                      className="row-hover"
-                      onClick={() => setOpenDay(isOpen ? -1 : x.day)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '6px 10px', borderRadius: 10, cursor: 'pointer', background: isCurrent ? APP_BLUE_WASH : undefined }}
-                    >
-                      <Thumb src={planDayThumb(x.day)} w={44} h={38} />
-                      <div>
-                        <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 14 }}>Day {x.day}</div>
-                        <div style={{ fontSize: 12, color: COLORS.muted }}>{x.name}{x.exercises ? ` · ${x.exercises.length} exercises` : ''}</div>
-                      </div>
-                      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {x.done_at ? <span style={{ fontSize: 11, color: COLORS.muted }}>{shortDate(x.done_at.slice(0, 10))}</span> : null}
-                        {isCurrent && !x.done_at ? (
-                          <span style={{ background: APP_BLUE, color: '#FFFFFF', borderRadius: 999, padding: '5px 14px', fontWeight: 700, fontSize: 12, fontFamily: POPPINS }}>Start</span>
-                        ) : (
-                          <span style={{ width: 20, height: 20, borderRadius: '50%', display: 'inline-block', border: `2px solid ${x.done_at ? APP_GREEN : COLORS.hairline}`, background: x.done_at ? APP_GREEN : 'transparent' }} />
-                        )}
-                      </div>
-                    </div>
-                    {isOpen && x.exercises && x.exercises.length ? (
-                      <div style={{ margin: '4px 0 8px 66px', background: COLORS.page, borderRadius: 10, padding: '8px 12px' }}>
-                        {x.exercises.map((e, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 30, fontSize: 13 }}>
-                            <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${COLORS.faint}`, flexShrink: 0 }} />
-                            {exerciseName(e)}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          ))}
-        </WorkoutCard>
-      ) : null}
 
       <WorkoutCard title="Templates" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym templates` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
