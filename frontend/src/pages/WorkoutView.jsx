@@ -9,7 +9,9 @@ import { num, secondsToHm } from '../utils/garminFormat';
 import { COLORS, SECTION_DOTS, card, navButton, pill, sectionDot, sectionHeader } from '../styles';
 
 const MAX_WIDTH = 1500;
-const HISTORY_DAYS = 30;
+const HISTORY_DAYS = 30;   // the Last 30 Days table
+const RANGE_DAYS = 366;    // the Summary window (the endpoint's maximum)
+const WEEKS = 12;
 const KG_TO_LB = 2.20462;
 
 // The app stores kilograms; the user's app setting says whether to show kg or lb.
@@ -61,6 +63,40 @@ function WeightChart({ weights, unit }) {
         <span>{shortDate(pts[0] && weights[0].date)}</span>
         <span>{num(y0, 1)} to {num(y1, 1)} {unit}</span>
         <span>{shortDate(weights[weights.length - 1].date)}</span>
+      </div>
+    </div>
+  );
+}
+
+// Sessions per week for the last WEEKS weeks ending on endISO: slim bars, the
+// busiest week sets the scale, empty weeks show a faint stub.
+function WeekBars({ sessions, endISO }) {
+  const end = Date.parse(`${endISO}T12:00:00`);
+  const counts = new Array(WEEKS).fill(0);
+  for (const sess of sessions) {
+    const days = Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / 86400000);
+    if (days < 0) continue;
+    const w = Math.floor(days / 7);
+    if (w < WEEKS) counts[WEEKS - 1 - w] += 1;
+  }
+  const max = Math.max(1, ...counts);
+  const H = 40;
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${WEEKS}, 1fr)`, gap: 6, alignItems: 'end', height: H }}>
+        {counts.map((c, i) => (
+          <div key={i} title={`${c} session${c === 1 ? '' : 's'}`} style={{
+            height: c ? Math.max(6, Math.round((c / max) * H)) : 4,
+            background: c ? COLORS.accent : COLORS.faint,
+            borderRadius: 3,
+            opacity: c ? 1 : 0.5,
+          }} />
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
+        <span>{shortDate(shiftISO(endISO, -(WEEKS * 7 - 1)))}</span>
+        <span>sessions per week</span>
+        <span>{shortDate(shiftISO(endISO, -6))}</span>
       </div>
     </div>
   );
@@ -148,7 +184,7 @@ export default function WorkoutView() {
     setLoading(true);
     setError(null);
     try {
-      const [s, d, r] = await Promise.all([getWorkoutStatus(), getWorkoutDay(date), getWorkoutRecent(date, HISTORY_DAYS)]);
+      const [s, d, r] = await Promise.all([getWorkoutStatus(), getWorkoutDay(date), getWorkoutRecent(date, RANGE_DAYS)]);
       setStatus(s);
       setDay(d);
       setRecent(r);
@@ -171,8 +207,16 @@ export default function WorkoutView() {
   const awards = (status && status.awards) || {};
   const unit = weightUnit(profile);
   const sessions = (day && day.sessions) || [];
-  const history = (recent && recent.sessions) || [];
+  const yearSessions = (recent && recent.sessions) || [];
+  const historyStart = shiftISO(date, -(HISTORY_DAYS - 1));
+  const history = yearSessions.filter((s) => s.date >= historyStart && s.date <= date);
   const weights = (recent && recent.weights) || [];
+  const counts = (status && status.counts) || {};
+  const activeHours = yearSessions.reduce((t, s) => t + (s.duration_s || 0), 0) / 3600;
+  const liftedKg = yearSessions.reduce((t, s) => t + (s.total_weight_kg || 0), 0);
+  const firstWeight = weights.length ? weights[0] : null;
+  const weightDeltaKg = weights.length >= 2 ? weights[weights.length - 1].kg - weights[0].kg : null;
+  const weeksTotal = yearSessions.filter((s) => s.date > shiftISO(date, -(WEEKS * 7)) && s.date <= date).length;
   const latestWeight = weights.length ? weights[weights.length - 1] : null;
   const plan = (catalog && catalog.plan) || null;
   const last = status && status.last_session;
@@ -240,6 +284,26 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+        <WorkoutCard title="Summary" dot={COLORS.accent} aside={`${weeksTotal} in ${WEEKS} weeks`}>
+          <div style={tileGrid(120)}>
+            <WorkoutTile label="Workouts" value={counts.sessions !== undefined ? counts.sessions : awards.workout_count} sub={counts.gym_sessions !== undefined ? `${counts.gym_sessions} gym · ${counts.home_sessions || 0} home` : null} />
+            <WorkoutTile label="Last 12 months" value={yearSessions.length} unit={yearSessions.length === 1 ? 'session' : 'sessions'} />
+            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
+            <WorkoutTile label="Active time" value={yearSessions.length ? num(activeHours, 1) : null} unit="h" sub="last 12 months" />
+            <WorkoutTile label="Lifted" value={liftedKg ? num(toUnit(liftedKg, unit)) : null} unit={unit} sub="last 12 months" />
+            <WorkoutTile label="Weight change" value={weightDeltaKg === null ? null : `${weightDeltaKg > 0 ? '+' : ''}${num(toUnit(weightDeltaKg, unit), 1)}`} unit={unit} sub={firstWeight ? `since ${shortDate(firstWeight.date)}` : null} />
+            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <WeekBars sessions={yearSessions} endISO={date} />
+          </div>
+          {!counts.sessions ? (
+            <div style={{ marginTop: 12, fontSize: 12, color: COLORS.muted }}>
+              No workouts in the snapshot yet. Sync the Home Workouts app on the Mac to pull history.
+            </div>
+          ) : null}
+        </WorkoutCard>
+
         <WorkoutCard title="Body Weight" dot={SECTION_DOTS.ongoing} empty={!latestWeight && !profile.current_weight_kg}>
           <div style={tileGrid(100)}>
             <WorkoutTile label="Current" value={num(toUnit(latestWeight ? latestWeight.kg : profile.current_weight_kg, unit), 1)} unit={unit} sub={latestWeight ? `logged ${shortDate(latestWeight.date)}` : null} />
@@ -247,15 +311,6 @@ export default function WorkoutView() {
             <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" sub={profile.bmi ? `BMI ${num(profile.bmi, 1)}` : null} />
           </div>
           <div style={{ marginTop: 14 }}><WeightChart weights={weights} unit={unit} /></div>
-        </WorkoutCard>
-
-        <WorkoutCard title="Totals" dot={COLORS.accent}>
-          <div style={tileGrid(100)}>
-            <WorkoutTile label="Streak" value={awards.streak} unit={awards.streak === 1 ? 'day' : 'days'} />
-            <WorkoutTile label="Workouts" value={awards.workout_count} sub={status.counts && status.counts.sessions !== undefined ? `${status.counts.sessions} in the snapshot` : null} />
-            <WorkoutTile label="Active" value={awards.active_time_min} unit="min" />
-            <WorkoutTile label="Last session" value={last ? shortDate(last.date) : null} size={16} sub={last ? last.title : null} />
-          </div>
         </WorkoutCard>
 
         <WorkoutCard title="Sessions" dot={COLORS.workout} empty={sessions.length === 0} aside={sessions.length ? `${sessions.length} on this day` : null} emptyText="No workout logged on this day.">
