@@ -432,7 +432,7 @@ export default function WorkoutView() {
                                     {hasVideo ? (
                                       <button type="button" onClick={() => setPlayingExercise(playing ? null : `${t.id}:${e.action_id}:${e.order}`)} style={{ ...tableLink, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}>{playing ? 'Hide' : 'Play ▶'}</button>
                                     ) : (
-                                      <span style={{ color: COLORS.faint, fontSize: 11 }} title="Start this workout once in Home Workouts on the Mac; the app saves the clip and the next sync picks it up.">Not downloaded yet</span>
+                                      <span style={{ color: COLORS.faint, fontSize: 11 }} title="The app has no clip for this exercise, or the sync has not fetched it yet.">Clip unavailable</span>
                                     )}
                                   </td>
                                 </tr>

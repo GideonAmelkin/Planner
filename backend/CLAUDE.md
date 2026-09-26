@@ -85,7 +85,7 @@ garmin_cache         Garmin read results: (name, params JSON) -> payload, fetche
 | GET | `/api/workout/day/:date` | `{sessions, plan_day, weights}` for that local date; 404 `{available:false}` without a snapshot |
 | GET | `/api/workout/recent?end=&days=` | sessions (sets stripped) in the window, newest first, plus every weigh-in |
 | GET | `/api/workout/catalog` | `{templates, plan}` |
-| GET | `/api/workout/media/{video\|thumb}/:id` | the app's own exercise clip / thumbnail for an action id, from `workout-state/media/` (shipped by `tools/homeworkouts/sync.py`); Range supported; `catalog.media` lists what exists |
+| GET | `/api/workout/media/{video\|thumb}/:id` | the app's own exercise clip / thumbnail for an action id, from `workout-state/media/` (shipped by `tools/homeworkouts/sync.py`: the app's cached clips plus the rest fetched from its CDN by `fetch_media.py`); Range supported; `catalog.media` lists what exists |
 
 Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}` or
 `{endpoint, params, ok:false, error, code}` with status 502; `code` is one of `auth`,
