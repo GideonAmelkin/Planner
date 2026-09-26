@@ -4,7 +4,7 @@ import { endOfMonth } from 'date-fns';
 import AgendaRail from '../components/AgendaRail';
 import MiniCalendar from '../components/MiniCalendar';
 import WorkoutCard from '../components/workout/WorkoutCard';
-import WorkoutTile, { tileGrid, tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
+import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from '../components/workout/WorkoutTile';
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, API_BASE } from '../services/api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../utils/dayInfo';
 import { num, secondsToHm } from '../utils/garminFormat';
@@ -261,7 +261,7 @@ export default function WorkoutView() {
   const header = (
     <div style={card}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
-        <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
             <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1, whiteSpace: 'nowrap' }}>
               {headlineLong(date)}
@@ -278,19 +278,17 @@ export default function WorkoutView() {
               />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
-            <div style={{ ...tileGrid(110), flex: 1 }}>
-              <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" />
-              <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
-              <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
-              <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
-              <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
-              <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
-            </div>
-            {rangeControls}
-          </div>
         </div>
         <MiniCalendar dateISO={date} section="workout" marks={workoutDays} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', gap: 28, flexWrap: 'wrap', marginTop: 16 }}>
+        <WorkoutTile label="Height" value={profile.height_cm ? num(profile.height_cm / 2.54) : null} unit="in" />
+        <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
+        <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
+        <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
+        <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
+        <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
+        {rangeControls}
       </div>
       <div style={{ paddingTop: 16 }}>
         {customValid ? <RangeBars sessions={rangeSessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
@@ -318,7 +316,7 @@ export default function WorkoutView() {
                   const cell = (extra) => ({ ...extra, background: mine ? COLORS.calloutBg : undefined });
                   return (
                     <tr key={r.date}>
-                      <td style={cell(tdNum)}><Link to={`/workout/${r.date}`} style={tableLink}>{shortDate(r.date)}</Link></td>
+                      <td style={cell(td)}>{shortDate(r.date)}</td>
                       <td style={cell(td)}>{r.focus.join(', ')}{r.n > 1 ? <span style={{ color: COLORS.muted, fontSize: 11, marginLeft: 6 }}>{r.n} workouts</span> : null}</td>
                       <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{r.kinds.join(', ')}</span></td>
                       <td style={cell(tdNum)}>{secondsToHm(r.duration_s) || '-'}</td>
