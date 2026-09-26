@@ -35,8 +35,9 @@ function MonthGrid({ monthDate, todayDate, compact = false, section = 'agenda', 
     alignItems: 'center',
     justifyContent: 'center',
     color: c.inMonth ? COLORS.ink : COLORS.faint,
-    fontWeight: c.isToday ? 700 : (c.inMonth ? 500 : 400),
-    background: c.isToday ? COLORS.accent : 'transparent',
+    fontWeight: c.isToday || c.marked ? 700 : (c.inMonth ? 500 : 400),
+    // Selected day: accent circle. Workout day: the same circle in green.
+    background: c.isToday ? COLORS.accent : c.marked ? COLORS.done : 'transparent',
     borderRadius: '50%',
   });
 
@@ -57,15 +58,9 @@ function MonthGrid({ monthDate, todayDate, compact = false, section = 'agenda', 
                 <Link
                   to={`/${section}/${c.iso}`}
                   title={c.marked ? 'Workout logged' : undefined}
-                  style={{ ...cellStyle(c), position: 'relative', textDecoration: 'none', color: c.isToday ? 'white' : cellStyle(c).color }}
+                  style={{ ...cellStyle(c), textDecoration: 'none', color: c.isToday || c.marked ? 'white' : cellStyle(c).color }}
                 >
                   {c.day}
-                  {c.marked ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" style={{ position: 'absolute', top: -2, right: -2 }}>
-                      <circle cx="5" cy="5" r="5" fill={COLORS.done} />
-                      <path d="M2.8 5.2 L4.3 6.7 L7.3 3.5" fill="none" stroke="white" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : null}
                 </Link>
               </td>
             ))}
