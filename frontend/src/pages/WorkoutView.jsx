@@ -49,6 +49,9 @@ const toUnit = (kg, unit) => (kg === null || kg === undefined ? null : (unit ===
 const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-');
 const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
 // Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
+// Exercise thumbnail: the synced JPEG when there is one, else the clip's own frame at 0.5 s
+// (18 clips decode in the browser but not in AVFoundation, so they have no JPEG).
+const thumbStyle = { width: 36, height: 36, borderRadius: 6, objectFit: 'cover', verticalAlign: 'middle', marginRight: 10, background: COLORS.page, display: 'inline-block' };
 const exerciseName = (e) => (/^\d+$/.test(e.name || '') ? `Exercise ${e.name}` : e.name);
 
 // "8" when every set has the same reps, otherwise the list ("12, 10, 8").
@@ -428,7 +431,8 @@ export default function WorkoutView() {
                               <React.Fragment key={`${e.action_id}-${e.order}`}>
                                 <tr>
                                   <td style={{ ...td, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {hasThumb ? <img src={mediaUrl('thumb', e.action_id)} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', verticalAlign: 'middle', marginRight: 10, background: COLORS.page }} /> : null}
+                                    {hasThumb ? <img src={mediaUrl('thumb', e.action_id)} alt="" style={thumbStyle} />
+                                      : hasVideo ? <video src={`${mediaUrl('video', e.action_id)}#t=0.5`} muted playsInline preload="metadata" style={thumbStyle} /> : null}
                                     {exerciseName(e)}
                                   </td>
                                   <td style={numCell}>{(e.sets || []).length || '-'}</td>

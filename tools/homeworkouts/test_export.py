@@ -295,6 +295,19 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(len(snap['templates']), 1)
         self.assertEqual(snap['counts']['sessions'], 0)
 
+    def test_downloaded_text_pack_names_an_unknown_exercise(self):
+        # The app writes Library/workoutEx/actions/<id>/text/<ver>/en/en once the exercise was opened.
+        for ver, name in ((2, 'OLD NAME'), (3, 'BANDED SQUAT HIP ABDUCTION')):
+            d = os.path.join(self.fx.container, 'Library', 'workoutEx', 'actions', '424242', 'text', str(ver), 'en')
+            os.makedirs(d)
+            with open(os.path.join(d, 'en'), 'w') as f:
+                json.dump({'name': name, 'introduce': '', 'tips': []}, f)
+        self.fx.template(101, 'Full Body Workout', 'full_body_workout', ['424242'])
+        self.fx.plan([])
+        snap = self.build()
+        self.assertEqual(snap['templates'][0]['exercises'][0]['name'], 'Banded Squat Hip Abduction')
+        self.assertEqual(snap['counts']['unresolved_name_ids'], [])
+
     def test_unknown_name_is_reported_not_dropped(self):
         self.fx.template(101, 'Full Body Workout', 'full_body_workout', ['424242'])
         self.fx.plan([])

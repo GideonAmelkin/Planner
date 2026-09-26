@@ -29,7 +29,7 @@ Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT1
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
 | `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
-| `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. |
+| `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. `media/thumbs/` holds the app's own thumbnails plus frames the Mac renders from the clips with `tools/homeworkouts/thumbs.swift`; the Templates card falls back to the clip's first frame for the few clips AVFoundation cannot decode. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
 ## Schema (11 tables)

@@ -41,6 +41,11 @@ MEDIA_STAGE = os.path.join(STATE_DIR, 'media')
 CLIPS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'cacheImv', 'mg', 'tl')
 THUMBS_DIR = os.path.join(export.DEFAULT_CONTAINER, 'Library', 'Caches', 'Images')
 FETCH_CAP = 80   # CDN downloads per run; the 6-hourly launchd runs finish the rest
+# Thumbnails for clips the app never opened come from the clips themselves: thumbs.swift
+# (AVFoundation) is compiled once into STATE_DIR/bin and run over every clip without one.
+THUMBS_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'thumbs.swift')
+THUMBS_BIN = os.path.join(STATE_DIR, 'bin', 'thumbs')
+SWIFTC = '/usr/bin/swiftc'
 
 
 def stage_media():
@@ -74,6 +79,26 @@ def stage_media():
         if stem.isdigit() and copy_if_changed(src, os.path.join(thumbs, stem + '.jpg')):
             n_thumbs += 1
     return n_clips, n_thumbs
+
+
+def make_thumbs():
+    """Generate a JPEG frame for every staged clip that has no thumbnail yet.
+    Returns the tool's summary line."""
+    videos = os.path.join(MEDIA_STAGE, 'videos')
+    thumbs = os.path.join(MEDIA_STAGE, 'thumbs')
+    os.makedirs(thumbs, exist_ok=True)
+    todo = [c for c in sorted(glob.glob(os.path.join(videos, '*.mp4')))
+            if not os.path.exists(os.path.join(thumbs, os.path.basename(c)[:-4] + '.jpg'))]
+    if not todo:
+        return 'thumbnails: 0 made, all present'
+    if not os.path.exists(THUMBS_BIN) or os.stat(THUMBS_BIN).st_mtime < os.stat(THUMBS_SRC).st_mtime:
+        os.makedirs(os.path.dirname(THUMBS_BIN), exist_ok=True)
+        subprocess.run([SWIFTC, '-O', '-o', THUMBS_BIN, THUMBS_SRC], check=True, timeout=600, capture_output=True)
+    out = subprocess.run([THUMBS_BIN, thumbs] + todo, check=True, timeout=1800, capture_output=True, text=True).stdout
+    lines = [l for l in out.splitlines() if l.strip()]
+    for l in lines[:-1]:
+        print('   ' + l)
+    return lines[-1] if lines else 'thumbnails: no output'
 
 
 def snapshot_action_ids(path):
@@ -114,6 +139,10 @@ def main():
         print('== %s clips fetched from the CDN: %d new, %d already present, %d failed' % (stamp(), fetched, had, failed))
     except Exception as e:  # never let the clip fetch block the snapshot shipping
         print('== %s clip fetch skipped: %s' % (stamp(), e))
+    try:
+        print('== %s %s' % (stamp(), make_thumbs()))
+    except Exception as e:  # same for the thumbnails
+        print('== %s thumbnails skipped: %s' % (stamp(), e))
     try:
         subprocess.run(['ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15', HOST, "mkdir -p '%s/media'" % REMOTE_DIR], check=True, timeout=60)
         subprocess.run(['rsync', '-a', '--timeout=60', SNAPSHOT, '%s:%s/home_workouts.json' % (HOST, REMOTE_DIR)], check=True, timeout=120)

@@ -23,6 +23,7 @@ numbers printed. Nothing is dropped silently.
 """
 import argparse
 import base64
+import glob
 import json
 import os
 import plistlib
@@ -144,9 +145,11 @@ def b64_json(text):
 # Names ------------------------------------------------------------------------
 
 class Names:
-    """Exercise id -> English name. en_b.json wins over en_p.json over actionAttributes."""
+    """Exercise id -> English name. The app's own downloaded text packs win
+    (<container>/Library/workoutEx/actions/<id>/text/<ver>/en/en, written once an exercise
+    has been opened in the app), then en_b.json over en_p.json over actionAttributes."""
 
-    def __init__(self, bundle):
+    def __init__(self, bundle, container=None):
         self.map = {}
         attrs = self._load(os.path.join(bundle, 'actionAttributes.json'))
         if isinstance(attrs, list):
@@ -159,7 +162,33 @@ class Names:
                 for k, v in d.items():
                     if isinstance(v, str) and v:
                         self.map[str(k)] = v
+        if container:
+            self.map.update(self._downloaded(container))
         self.unresolved = set()
+
+    @classmethod
+    def _downloaded(cls, container):
+        """Names from the text packs the app has fetched, highest version per id."""
+        out = {}
+        root = os.path.join(container, 'Library', 'workoutEx', 'actions')
+        if not os.path.isdir(root):
+            return out
+        for action_id in os.listdir(root):
+            versions = []
+            for v in glob.glob(os.path.join(root, action_id, 'text', '*', 'en', 'en')):
+                ver = os.path.basename(os.path.dirname(os.path.dirname(v)))
+                if ver.isdigit():
+                    versions.append((int(ver), v))
+            for _ver, path in sorted(versions, reverse=True):
+                try:
+                    with open(path, 'rb') as f:
+                        name = (json.load(f).get('name') or '').strip()
+                except (OSError, ValueError, AttributeError):
+                    continue
+                if name:
+                    out[str(action_id)] = name.title() if name.isupper() else name
+                    break
+        return out
 
     @staticmethod
     def _load(path):
@@ -543,7 +572,7 @@ def build_snapshot(container, bundle):
     lkdb_path = os.path.join(container, 'Documents', 'db', 'LKDB.db')
     plan_path = os.path.join(container, 'Documents', 'DBfolder', 'userexe.sqlite')
     prefs_path = os.path.join(container, 'Library', 'Preferences', BUNDLE_ID + '.plist')
-    names = Names(bundle)
+    names = Names(bundle, container)
     counts = {}
     tmpdir = tempfile.mkdtemp(prefix='homeworkouts-')
     try:
