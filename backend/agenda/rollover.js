@@ -1,5 +1,5 @@
-const { all, get, run } = require('./db');
-const { nextDayISO } = require('./lib/dates');
+const { all, get, run } = require('../db');
+const { nextDayISO } = require('../lib/dates');
 
 const keyOf = (text, parentId) => `${text}|${parentId ?? 'null'}`;
 

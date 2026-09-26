@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const { all, get, run } = require('./db');
+const { all, get, run } = require('../db');
 
 // ZenQuotes can repeat itself; quotes.text is UNIQUE, so retry a few times
 // before falling back to the bundled list.

@@ -9,8 +9,8 @@
 //   fetchEvents(account, dateISO, accessToken) -> normalized event list
 const fetch = require('node-fetch');
 const { google } = require('googleapis');
-const { all, run } = require('./db');
-const { toLocalDateTime, dayWindow } = require('./lib/dates');
+const { all, run } = require('../db');
+const { toLocalDateTime, dayWindow } = require('../lib/dates');
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5002';
 

@@ -2,7 +2,7 @@
 // The callback paths are registered with Google and Microsoft; do not rename.
 const { Router } = require('express');
 const { providers, connectAccount, listAccounts, disconnectAccount } = require('../calendarService');
-const { asyncHandler, idParam } = require('../lib/http');
+const { asyncHandler, idParam } = require('../../lib/http');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 const ENV_HINT = {

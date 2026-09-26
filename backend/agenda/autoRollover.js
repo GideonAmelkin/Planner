@@ -1,6 +1,6 @@
-const { all, get, run } = require('./db');
+const { all, get, run } = require('../db');
 const { pullForward } = require('./rollover');
-const { localISO } = require('./lib/dates');
+const { localISO } = require('../lib/dates');
 
 // How far back the catch-up sweep looks. Covers a weekend (or a few nights) of
 // the Mac being asleep at 11:59 PM without cascading deep history on first run.

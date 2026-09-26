@@ -1,6 +1,6 @@
 // SQL fragments and read queries shared by more than one route.
-const { all } = require('./db');
-const { monthPrefix } = require('./lib/dates');
+const { all } = require('../db');
+const { monthPrefix } = require('../lib/dates');
 
 // Task ordering used by the day view and the recap: A before B before C, then
 // the number within the letter, then manual order.

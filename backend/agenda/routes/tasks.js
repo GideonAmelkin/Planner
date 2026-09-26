@@ -1,7 +1,7 @@
 // Action Items: per-day prioritized tasks with one level of sub-items.
 const { Router } = require('express');
-const { run } = require('../db');
-const { isDate, asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../lib/http');
+const { run } = require('../../db');
+const { isDate, asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../../lib/http');
 
 const router = Router();
 

@@ -1,9 +1,9 @@
 // Manual appointments on the timeline (external calendar events are read-only
 // and come from calendarService).
 const { Router } = require('express');
-const { run } = require('../db');
+const { run } = require('../../db');
 const { APPOINTMENT_COLUMNS } = require('../queries');
-const { isDate, isDateTime, asyncHandler, fetchRow, patchRow, deleteRow } = require('../lib/http');
+const { isDate, isDateTime, asyncHandler, fetchRow, patchRow, deleteRow } = require('../../lib/http');
 
 const router = Router();
 

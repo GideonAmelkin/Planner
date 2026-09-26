@@ -1,9 +1,9 @@
 // The "Tasks" section (daily_note_entries) and the free-form Notes textarea
 // (daily_notes) of the daily spread.
 const { Router } = require('express');
-const { run } = require('../db');
+const { run } = require('../../db');
 const { NOTE_COLUMNS } = require('../queries');
-const { isDate, asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../lib/http');
+const { isDate, asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../../lib/http');
 
 const router = Router();
 

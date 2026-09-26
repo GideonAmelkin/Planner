@@ -1,8 +1,8 @@
 // Ongoing: nested items not tied to any date.
 const { Router } = require('express');
-const { run } = require('../db');
+const { run } = require('../../db');
 const { ONGOING_COLUMNS } = require('../queries');
-const { asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../lib/http');
+const { asyncHandler, fetchRow, patchRow, reorderRows, deleteRow } = require('../../lib/http');
 
 const router = Router();
 

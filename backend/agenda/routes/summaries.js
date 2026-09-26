@@ -1,7 +1,7 @@
 // Read-only aggregates: per-day counts for a month, and the Recap list.
 const { Router } = require('express');
 const { monthSummary, completedByDate } = require('../queries');
-const { isYearMonth, asyncHandler } = require('../lib/http');
+const { isYearMonth, asyncHandler } = require('../../lib/http');
 
 const router = Router();
 
