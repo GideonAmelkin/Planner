@@ -91,8 +91,8 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
   const navigate = useNavigate();
   const narrow = useNarrow();
   const [drawer, setDrawer] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('garminNavCollapsed') === '1'; } catch (_) { return false; } });
-  const toggleCollapsed = () => setCollapsed((c) => { try { localStorage.setItem('garminNavCollapsed', c ? '0' : '1'); } catch (_) { /* ignore */ } return !c; });
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('plannerNavCollapsed') === '1'; } catch (_) { return false; } });
+  const toggleCollapsed = () => setCollapsed((c) => { try { localStorage.setItem('plannerNavCollapsed', c ? '0' : '1'); } catch (_) { /* ignore */ } return !c; });
   const [showRecap, setShowRecap] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
