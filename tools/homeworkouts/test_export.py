@@ -35,6 +35,18 @@ PLAN_SCHEMA = [
 T_S = 1790346600
 T_MS = T_S * 1000
 LOCAL_DATE = datetime.fromtimestamp(T_S, tz=timezone.utc).astimezone().date().isoformat()
+# Home sessions: the app files each one under a calendar day stored as midnight UTC.
+DAY_UTC_MS = 1790380800000   # 2026-09-26T00:00:00Z
+
+
+def local_ms(y, m, d, hh, mm):
+    """Epoch ms of a wall-clock time in the Mac's zone (what workout.temp1 holds)."""
+    return int(datetime(y, m, d, hh, mm).astimezone().timestamp() * 1000)
+
+
+def temp1(entries):
+    """[(position, start_ms, seconds)] -> the app's temp1 JSON."""
+    return json.dumps({str(p): '%d:%d' % (s, s + secs * 1000) for p, s, secs in entries})
 
 LK_JSON_EMPTY = '{"DB_Type":"DB_Type_JSON","DB_Value":[]}'
 
@@ -123,10 +135,14 @@ class Fixture:
                     (a, ts, 1 if finished else 0, 80.0, 80.0, 5))
         self.lk.commit()
 
-    def home_session(self, id_, date_value, name, times):
+    def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None):
+        """timings: temp1 JSON as the app writes it today (eachActionTimeDicStr stays empty);
+        legacy_times: the old {action_id: seconds} column for app versions that filled it."""
+        n = len(legacy_times) if legacy_times else len(json.loads(timings)) if timings else 0
+        each = json.dumps({'DB_Type': 'DB_Type_JSON', 'DB_Value': legacy_times}) if legacy_times else ''
         self.lk.execute(
-            "INSERT INTO workout(ID,eachActionTimeDicStr,kcalStr,sportType,totalCount,during,updateTime,name,date,completeCount) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (id_, json.dumps({'DB_Type': 'DB_Type_JSON', 'DB_Value': times}), '88.5', 0, len(times), 1200, date_value, name, date_value, len(times)))
+            "INSERT INTO workout(ID,eachActionTimeDicStr,temp1,kcalStr,sportType,totalCount,during,updateTime,name,date,completeCount) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (id_, each, timings or '', '88.5', 0, n, 1200, day_utc_ms, name, day_utc_ms, n))
         self.lk.commit()
 
     def weight(self, kg, day_midnight_utc_ms, at_ms):
@@ -170,7 +186,7 @@ class ExportTest(unittest.TestCase):
         fx.template(150, 'Old custom', 'custom', ['10'], deleted=1)
         fx.gym_session(T_MS, 'Full Body Workout', 101, ['1317', '655'])
         fx.gym_session(T_MS + 86400000, 'Deleted one', 101, ['655'], deleted=1)
-        fx.home_session(7, T_S, 'Abs Beginner', {'10': 30, '513': 45})
+        fx.home_session(7, DAY_UTC_MS, 'Abs Beginner', temp1([(0, local_ms(2026, 9, 26, 6, 10), 30), (1, local_ms(2026, 9, 26, 6, 11), 45)]))
         fx.weight(77.11, 1790380800000, T_MS)
         fx.plan([
             {'day': 1, 'exercises': [{'Id': '513', 'enName': 'DUMBBELL KICKBACKS', 'time': 16, 'restTime': 15, 'unit': '', 'eachSide': False}],
@@ -208,10 +224,12 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(g['exercises'][1]['sets'], [{'reps': 5, 'weight_kg': 80.0, 'finished': True}] * 3)
 
         h = home[0]
-        self.assertEqual(h['id'], 'home:7:%d' % T_S)
-        self.assertEqual(h['date'], LOCAL_DATE)      # seconds and milliseconds land on the same day
+        self.assertEqual(h['id'], 'home:7:%d' % DAY_UTC_MS)
+        self.assertEqual(h['date'], '2026-09-26')    # the app's day (midnight UTC), not the Mac-local date of that instant
+        self.assertTrue(h['started_at'].startswith('2026-09-26T06:10:00'), h['started_at'])
         self.assertEqual(h['calories'], 88.5)
-        self.assertEqual([(e['name'], e['seconds']) for e in h['exercises']], [('Bird Dog', 30), ('Kickbacks · Dumbbell', 45)])
+        self.assertEqual([(e['order'], e['name'], e['seconds']) for e in h['exercises']], [(0, None, 30), (1, None, 45)])
+        self.assertEqual(c['home_sessions_from_temp1'], 1)
 
         self.assertEqual(snap['weights'], [{'date': '2026-09-26', 'at': g['started_at'], 'kg': 77.11}])
 
@@ -234,6 +252,24 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(snap['profile']['height_cm'], 183.0)
         self.assertEqual(snap['profile']['current_weight_kg'], 77.11069)
         self.assertFalse(snap['profile']['shows_kg'])
+
+    def test_home_session_keeps_app_day_after_midnight(self):
+        # Started 23:48 local on the 25th; the app files it under the 26th (midnight UTC) and so do we.
+        self.fx.home_session(8, DAY_UTC_MS, 'Late', temp1([(0, local_ms(2026, 9, 25, 23, 48), 40)]))
+        self.fx.plan([])
+        h = self.build()['sessions'][0]
+        self.assertEqual(h['date'], '2026-09-26')
+        self.assertTrue(h['started_at'].startswith('2026-09-25T23:48:00'), h['started_at'])
+
+    def test_home_session_legacy_each_action_column(self):
+        self.fx.home_session(9, DAY_UTC_MS, 'Abs Beginner', legacy_times={'10': 30, '513': 45})
+        self.fx.plan([])
+        snap = self.build()
+        h = snap['sessions'][0]
+        self.assertEqual(h['date'], '2026-09-26')
+        self.assertEqual(h['started_at'], '2026-09-26T00:00:00')
+        self.assertEqual([(e['name'], e['seconds']) for e in h['exercises']], [('Bird Dog', 30), ('Kickbacks · Dumbbell', 45)])
+        self.assertEqual(snap['counts']['home_sessions_from_temp1'], 0)
 
     def test_empty_install_exports_catalog_only(self):
         self.fx.template(101, 'Full Body Workout', 'full_body_workout', ['1317'])

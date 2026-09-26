@@ -77,7 +77,8 @@ def local_date(dt):
 
 
 def utc_date(value, what):
-    """For columns that hold midnight UTC of a calendar day (weight.date)."""
+    """For columns that hold midnight UTC of a calendar day (weight.date, workout.date).
+    Converting those to the Mac's zone lands on the evening before, one day early."""
     dt = epoch_to_dt(value, what)
     return dt.astimezone(timezone.utc).date().isoformat() if dt else None
 
@@ -290,24 +291,59 @@ def read_gym_sessions(lk, names, sets_index, counts):
     return sessions
 
 
+def home_timings(raw):
+    """workout.temp1: JSON {"<position>": "<start ms>:<end ms>"} for each completed exercise.
+    Current app versions write this and leave eachActionTimeDicStr empty. Positions are the
+    order in the session, not action ids, so names cannot be resolved from it.
+    Returns [(position, start_ms, end_ms)] sorted by position, [] when absent or unreadable."""
+    if not raw:
+        return []
+    try:
+        d = json.loads(raw)
+    except ValueError:
+        return []
+    if not isinstance(d, dict):
+        return []
+    out = []
+    for k, v in d.items():
+        try:
+            a, b = str(v).split(':')[:2]
+            out.append((int(k), int(a), int(b)))
+        except (ValueError, TypeError):
+            continue
+    return sorted(out)
+
+
 def read_home_sessions(lk, names, counts):
-    """workout rows (bodyweight / plan sessions) -> sessions."""
+    """workout rows (bodyweight / plan sessions) -> sessions. workout.date is midnight UTC of
+    the day the app files the session under (verified against temp1: sessions finished just
+    before local midnight are filed on the next day), so the date comes from utc_date."""
     sessions = []
+    from_temp1 = 0
     for r in rows(lk, 'SELECT * FROM workout ORDER BY date'):
-        started = epoch_to_dt(r.get('date'), 'workout.date')
+        day = utc_date(r.get('date'), 'workout.date')
+        timings = home_timings(r.get('temp1'))
+        if timings:
+            started_at = local_iso(epoch_to_dt(min(t[1] for t in timings), 'workout.temp1'))
+        else:
+            started_at = '%sT00:00:00' % day if day else None
         exercises = []
         times = lk_value(r.get('eachActionTimeDicStr'))
         if isinstance(times, dict):
             for i, (k, v) in enumerate(times.items()):
                 exercises.append({'action_id': str(k), 'name': names.get(k), 'order': i, 'seconds': to_int(v), 'sets': []})
+        if not exercises and timings:
+            from_temp1 += 1
+            exercises = [{'action_id': None, 'name': None, 'order': pos, 'seconds': int(round((end - start) / 1000.0)), 'sets': []}
+                         for pos, start, end in timings]
         sessions.append({
             'id': 'home:%s:%s' % (r['ID'], r.get('date')),
             'kind': 'home',
             'title': r.get('name') or r.get('localizedKey') or 'Workout',
             'sport_type': r.get('sportType'),
             'day_index': r.get('dayIndex'),
-            'started_at': local_iso(started),
-            'date': local_date(started),
+            'started_at': started_at,
+            'date': day,
             'duration_s': to_int(r.get('during')),
             'calories': to_float(r.get('kcalStr')),
             'total_count': to_int(r.get('totalCount')),
@@ -317,6 +353,7 @@ def read_home_sessions(lk, names, counts):
         })
     counts['workout'] = len(sessions)
     counts['home_sessions'] = len(sessions)
+    counts['home_sessions_from_temp1'] = from_temp1
     return sessions
 
 
