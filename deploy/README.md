@@ -146,10 +146,10 @@ RT100: ~/apps/planner/backend/workout-state/home_workouts.json  --> GET /api/wor
 One-time setup on the Mac (done 2026-09-26):
 
 ```bash
-# 1. Full Disk Access for the interpreter, or the background job cannot read the
-#    app container (macOS "App Data" protection). System Settings > Privacy & Security >
-#    Full Disk Access > "+" > add /Library/Developer/CommandLineTools/usr/bin/python3
-#    (use Cmd+Shift+G in the file picker to type the path).
+# 1. Full Disk Access for python3, or the background job can read neither the app
+#    container (macOS "App Data" protection) nor this repo under ~/Documents.
+#    System Settings > Privacy & Security > Full Disk Access > "+" > Cmd+Shift+G >
+#    /Library/Developer/CommandLineTools/usr/bin/python3 > Open, then toggle it on.
 # 2. Install the launchd agent (every 30 minutes, also at login)
 cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
@@ -158,7 +158,7 @@ launchctl kickstart -k gui/$(id -u)/com.gideon.planner.homeworkouts
 tail -20 ~/Library/Application\ Support/PlannerHomeWorkouts/sync.log
 ```
 
-By hand at any time: `bash tools/homeworkouts/sync.sh` (same log). Tests:
+By hand at any time: `python3 tools/homeworkouts/sync.py` (same log). Tests:
 `python3 -m unittest tools/homeworkouts/test_export.py`. The exporter prints a per-table
 reconciliation and exits non-zero if a source row was neither emitted nor counted as
 excluded.
