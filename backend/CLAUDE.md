@@ -114,6 +114,7 @@ health_runs          One row per ingest run: started_at (written first), finishe
 | POST | `/api/workout/health` | header `X-Workout-Token`; body `{device, sent_at, workouts:[{type, start, end, duration_s, calories, distance_m, source}]}` (at most 500, `start` must parse); `{stored, new, total, received_at}`; idempotent |
 | GET | `/api/workout/day/:date` | `{sessions, plan_day, weights, exported_at, health_received_at}` for that local date; 404 `{available:false}` when neither source exists |
 | GET | `/api/workout/recent?end=&days=` | sessions (sets stripped, `via: 'health'` for phone-only ones, `'both'` when matched) in the window, newest first, plus every weigh-in |
+| GET | `/api/workout/strength` | `{sessions, weight_unit, exported_at}`: every gym session with exercises and sets, oldest first (recent strips sets); 404 when neither source exists |
 | GET | `/api/workout/catalog` | `{templates, plan}` |
 | GET | `/api/social/status` | `{available, videos, total_views, views_30d, posts_30d, last_post, newest_video_id, updated_at, review:{has_key, running}}` |
 | GET | `/api/social/videos` | `{summary, videos, updated_at}`: every column of the tracker's `videos` table except `script`, newest first; 404 `{available:false}` without the db |
