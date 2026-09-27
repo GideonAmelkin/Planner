@@ -136,7 +136,7 @@ class Fixture:
     def gym_session(self, ts, title, template_id, actions, deleted=0, finished=True):
         self.lk.execute(
             "INSERT INTO workout_record(timeStamp,cal,templateId,isDeleted,title,totalSIWeight,duration,totalBSWeight,startTime,restTime,updateTime) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (ts, 210, template_id, deleted, title, 1240.5, 2700, 2735.0, ts, 300, ts))
+            (ts, 210, template_id, deleted, title, 1240.5, 2700000, 2735.0, ts, 300000, ts))  # duration and rest in ms, as the app stores them
         for i, a in enumerate(actions):
             self.lk.execute(
                 "INSERT INTO workout_action(unit,workoutId,isFocus,orderIndex,roundList,actionId,isOpening) VALUES('',?,0,?,?,?,0)",
@@ -232,7 +232,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(g['id'], 'gym:%d' % T_MS)
         self.assertEqual(g['date'], LOCAL_DATE)
         self.assertTrue(g['started_at'].startswith(LOCAL_DATE))
-        self.assertEqual((g['duration_s'], g['calories'], g['total_weight_kg']), (2700, 210, 1240.5))
+        self.assertEqual((g['duration_s'], g['rest_s'], g['calories'], g['total_weight_kg']), (2700, 300, 210, 1240.5))
         self.assertEqual([e['name'] for e in g['exercises']], ["Dumbbell Farmer's Carry", 'Bench Press · Barbell'])
         self.assertEqual(g['exercises'][1]['sets'], [{'reps': 5, 'weight_kg': 80.0, 'finished': True}] * 3)
 

@@ -97,6 +97,13 @@ def to_int(v):
     return int(f) if f is not None else None
 
 
+def ms_to_s(v):
+    """Gym durations (workout_record.duration, restTime) are milliseconds: 1882000 for a 31-minute
+    session, and timeStamp - startTime agrees to the second. Home sessions' `during` is seconds."""
+    f = to_float(v)
+    return int(round(f / 1000.0)) if f is not None else None
+
+
 # SQLite -----------------------------------------------------------------------
 
 def open_ro(path, tmpdir):
@@ -343,8 +350,8 @@ def read_gym_sessions(lk, names, sets, counts):
             'template_id': r.get('templateId'),
             'started_at': local_iso(started),
             'date': local_date(started),
-            'duration_s': to_int(r.get('duration')),
-            'rest_s': to_int(r.get('restTime')),
+            'duration_s': ms_to_s(r.get('duration')),
+            'rest_s': ms_to_s(r.get('restTime')),
             'calories': to_int(r.get('cal')),
             'total_weight_kg': to_float(r.get('totalSIWeight')),
             'exercises': exercises,
