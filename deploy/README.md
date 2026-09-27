@@ -52,22 +52,33 @@ Rollback = `git checkout <previous commit> -- <files>` on the Mac, then the same
 ## Health store: attended history fetch
 
 The Health tab reads `health_days`; today is written by the Garmin warm every 30 minutes and
-yesterday is finalized at 03:30. Older days are never fetched on their own. To backfill,
-stage it, with the backend stopped so only one bridge process talks to Garmin:
+yesterday is finalized at 03:30. Older days are never fetched on their own. To backfill, run
+the script with the backend stopped so only one bridge process talks to Garmin. A day costs
+18 calls and `MAX_CALLS_PER_RUN` is 100, so use 4-day stages (5 fit only when no day has an
+activity that needs its detail call). Measured 2026-09-27: 529 direct calls over ten stages
+in 62 seconds of script time, Garmin answered every one, no `rate_limited`.
 
 ```bash
 ssh gamelkin@70.42.223.139
 cd ~/apps/planner/backend
 pm2 stop planner-backend
-node scripts/health-fetch.js --to 2026-09-26 --max-days 7 --dry-run   # what it would write, no Garmin calls
-node scripts/health-fetch.js --to 2026-09-26 --max-days 7             # 7 days, about 140 direct calls
+node scripts/health-fetch.js --from 2026-09-08 --to 2026-09-11 --dry-run   # what it would write, no Garmin calls
+node scripts/health-fetch.js --from 2026-09-08 --to 2026-09-11             # about 75 direct calls, 10 s
 pm2 start planner-backend
-curl -s http://127.0.0.1:5002/api/health/status | python3 -m json.tool   # no rate_limited, level ok
+curl -s http://127.0.0.1:5002/api/health/status | python3 -m json.tool      # level ok, never_final empty
 ```
 
-Wait, check `/api/garmin/status` still says connected, then the next 7 days with an earlier
-`--to`. `--max-days` refuses more than 14 and the run stops itself before 100 calls
-(`budget_stop` in `health_runs.errors`). The measured safe rate is about 36 calls an hour.
+`--force` is the one way past a final row: run it when a day's numbers on connect.garmin.com
+no longer match ours (Garmin corrected the day) or after a rule change that alters stored
+values. It is logged loudly, recorded on the run row, and nothing scheduled can pass it:
+
+```bash
+node scripts/health-fetch.js --date 2026-09-20 --force                # refetch and replace
+node scripts/health-fetch.js --from 2026-09-14 --to 2026-09-27 --max-days 14 --force --no-refresh   # re-derive from cache, no Garmin calls
+```
+
+The status line (and `never_final` on `/api/health/status`) goes amber when a day older than
+two days is stored but not final, which is how a finality rule that stopped firing shows up.
 
 ## First-time install
 
@@ -238,10 +249,17 @@ status line shows "app synced <time>". Attended run that ignores the idle rule:
 One more grant for the same python3, once: System Settings > Privacy & Security >
 Accessibility > "+" > Cmd+Shift+G > `/Library/Developer/CommandLineTools/usr/bin/python3`.
 
-Known gap (2026-09-27): a gym session's exercises are not in `workout_action` (those rows are
-the templates'); they travel in the backup's `gymData.exerciseRecordInfoStr` /
-`setRecordInfoStr` JSON strings, which the exporter does not read yet, so gym sessions export
-with duration and calories but an empty exercise list.
+Gym sessions (first real one 2026-09-27): a session's exercises are `exercise_record` rows
+(`workoutTimeStamp` = the session's `workout_record.timeStamp`, ordered by `orderIndex`), and its
+sets are the `set_record` rows whose `exercisePk` is that exercise record's pk (a uuid) and whose
+`workoutTimeStamp` is the session, all written at session end. `set_record` rows with a bare
+exercise id and `workoutTimeStamp` 0 are the exercise's in-progress working sets, not session
+records; `workout_action` / `workout_action_set` belong to templates only. Weights are in the gym
+module's unit (`user.weightUnit` -> `user_unit` row: 1 = lb, 0 = kg; converted to kg in the
+snapshot), durations and rest are milliseconds, and the lifted total comes from the sets when
+`totalSIWeight` is 0. Checked against the app's own session detail on 2026-09-27 (Volume 11970 lbs,
+4 sets per exercise) and it matches. Ids with no name on disk get one from `LEARNED_NAMES`
+(1071 = Cable Pull Through, read off the app).
 
 One-time setup on the Mac (done 2026-09-26; the plist now runs hourly with `--app-sync`):
 

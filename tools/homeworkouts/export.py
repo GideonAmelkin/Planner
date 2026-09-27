@@ -152,13 +152,19 @@ def b64_json(text):
 
 # Names ------------------------------------------------------------------------
 
+# Names the app showed on screen for ids that none of the on-disk sources carry (six such ids
+# exist). Lowest priority: any real source overrides. 1071 read off the session detail 2026-09-27.
+LEARNED_NAMES = {'1071': 'Cable Pull Through'}
+
+
 class Names:
     """Exercise id -> English name. The app's own downloaded text packs win
     (<container>/Library/workoutEx/actions/<id>/text/<ver>/en/en, written once an exercise
-    has been opened in the app), then en_b.json over en_p.json over actionAttributes."""
+    has been opened in the app), then en_b.json over en_p.json over actionAttributes, then
+    LEARNED_NAMES."""
 
     def __init__(self, bundle, container=None):
-        self.map = {}
+        self.map = dict(LEARNED_NAMES)
         attrs = self._load(os.path.join(bundle, 'actionAttributes.json'))
         if isinstance(attrs, list):
             for e in attrs:
@@ -338,13 +344,16 @@ def gym_weight_unit(lk):
 def read_gym_sessions(lk, names, sets, counts):
     """Gym sessions from workout_record with their exercises from exercise_record and their sets
     from set_record. Nothing about a session lives in workout_action (those rows are the
-    templates'): learned on the first real session, 2026-09-27. A set is tied to a session by its
-    exercise id and its time falling inside the session (set_record.workoutTimeStamp is 0 on
-    every row the app has written so far; it is honoured when present)."""
+    templates'): learned on the first real session, 2026-09-27. A session's sets are the
+    set_record rows whose exercisePk is the exercise_record row's pk (a uuid) and whose
+    workoutTimeStamp is the session; the app writes them all at session end. Rows whose
+    exercisePk is a bare exercise id with workoutTimeStamp 0 are the in-progress working sets of
+    the exercise, not session records (the app's Volume for the 2026-09-27 session, 11970 lbs,
+    is reproduced by the uuid rows alone)."""
     unit = gym_weight_unit(lk)
     to_kg = (lambda w: None if w is None else round(w / LB_PER_KG, 3)) if unit == 'lb' else (lambda w: w)
     ex_rows = rows(lk, 'SELECT * FROM exercise_record ORDER BY workoutTimeStamp, orderIndex')
-    set_rows = rows(lk, 'SELECT * FROM set_record ORDER BY timeStamp')
+    set_rows = rows(lk, 'SELECT rowid AS rid, * FROM set_record ORDER BY rowid')  # rowid is the app's set order
     live_ex = [r for r in ex_rows if not r.get('isDeleted')]
     live_sets = [r for r in set_rows if not r.get('isDeleted')]
     ex_by_workout = {}
@@ -360,16 +369,13 @@ def read_gym_sessions(lk, names, sets, counts):
             deleted += 1
             continue
         started = epoch_to_dt(r.get('startTime') or r.get('timeStamp'), 'workout_record.startTime')
-        w_start = r.get('startTime') or r['timeStamp']
-        w_end = r['timeStamp']
         used_workouts.add(r['timeStamp'])
         exercises = []
         lifted_from_sets = 0.0
         for i, e in enumerate(sorted(ex_by_workout.get(r['timeStamp'], []), key=lambda x: (x.get('orderIndex') or 0, x['pk']))):
             eid = str(e['exerciseId'])
-            own = [s for s in live_sets if str(s.get('exercisePk')) == eid and (
-                (s.get('workoutTimeStamp') or 0) == r['timeStamp']
-                or (not s.get('workoutTimeStamp') and s.get('timeStamp') is not None and w_start <= s['timeStamp'] <= w_end))]
+            own = [s for s in live_sets if s.get('exercisePk') == e['pk']
+                   and (not s.get('workoutTimeStamp') or s['workoutTimeStamp'] == r['timeStamp'])]
             attached_set_pks.update(s['pk'] for s in own)
             set_items = []
             for s in own:
@@ -381,7 +387,11 @@ def read_gym_sessions(lk, names, sets, counts):
             exercises.append({'action_id': eid, 'name': names.get(eid), 'order': i, 'unit': '', 'sets': set_items})
         if not exercises:
             without += 1
-        total_kg = to_float(r.get('totalSIWeight'))
+        # The app stores its Volume in the display unit in both totalSIWeight and totalBSWeight
+        # (11970 for 11970 lbs), so the sets are the source; the stored total, converted, is the
+        # fallback for a session with no set rows.
+        stored_total = to_kg(to_float(r.get('totalSIWeight')))
+        total_kg = round(lifted_from_sets, 3) if lifted_from_sets else (stored_total or None)
         sessions.append({
             'id': 'gym:%s' % r['timeStamp'],
             'kind': 'gym',
@@ -393,7 +403,7 @@ def read_gym_sessions(lk, names, sets, counts):
             'duration_s': ms_to_s(r.get('duration')),
             'rest_s': ms_to_s(r.get('restTime')),
             'calories': to_int(r.get('cal')),
-            'total_weight_kg': total_kg if total_kg else (round(lifted_from_sets, 3) if lifted_from_sets else None),
+            'total_weight_kg': total_kg,
             'weight_unit': unit,
             'exercises': exercises,
         })
@@ -405,7 +415,8 @@ def read_gym_sessions(lk, names, sets, counts):
     counts['set_record'] = len(set_rows)
     counts['set_record_deleted'] = len(set_rows) - len(live_sets)
     counts['set_record_attached'] = len(attached_set_pks)
-    # Sets logged outside every live session's window (a deleted attempt, an abandoned start).
+    # The exercises' in-progress working sets (exercisePk is a bare id, workoutTimeStamp 0) and any
+    # row of a deleted session that the app left undeleted: not part of any exported session.
     counts['set_record_unattached'] = len(live_sets) - len(attached_set_pks)
     counts['workout_record'] = len(sessions) + deleted
     counts['gym_sessions'] = len(sessions)

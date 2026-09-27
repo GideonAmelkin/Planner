@@ -147,23 +147,25 @@ class Fixture:
 
     def gym_session(self, ts, title, template_id, actions, deleted=0, total_si=1240.5, stray_set=False):
         """A workout_record that ran 45 minutes and ended at ts, with an exercise_record per action and
-        three set_record rows per exercise inside the session window (set_record.workoutTimeStamp is
-        0, as the app writes it). stray_set adds one set before the window: unattached."""
+        three set_record rows per exercise written the way the app does at session end: exercisePk is
+        the exercise record's pk, workoutTimeStamp the session. stray_set adds one in-progress working
+        row (exercisePk a bare id, workoutTimeStamp 0): not a session record, so unattached."""
         start = ts - 2700000
         self.lk.execute(
             "INSERT INTO workout_record(timeStamp,cal,templateId,isDeleted,title,totalSIWeight,duration,totalBSWeight,startTime,restTime,updateTime) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             (ts, 210, template_id, deleted, title, total_si, 2700000, 2735.0, start, 300000, ts))  # duration and rest in ms, as the app stores them
         for i, a in enumerate(actions):
+            epk = 'ex-%d-%d' % (ts, i)
             self.lk.execute("INSERT INTO exercise_record(pk,exerciseId,workoutTimeStamp,orderIndex,updateTime,isDeleted) VALUES(?,?,?,?,?,0)",
-                            ('ex-%d-%d' % (ts, i), a, ts, i, ts))
+                            (epk, a, ts, i, ts))
             for s in range(3):
                 self.lk.execute(
-                    "INSERT INTO set_record(weight,exercisePk,isDeleted,reps,updateTime,originWeight,timeStamp,pk,workoutTimeStamp) VALUES(?,?,0,?,?,?,?,?,0)",
-                    (80.0, a, 5, ts, 80.0, start + 60000 * (i * 3 + s + 1), 'set-%d-%d-%d' % (ts, i, s)))
+                    "INSERT INTO set_record(weight,exercisePk,isDeleted,reps,updateTime,originWeight,timeStamp,pk,workoutTimeStamp) VALUES(?,?,0,?,?,?,?,?,?)",
+                    (80.0, epk, 5, ts, 80.0, ts, 'set-%d-%d-%d' % (ts, i, s), ts))
         if stray_set:
             self.lk.execute(
                 "INSERT INTO set_record(weight,exercisePk,isDeleted,reps,updateTime,originWeight,timeStamp,pk,workoutTimeStamp) VALUES(?,?,0,?,?,?,?,?,0)",
-                (80.0, actions[0], 5, ts, 80.0, start - 60000, 'stray-%d' % ts))
+                (80.0, actions[0], 5, ts, 80.0, start + 60000, 'working-%d' % ts))
         self.lk.commit()
 
     def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None, sport_type=0):
@@ -242,7 +244,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(c['sets_attached'], 6 + 5)
         self.assertEqual(c['sets_unattached'], 2 + 3)
         self.assertEqual(c['set_pointers_missing'], 0)
-        # session exercises: 2 live + 1 of the deleted session; sets: 6 attached, 1 stray, 3 of the deleted session
+        # session exercises: 2 live + 1 of the deleted session; sets: 6 attached, 1 working row, 3 of the deleted session
         self.assertEqual((c['exercise_record'], c['gym_exercises'], c['exercise_record_of_deleted_sessions'], c['exercise_record_deleted']), (3, 2, 1, 0))
         self.assertEqual((c['set_record'], c['set_record_attached'], c['set_record_unattached'], c['set_record_deleted']), (10, 6, 4, 0))
         self.assertEqual(c['plan_days'], 2)
@@ -255,7 +257,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(g['id'], 'gym:%d' % T_MS)
         self.assertEqual(g['date'], LOCAL_DATE)
         self.assertTrue(g['started_at'].startswith(LOCAL_DATE))
-        self.assertEqual((g['duration_s'], g['rest_s'], g['calories'], g['total_weight_kg'], g['weight_unit']), (2700, 300, 210, 1240.5, 'kg'))
+        self.assertEqual((g['duration_s'], g['rest_s'], g['calories'], g['total_weight_kg'], g['weight_unit']), (2700, 300, 210, 2400.0, 'kg'))  # 2 exercises x 3 sets x 5 reps x 80 kg, from the sets
         self.assertEqual([e['name'] for e in g['exercises']], ["Dumbbell Farmer's Carry", 'Bench Press · Barbell'])
         self.assertEqual(g['exercises'][1]['sets'], [{'reps': 5, 'weight_kg': 80.0, 'finished': True}] * 3)
 
