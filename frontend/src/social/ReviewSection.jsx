@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink, blockLabel } from './SocialTable';
-import { getReview } from './api';
+import { getReview, generateReview } from './api';
 import { shortDate, dateTime, multipleText, count } from './format';
-import { COLORS, pill } from '../shared/styles';
+import { COLORS, pill, outlineButton } from '../shared/styles';
 import { num } from '../shared/format';
 
 const POLL_MS = 3000;
@@ -16,6 +16,7 @@ const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 export default function ReviewSection({ videos }) {
   const [rev, setRev] = useState(null);
   const [error, setError] = useState(null);
+  const [notice, setNotice] = useState(null);
   const timer = useRef(null);
 
   const load = useCallback(async () => {
@@ -42,8 +43,32 @@ export default function ReviewSection({ videos }) {
     return (v && v.url) || TIKTOK_URL(id);
   };
 
+  // Ask the server for a fresh review; the poll above picks up the result.
+  const refresh = async () => {
+    setNotice(null);
+    try {
+      const r = await generateReview();
+      if (r.status === 202 || r.status === 409) { setRev((cur) => ({ ...(cur || { available: false }), running: true })); return; }
+      if (r.status === 429) {
+        const mins = Math.max(1, Math.ceil((r.retry_after_seconds || 60) / 60));
+        setNotice(`Next refresh in ${mins} min.`);
+        return;
+      }
+      setNotice(r.error || 'Could not start the review.');
+    } catch (e) {
+      setNotice(e.message);
+    }
+  };
+
   const title = 'Summary';
   const muted = { color: COLORS.muted, fontSize: 13 };
+  const running = Boolean(rev && rev.running);
+  const refreshButton = (
+    <button type="button" onClick={refresh} disabled={running} title="Ask for a new set of hooks" style={outlineButton(COLORS.accent, { disabled: running })}>
+      {running ? 'Refreshing...' : 'Refresh'}
+    </button>
+  );
+  const noticeLine = notice ? <div style={{ ...muted, marginTop: 8 }}>{notice}</div> : null;
 
   if (error) return <SocialCard title={title}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
   if (!rev) return <SocialCard title={title}><div style={muted}>Loading...</div></SocialCard>;
@@ -54,8 +79,9 @@ export default function ReviewSection({ videos }) {
 
   if (!rev.available) {
     return (
-      <SocialCard title={title}>
+      <SocialCard title={title} actions={refreshButton}>
         <div style={muted}>{rev.running ? 'Reviewing your recent videos...' : 'No review yet. One is generated each morning from the tracker\'s new videos.'}</div>
+        {noticeLine}
         {failed}
       </SocialCard>
     );
@@ -70,9 +96,19 @@ export default function ReviewSection({ videos }) {
   const pick = review.pick && Number.isInteger(review.pick.index) ? review.pick : null;
   const typeTag = (type) => (type ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> ({type})</span> : null);
 
+  // Group the hooks by move, keeping the order the model returned them in.
+  const groups = [];
+  hooks.forEach((h, i) => {
+    const key = h.type || 'Other';
+    let g = groups.find((x) => x.type === key);
+    if (!g) { g = { type: key, items: [] }; groups.push(g); }
+    g.items.push({ ...h, index: i });
+  });
+
   return (
-    <SocialCard title={title}>
+    <SocialCard title={title} actions={refreshButton}>
       {rev.running ? <div style={{ ...muted, marginBottom: 8 }}>Reviewing your recent videos...</div> : null}
+      {noticeLine}
       {failed}
 
       <div style={{ fontSize: 14, lineHeight: 1.5 }}>{review.window_summary}</div>
@@ -110,22 +146,27 @@ export default function ReviewSection({ videos }) {
       {hooks.length ? (
         <>
           <div style={blockLabel}>Hooks to consider</div>
-          <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-            {hooks.map((h, i) => (
-              <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
-                <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }}>
-                  "{h.hook}"{typeTag(h.type)}
-                  {pick && pick.index === i ? (
-                    <>
-                      <span style={{ ...pill, background: COLORS.calloutBg, color: COLORS.calloutText, marginLeft: 8, padding: '2px 8px', fontSize: 11 }}>Pick</span>
-                      {pick.caption ? <span style={{ color: COLORS.muted, fontWeight: 400, fontSize: 12, marginLeft: 8 }}>caption: {pick.caption}</span> : null}
-                    </>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ol>
+          {groups.map((g) => (
+            <div key={g.type} style={{ marginBottom: 10 }}>
+              <div style={{ ...blockLabel, fontSize: 11, color: COLORS.faint, margin: '6px 0 2px' }}>{g.type}</div>
+              <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+                {g.items.map((h, j) => (
+                  <li key={h.index} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: j ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{h.index + 1}</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }}>
+                      "{h.hook}"
+                      {pick && pick.index === h.index ? (
+                        <>
+                          <span style={{ ...pill, background: COLORS.calloutBg, color: COLORS.calloutText, marginLeft: 8, padding: '2px 8px', fontSize: 11 }}>Pick</span>
+                          {pick.caption ? <span style={{ color: COLORS.muted, fontWeight: 400, fontSize: 12, marginLeft: 8 }}>caption: {pick.caption}</span> : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
         </>
       ) : null}
     </SocialCard>
