@@ -219,8 +219,11 @@ added to `workout/service.js` then.
 
 ### Hourly app sync on the Mac (since 2026-09-27)
 
-`tools/homeworkouts/app_sync.py` presses Me > Sync Data in the Mac app through System Events
-before every export (`sync.py --app-sync`, the launchd job's argument). What the app's Sync
+`tools/homeworkouts/app_sync.py` presses Me > Sync Data in the Mac app through the macOS
+accessibility API (ctypes from python3 itself: macOS checks the grant on the calling process,
+and an `osascript` child of python3 is refused even when python3 is trusted) before every
+export (`sync.py --app-sync`, the launchd job's argument). The app exposes its whole UI tree
+("BackNew", "Me", "Sync Data", "Synced just now"), so the presses are by name, no coordinates. What the app's Sync
 does: it downloads the account's cloud backup (one JSON on Firebase Storage: `allWorkOut`,
 `gymData`, weights, profile; left on disk as `Documents/remote_backup.json`) with the app's
 own login and rebuilds its databases. The login token lives in the app's private keychain,
@@ -234,7 +237,6 @@ status line shows "app synced <time>". Attended run that ignores the idle rule:
 
 One more grant for the same python3, once: System Settings > Privacy & Security >
 Accessibility > "+" > Cmd+Shift+G > `/Library/Developer/CommandLineTools/usr/bin/python3`.
-The first run also asks once to let python3 control System Events.
 
 Known gap (2026-09-27): a gym session's exercises are not in `workout_action` (those rows are
 the templates'); they travel in the backup's `gymData.exerciseRecordInfoStr` /
