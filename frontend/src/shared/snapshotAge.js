@@ -36,7 +36,9 @@ const ageSuffix = (days) => (days > STALE_AFTER_DAYS ? ` (${days} days)` : '');
 // newest session Sep 9 (18 days)". Null when there is no snapshot.
 function snapshotPart(status, asOfISO) {
   if (!status || !status.exported_at) return null;
-  const exported = stamp(status.exported_at);
+  // The Mac presses the app's own Sync button before each export; say when that last worked.
+  const synced = status.app_sync && status.app_sync.outcome === 'synced' ? ` (app synced ${stamp(status.app_sync.at)})` : '';
+  const exported = `${stamp(status.exported_at)}${synced}`;
   const last = status.snapshot_last_session || status.last_session;
   const newest = last && last.date;
   if (!newest) return { level: 'danger', days: null, text: `snapshot exported ${exported}, no sessions in it` };

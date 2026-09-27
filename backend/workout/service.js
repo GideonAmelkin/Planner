@@ -200,6 +200,8 @@ function status(snap, health) {
     schema_version: snap.schema_version,
     exported_at: snap.exported_at,
     snapshot_mtime: snap.source && snap.source.snapshot_mtime,
+    // {at, outcome} of the Mac's press on the app's own Sync button before this export (sync.py --app-sync).
+    app_sync: (snap.source && snap.source.app_sync) || null,
     received_at: new Date(snap.snapshot_mtime_ms).toISOString(),
     app_version: snap.source && snap.source.app_version,
     counts: snap.counts || {},
