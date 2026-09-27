@@ -470,7 +470,7 @@ export default function WorkoutView() {
       </WorkoutCard>
       </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
-        Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac exports the app every 6 hours (per-exercise detail, only what the Mac copy of the app has synced). Both live in <code>backend/workout-state</code>.
+        Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac presses the app's own Sync and exports it every hour (per-exercise detail, only what the app's cloud backup holds). Both live in <code>backend/workout-state</code>.
       </div>
     </>
   );

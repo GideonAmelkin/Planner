@@ -21,13 +21,13 @@ export default function WorkoutCard({ title, dot = COLORS.workout, children, spa
       gridColumn: span > 1 ? '1 / -1' : 'auto',
       minWidth: 0,
     }}>
-      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: shown ? sectionHeader.padding : 0 }}>
+      <div style={{ ...sectionHeader, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', padding: shown ? sectionHeader.padding : 0 }}>
         {collapsible ? (
           <button type="button" onClick={onToggle} aria-expanded={open} style={{ ...sectionHeader, padding: 0, display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', color: COLORS.ink, font: 'inherit', fontWeight: 600 }}>
             {titleRow}
           </button>
         ) : titleRow}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0 }}>
           {aside ? <span style={pill}>{aside}</span> : null}
           {actions}
         </span>
