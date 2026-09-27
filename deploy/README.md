@@ -135,16 +135,63 @@ curl -s "http://127.0.0.1:5002/api/garmin/get_user_summary?cdate=$(date +%F)" | 
 ## Home Workouts (Workout App tab)
 
 The "Workout App" tab shows data from the Home Workouts iPhone app
-(`com.abishkking.maleworkout`), which is installed on the Mac as an iPhone-on-Mac app.
-Its SQLite files live in the app container on the Mac, so the Mac exports them and ships
-one JSON snapshot to the server; the server only reads that file. There is no push
-endpoint (the API has no auth), the transport is rsync over the existing SSH key.
+(`com.abishkking.maleworkout`). Two feeds, because neither alone is enough:
+
+- **The phone push (timing).** The app writes every session to Apple Health. Apple Health has
+  no cloud API and macOS has no Health app, so the phone itself posts its recent workouts to
+  `POST /api/workout/health` through a Shortcut that runs whenever the Home Workout app is
+  closed (plus a nightly heartbeat). This is what makes a workout appear on the tab within
+  seconds. It carries type, start, end, duration, calories and the source app, no exercises.
+- **The Mac snapshot (detail).** The app is also installed on the Mac as an iPhone-on-Mac app;
+  its SQLite files live in the app container, so the Mac exports them and rsyncs one JSON
+  snapshot to the server over the existing SSH key. This carries the exercise list and sets,
+  but only moves when the Mac app has synced from the phone (Me > Sync, a manual tap).
 
 ```
-Mac: ~/Library/Containers/com.abishkking.maleworkout/Data  --tools/homeworkouts/export.py-->
-     ~/Library/Application Support/PlannerHomeWorkouts/home_workouts.json  --rsync-->
-RT100: ~/apps/planner/backend/workout-state/home_workouts.json  --> GET /api/workout/*
+Phone: Apple Health  --Shortcut "Send workouts to Planner" (on app close, 9 PM)-->
+RT100: POST /api/workout/health (X-Workout-Token)  --> backend/workout-state/health_workouts.json
+Mac:   ~/Library/Containers/com.abishkking.maleworkout/Data  --tools/homeworkouts/export.py-->
+       ~/Library/Application Support/PlannerHomeWorkouts/home_workouts.json  --rsync-->
+RT100: ~/apps/planner/backend/workout-state/home_workouts.json
+Both:  --> GET /api/workout/* (merged: a Health workout within 10 minutes of a snapshot session
+       is that session; other Health sources such as the watch are stored but shown on the Garmin tab)
 ```
+
+### Phone push setup (once)
+
+Server: the API has no auth, so this one route checks a token.
+
+```bash
+# on RT100
+T=$(openssl rand -hex 32); echo "WORKOUT_PUSH_TOKEN=$T" >> ~/apps/planner/backend/.env; echo $T
+pm2 restart planner-backend --update-env && bash ~/apps/planner/backend/scripts/smoke.sh
+```
+
+Phone (Shortcuts app), a shortcut named "Send workouts to Planner":
+
+1. **Find Workouts** where Start Date is in the last 14 days, sorted by Start Date.
+2. **Repeat with Each** item in Workouts:
+   **Dictionary** with keys `type` = Workout Type, `start` = Start Date formatted ISO 8601,
+   `end` = End Date formatted ISO 8601, `duration_s` = Duration in seconds, `calories` =
+   Total Energy (kcal), `distance_m` = Total Distance (m), `source` = Source Name.
+   (Use the workout's magic variables for each value; Format Date with the ISO 8601 format.)
+3. **Dictionary** with keys `device` = `iphone`, `sent_at` = Current Date formatted ISO 8601,
+   `workouts` = Repeat Results.
+4. **Get Contents of URL**: `https://70-42-223-139.sslip.io/api/workout/health`, Method POST,
+   Headers `X-Workout-Token` = the token from the server and `Content-Type` =
+   `application/json`, Request Body = File, pass the Dictionary from step 3.
+5. Nothing else (no Show Result).
+
+Automations (Shortcuts > Automation > +), both set to Run Immediately with Notify When Run
+off: **App** > Home Workout > **Is Closed** > run the shortcut; **Time of Day** > 9:00 PM daily
+> run the shortcut (the heartbeat: on a rest week the tab's status line still knows the phone
+is reporting). Run the shortcut by hand once and check `GET /api/workout/status` shows
+`health.received_at`. If Health shows no Home Workout sessions (Health > Browse > Activity >
+Workouts), turn on the app's Apple Health sync first; the shortcut sends whatever Health has.
+
+Fallback if automations prove unreliable on the phone: the Health Auto Export app can post
+Health data to a REST URL on a schedule; its payload differs, so a second parser would be
+added to `workout/service.js` then.
 
 One-time setup on the Mac (done 2026-09-26):
 
@@ -166,10 +213,13 @@ By hand at any time: `python3 tools/homeworkouts/sync.py` (same log). Tests:
 reconciliation and exits non-zero if a source row was neither emitted nor counted as
 excluded.
 
-Freshness: the Mac copy of the app only has what it last synced from the app's own cloud
-backup. Open the app on the Mac (Me tab, same account as the phone) to pull new history;
-the tab shows the snapshot time. `backend/workout-state/` is never pushed or deleted by
-`deploy/push.sh`. Runs and walks (a Realm file) are not exported.
+Freshness: the tab's status line reads "phone reported <time>, newest workout <day> · app
+detail: snapshot exported <time>, newest session <day>". Its colour follows the phone (amber
+past 3 days without a report, red past 7); the snapshot part only says how old it is. The Mac
+copy of the app only has what it last synced from the app's own cloud backup: open the app on
+the Mac (Me tab, same account as the phone) to pull new history. `backend/workout-state/`
+(both JSON files and the media) is never pushed or deleted by `deploy/push.sh`. Runs and walks
+(a Realm file) are not exported.
 
 ## OAuth (calendar sync)
 

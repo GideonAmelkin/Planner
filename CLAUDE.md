@@ -61,12 +61,13 @@ sub-page at `/garmin/:date/<slug>` fed by the mapped endpoints (`frontend/src/ga
 each laid out like the matching Garmin page (rings, timelines, tables, badges, maps), and items Garmin keeps off its API render Garmin's empty state with a link out.
 
 The Workout App tab shows the Home Workouts app (Leap Health, bundle
-`com.abishkking.maleworkout`), which runs on the Mac as an iPhone app. The Mac exports its
-SQLite files to one JSON snapshot and rsyncs it to `backend/workout-state/` every 6 hours
-(`tools/homeworkouts/`, launchd); the server only reads that file. Cards: Sessions for the
-day (exercises and sets), Totals (streak, count, active minutes), Body Weight, Last 30 Days,
-and a collapsed Plan and Templates catalog. Only what the Mac copy of the app has synced is
-shown, and the header says when the snapshot was taken. Runs and walks are not exported.
+`com.abishkking.maleworkout`) from two feeds: the phone posts its Apple Health workouts to
+`POST /api/workout/health` as they happen (a Shortcut on app close and nightly, token in the
+server `.env`; this is what makes a session appear within seconds), and the Mac, where the
+app also runs as an iPhone app, exports its SQLite files to one JSON snapshot and rsyncs it
+to `backend/workout-state/` every 6 hours (`tools/homeworkouts/`, launchd; the exercise
+detail, only what the Mac copy has synced). The header's status line says when the phone
+last reported and how old the snapshot's newest session is. Runs and walks are not exported.
 
 The Social tab shows the user's TikTok account from TikTokAnalyzer's database
 (`~/Documents/Social/TikTokAnalyzer/data/tiktok.db` on RT100, override `TIKTOK_DB_PATH`).
