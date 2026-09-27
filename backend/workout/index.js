@@ -1,23 +1,43 @@
-// Workout App tab: read-only views over the Home Workouts snapshot the Mac ships to
-// backend/workout-state/. Nothing here writes; there is deliberately no upload route.
+// Workout App tab: views over the Home Workouts snapshot the Mac ships to backend/workout-state/
+// plus the phone's Apple Health report. The one write is POST /workout/health, and it is the one
+// route on this API with a secret: the API has no auth otherwise, so the phone must present
+// X-Workout-Token equal to WORKOUT_PUSH_TOKEN from the server's .env.
+const { timingSafeEqual } = require('crypto');
 const { Router } = require('express');
 const workout = require('./service');
 const { asyncHandler, isDate } = require('../lib/http');
 
 const router = Router();
 
-const notAvailable = (res) => res.status(404).json({ available: false, error: 'no Home Workouts snapshot on the server yet' });
+const notAvailable = (res) => res.status(404).json({ available: false, error: 'no Home Workouts snapshot and no phone report on the server yet' });
+
+const tokenOk = (req) => {
+  const expected = process.env.WORKOUT_PUSH_TOKEN || '';
+  const given = String(req.get('x-workout-token') || '');
+  return expected.length > 0 && given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+};
 
 router.get('/workout/status', asyncHandler(async (req, res) => {
-  res.json(workout.status(workout.load()));
+  res.json(workout.status(workout.load(), workout.loadHealth()));
+}));
+
+// The phone's Shortcut posts its recent Apple Health workouts here (see deploy/README.md,
+// "Home Workouts"). Idempotent: keyed by start time and type, so a 14-day window every time is fine.
+router.post('/workout/health', asyncHandler(async (req, res) => {
+  if (!process.env.WORKOUT_PUSH_TOKEN) return res.status(503).json({ error: 'WORKOUT_PUSH_TOKEN is not set on the server' });
+  if (!tokenOk(req)) return res.status(401).json({ error: 'missing or wrong X-Workout-Token' });
+  const result = workout.storeHealth(req.body);
+  if (result.error) return res.status(400).json({ error: result.error });
+  res.json(result);
 }));
 
 router.get('/workout/day/:date', asyncHandler(async (req, res) => {
   const { date } = req.params;
   if (!isDate(date)) return res.status(400).json({ error: 'invalid date' });
   const snap = workout.load();
-  if (!snap) return notAvailable(res);
-  res.json({ ...workout.day(snap, date), exported_at: snap.exported_at });
+  const health = workout.loadHealth();
+  if (!snap && !health) return notAvailable(res);
+  res.json({ ...workout.day(snap, date, health), exported_at: snap ? snap.exported_at : null, health_received_at: health ? health.received_at : null });
 }));
 
 // GET /workout/recent?end=YYYY-MM-DD&days=30   (days 1..3660)
@@ -28,9 +48,10 @@ router.get('/workout/recent', asyncHandler(async (req, res) => {
   // Up to ten years so the Workout tab's Lifetime summary is one call.
   if (!Number.isInteger(days) || days < 1 || days > 3660) return res.status(400).json({ error: 'days must be 1 to 3660' });
   const snap = workout.load();
-  if (!snap) return notAvailable(res);
+  const health = workout.loadHealth();
+  if (!snap && !health) return notAvailable(res);
   const endDate = end || new Date().toISOString().slice(0, 10);
-  res.json({ end: endDate, days, sessions: workout.recent(snap, endDate, days), weights: snap.weights || [], exported_at: snap.exported_at });
+  res.json({ end: endDate, days, sessions: workout.recent(snap, endDate, days, health), weights: (snap && snap.weights) || [], exported_at: snap ? snap.exported_at : null, health_received_at: health ? health.received_at : null });
 }));
 
 router.get('/workout/catalog', asyncHandler(async (req, res) => {

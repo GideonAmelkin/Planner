@@ -39,6 +39,7 @@ check workout-media-missing 404 GET /workout/media/video/999999999
 check workout-status    200 GET  /workout/status
 check workout-bad-date  400 GET  /workout/day/not-a-date
 check workout-bad-days  400 GET  "/workout/recent?days=0"
+check workout-push-auth 401 POST /workout/health
 # 200 once the Mac has shipped a snapshot, 404 before that; both are healthy
 WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/day/$TODAY")
 if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-day ($WCODE)"; else echo "FAIL workout-day: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
