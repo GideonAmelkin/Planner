@@ -327,7 +327,7 @@ async function current() {
     running,
     has_key: hasKey(),
     last_error: latestAny && latestAny.error ? { at: latestAny.generated_at, message: latestAny.error } : (lastError ? { message: lastError } : null),
-    throttle: t ? { reason: t.reason, next_allowed_at: t.next_allowed_at } : null,
+    throttle: t ? { reason: t.reason, next_allowed_at: t.next_allowed_at, used: t.used, cap: t.cap } : null,
   };
   if (!row) return { available: false, ...base };
   const stats = JSON.parse(row.stats_json);
