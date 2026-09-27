@@ -11,6 +11,10 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   }
 });
 
+// Two processes may write at once (the backend and scripts/health-fetch.js): wait up to
+// 5 s for the lock instead of failing with SQLITE_BUSY.
+db.configure('busyTimeout', 5000);
+
 db.serialize(() => {
   db.run('PRAGMA journal_mode = WAL');
   db.run('PRAGMA foreign_keys = ON');

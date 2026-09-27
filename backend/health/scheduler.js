@@ -1,7 +1,9 @@
 // When the Health store gets written:
 //   - every Garmin warm (30 min) announces today's bundle on the bus; the ingest
 //     consumes those very result objects (kind 'today', zero extra Garmin calls);
-//   - 03:30 local: yesterday is refetched and finalized (kind 'finalize');
+//   - 03:30 local: yesterday is refetched and finalized (kind 'finalize'), together with any
+//     older day in the last 28 that is still not final (the watch had not synced past
+//     midnight when it was last tried), oldest first, as many as fit under the run cap;
 //   - catch-up of older days is OFF unless HEALTH_CATCHUP_DAYS is set, because
 //     history is a rate-limit question and is done attended (scripts/health-fetch.js);
 //   - after a sign-in problem (mfa_required / auth) the scheduled runs pause until a
@@ -9,7 +11,7 @@
 const bus = require('../lib/bus');
 const { localISO, shiftISO } = require('../lib/dates');
 const { ingestDays, recentRuns } = require('./ingest');
-const { get } = require('../db');
+const { get, all } = require('../db');
 
 const FINALIZE_HOUR = 3;
 const FINALIZE_MINUTE = 30;
@@ -47,11 +49,31 @@ function onWarm(bundle) {
     .then((out) => { if (out) console.log(`[health] today ${bundle.date}: ${out.written} written, ${out.unchanged} unchanged, ${out.stale} stale, ${out.calls_garmin} direct calls${out.failed ? `, ${out.failed} errors` : ''}`); });
 }
 
+const FINALIZE_LOOKBACK_DAYS = 28;
+const FINALIZE_MAX_DAYS = 5;   // 5 x 18 bundle calls stays under MAX_CALLS_PER_RUN
+
+// Yesterday first, then the oldest days in the lookback that are stored but not final
+// (or not stored at all), so a day the watch had not synced by 03:30 is retried the
+// next night instead of waiting for someone to notice the amber line.
+async function pendingFinalizeDates(today = localISO()) {
+  const y = shiftISO(today, -1);
+  const dates = [y];
+  const older = await all(
+    `SELECT date, SUM(final) AS finals, COUNT(*) AS n FROM health_days WHERE date < ? AND date >= ? GROUP BY date HAVING finals < n ORDER BY date`,
+    [y, shiftISO(today, -FINALIZE_LOOKBACK_DAYS)]
+  );
+  for (const r of older) { if (dates.length >= FINALIZE_MAX_DAYS) break; dates.push(r.date); }
+  return dates;
+}
+
 async function finalizeYesterday() {
   if (await paused()) { console.log('[health] finalize skipped: waiting for a Garmin sign-in'); return; }
-  const y = shiftISO(localISO(), -1);
-  const out = await guarded('finalize', () => ingestDays([y], { kind: 'finalize', refresh: true }));
-  if (out) console.log(`[health] finalize ${y}: ${out.written} written, final=${out.report.some((r) => r.final)}, ${out.calls_garmin} direct calls${out.failed ? `, ${out.failed} errors` : ''}`);
+  const dates = await pendingFinalizeDates();
+  const out = await guarded('finalize', () => ingestDays(dates, { kind: 'finalize', refresh: true }));
+  if (out) {
+    const finals = out.report.filter((r) => r.final).map((r) => r.date);
+    console.log(`[health] finalize ${dates.join(', ')}: ${out.written} written, final for ${[...new Set(finals)].join(', ') || 'none'}, ${out.calls_garmin} direct calls${out.failed ? `, ${out.failed} errors` : ''}`);
+  }
 }
 
 function msUntil(hour, minute) {
@@ -101,4 +123,4 @@ function stopHealthScheduler() {
   timers = [];
 }
 
-module.exports = { startHealthScheduler, stopHealthScheduler, finalizeYesterday, catchUp, paused, FINALIZE_HOUR, FINALIZE_MINUTE };
+module.exports = { startHealthScheduler, stopHealthScheduler, finalizeYesterday, pendingFinalizeDates, catchUp, paused, FINALIZE_HOUR, FINALIZE_MINUTE, FINALIZE_MAX_DAYS };

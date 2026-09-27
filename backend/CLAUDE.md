@@ -168,6 +168,10 @@ Rules the writer enforces, all covered by `test/health.test.js`:
   work; `/api/health/status` turns amber when the last 24 hours exceed 60 direct calls, red
   after three failed runs in a row, a run older than 10 minutes without `finished_at`, or an
   `mfa_required` / `auth` error, which also pauses the scheduled runs.
+- **Finality is retried.** The 03:30 pass takes yesterday plus the oldest days in the last 28
+  that are still not final, up to 5 a night (90 calls), so a day the watch had not synced
+  past midnight is picked up the next night; `never_final` on the status line is the
+  backstop, not the mechanism.
 - **Zero extra calls for today.** The warm's own result objects are what the today ingest
   writes, so the Health tab and the Garmin tab can never hold different bytes for the same
   minute (checked side by side on 2026-09-27: 13 of 13 numbers equal).

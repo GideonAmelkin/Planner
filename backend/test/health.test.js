@@ -17,6 +17,7 @@ const { ingestDays, decide, MAX_CALLS_PER_RUN } = require('../health/ingest');
 const { METRICS } = require('../health/metrics');
 const { vo2Classify, compactSeries } = require('../health/metrics');
 const { createApp } = require('../app');
+const { pendingFinalizeDates, FINALIZE_MAX_DAYS } = require('../health/scheduler');
 
 const ok = (data) => ({ ok: true, cached: true, fetched_at: 1, data });
 
@@ -200,6 +201,15 @@ test('a today run never finalizes even when the sync is after midnight', async (
   await ingestDays([d], { kind: 'today', bundles: { [d]: late } });
   const row = await get('SELECT final FROM health_days WHERE date = ? AND metric = ?', [d, 'steps']);
   assert.equal(row.final, 0);
+});
+
+test('the nightly pass retries older days that are still not final, oldest first, within its cap', async () => {
+  // 2026-09-20 was written by a today run (non-final); YESTERDAY and 2026-09-18 are final.
+  const dates = await pendingFinalizeDates('2026-09-27');
+  assert.equal(dates[0], '2026-09-26', 'yesterday first');
+  assert.ok(dates.includes('2026-09-20'), `the non-final day is revisited: ${dates}`);
+  assert.ok(!dates.includes('2026-09-18'), 'a final day is not refetched');
+  assert.ok(dates.length <= FINALIZE_MAX_DAYS);
 });
 
 test('a dry run makes no Garmin call, writes nothing, and reports what it would write', async () => {

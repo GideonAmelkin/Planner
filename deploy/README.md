@@ -52,19 +52,22 @@ Rollback = `git checkout <previous commit> -- <files>` on the Mac, then the same
 ## Health store: attended history fetch
 
 The Health tab reads `health_days`; today is written by the Garmin warm every 30 minutes and
-yesterday is finalized at 03:30. Older days are never fetched on their own. To backfill, run
-the script with the backend stopped so only one bridge process talks to Garmin. A day costs
-18 calls and `MAX_CALLS_PER_RUN` is 100, so use 4-day stages (5 fit only when no day has an
-activity that needs its detail call). Measured 2026-09-27: 529 direct calls over ten stages
-in 62 seconds of script time, Garmin answered every one, no `rate_limited`.
+the 03:30 pass finalizes yesterday plus any older day in the last 28 that is still not final
+(up to 5 days a night). Days older than that are never fetched on their own. To backfill,
+run the script with the backend running: a day costs 18 calls and `MAX_CALLS_PER_RUN` is 100
+(only calls that reach Garmin count), so use 4-day stages. Measured 2026-09-27: 529 direct
+calls over ten stages in 62 seconds of script time, Garmin answered every one, no
+`rate_limited`. Stopping the backend is not needed: SQLite waits up to 5 s for the lock
+(`busyTimeout` in db.js), and the only other shared thing is the Garmin token file, which
+two bridge processes would both rewrite only if a token refresh fell inside the same few
+seconds as a warm; that window is minutes a year, and a lost refresh recovers by a password
+sign-in, so it is accepted rather than paid for with downtime.
 
 ```bash
 ssh gamelkin@70.42.223.139
 cd ~/apps/planner/backend
-pm2 stop planner-backend
 node scripts/health-fetch.js --from 2026-09-08 --to 2026-09-11 --dry-run   # what it would write, no Garmin calls
 node scripts/health-fetch.js --from 2026-09-08 --to 2026-09-11             # about 75 direct calls, 10 s
-pm2 start planner-backend
 curl -s http://127.0.0.1:5002/api/health/status | python3 -m json.tool      # level ok, never_final empty
 ```
 
