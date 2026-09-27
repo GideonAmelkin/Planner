@@ -75,6 +75,8 @@ export const CARDS = [
       let domain = null;
       if (s && s.values) { points = s.values.map((y, i) => (y === null ? null : [s.start + i * s.step_ms, y])).filter(Boolean); domain = [s.start, s.start + (s.values.length - 1) * s.step_ms]; }
       else if (s && s.pairs) { points = s.pairs.filter((p) => p[1] !== null); domain = points.length ? [points[0][0], points[points.length - 1][0]] : null; }
+      // The strip spans the whole day, 12 AM to 12 AM, like the phone's.
+      if (domain) { const d0 = new Date(domain[0]); d0.setHours(0, 0, 0, 0); domain = [d0.getTime(), d0.getTime() + 24 * 3600 * 1000]; }
       return { ring: { segments: segments.some((x) => x.value > 0) ? segments : null, value: v.avg, goal: 100, color: CHART.blue }, center: v.avg !== null ? String(v.avg) : '--', goal: v.max !== null ? `${v.max} peak` : null, series: { points, domain, color: (y) => (y > 75 ? CHART.red : y > 50 ? CHART.orange : y > 25 ? CHART.amber : CHART.blue) } };
     },
   },
@@ -85,7 +87,7 @@ export const CARDS = [
   },
   {
     key: 'vo2max', metric: 'vo2max', label: 'VO₂ Max', glyph: 'run', color: CHART.blue, shape: 'GAUGE',
-    caption: (v) => `get_max_metrics · vo2MaxValue (${v.precise}); band from Garmin's ratings table for ${v.label_inputs && v.label_inputs.gender ? v.label_inputs.gender.toLowerCase() : 'unknown sex'}, age ${v.label_inputs ? v.label_inputs.age : '?'} · ${v.date || ''}`,
+    caption: (v) => `get_max_metrics · vo2MaxValue (${v.precise})${v.carried ? ', newest estimate carried forward from' : ''} · ${v.date || ''}; band from Garmin's ratings table for ${v.label_inputs && v.label_inputs.gender ? v.label_inputs.gender.toLowerCase() : 'unknown sex'}, age ${v.label_inputs ? v.label_inputs.age : '?'}`,
     build: (v) => {
       const min = 20; const max = 70;
       const floors = (v.bands || []).filter((b) => b.floor !== null);

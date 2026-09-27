@@ -206,18 +206,20 @@ const METRICS = [
     key: 'vo2max', calls: ['max_metrics', 'profile'],
     derive: (r, ctx) => {
       const mm = data(r, 'max_metrics');
-      const g = Array.isArray(mm) && mm.length ? (mm[mm.length - 1].generic || null) : null;
-      if (!g || num(g.vo2MaxValue) === null) return null;
+      const own = Array.isArray(mm) && mm.length ? (mm[mm.length - 1].generic || null) : null;
+      // No estimate this day: carry the newest earlier one (its own date stays on it).
+      const g = own && num(own.vo2MaxValue) !== null ? own : (ctx.previousVo2 ? { vo2MaxValue: ctx.previousVo2.value, vo2MaxPreciseValue: ctx.previousVo2.precise, calendarDate: ctx.previousVo2.date, carried: true } : null);
+      if (!g) return null;
       const u = (data(r, 'profile') || {}).userData || {};
       const age = ageOn(u.birthDate, ctx.date);
       const cls = vo2Classify(num(g.vo2MaxPreciseValue) !== null ? g.vo2MaxPreciseValue : g.vo2MaxValue, u.gender, age);
       return {
-        value: g.vo2MaxValue, precise: num(g.vo2MaxPreciseValue), date: g.calendarDate || null,
+        value: g.vo2MaxValue, precise: num(g.vo2MaxPreciseValue), date: g.calendarDate || null, carried: g.carried ? 1 : 0,
         label: cls ? cls.label : null, bands: cls ? cls.bands : null, label_inputs: { gender: u.gender || null, age, table: VO2_TABLE_SOURCE },
       };
     },
     takenAt: (r) => { const mm = data(r, 'max_metrics'); const g = Array.isArray(mm) && mm.length ? mm[mm.length - 1].generic : null; return (g && g.calendarDate) || null; },
-    absent: () => 'Garmin has no VO2 max estimate for this day.',
+    absent: () => 'Garmin has no VO2 max estimate on or before this day.',
   },
   {
     key: 'weight', calls: ['weigh_ins', 'profile'],

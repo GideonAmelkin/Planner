@@ -32,25 +32,36 @@ const parseGmt = (s) => {
   return Number.isFinite(t) ? t : null;
 };
 
-// Where a metric's payload comes from: the full response objects, keyed by call.
-const payloadFor = (metric, results) => Object.fromEntries(metric.calls.map((k) => [k, results[k] === undefined ? null : results[k]]));
+// Where a metric's payload comes from: the full response of each call it read, keyed by
+// call. The cache envelope (`cached`, `fetched_at`) is dropped: it changes between runs
+// while the data does not, and the row keeps its own fetched_at. Without this, a re-run
+// of an unchanged day rewrote every row.
+const stripEnvelope = (r) => { if (!r || typeof r !== 'object') return r === undefined ? null : r; const { cached, fetched_at, ...rest } = r; return rest; };
+const payloadFor = (metric, results) => Object.fromEntries(metric.calls.map((k) => [k, stripEnvelope(results[k])]));
 
 const stableJSON = (v) => JSON.stringify(v, (key, val) => (val && typeof val === 'object' && !Array.isArray(val) ? Object.keys(val).sort().reduce((o, k) => { o[k] = val[k]; return o; }, {}) : val));
 
+// The cap is on calls that reach Garmin. A batch reserves its size before it runs (so a
+// run stops before overshooting) and hands back what the cache answered afterwards.
 class Budget {
   constructor(max = MAX_CALLS_PER_RUN) { this.max = max; this.used = 0; this.stopped = false; }
   // true when `n` more calls fit; otherwise flags the stop and returns false.
   take(n) { if (this.used + n > this.max) { this.stopped = true; return false; } this.used += n; return true; }
+  refund(n) { this.used = Math.max(0, this.used - n); }
 }
 
+// Count a batch's results; returns how many never reached Garmin (cache hits, dry-run
+// misses) so the budget can take them back.
 function countCalls(counters, results) {
+  let notSent = 0;
   for (const r of Object.values(results)) {
     if (!r) continue;
     counters.calls_total += 1;
-    if (r.ok && r.cached) counters.calls_cached += 1;
-    else if (r.code === 'cache_miss' || r.code === 'bad_request') { /* never reached Garmin */ }
+    if (r.ok && r.cached) { counters.calls_cached += 1; notSent += 1; }
+    else if (r.code === 'cache_miss' || r.code === 'bad_request') notSent += 1;
     else counters.calls_garmin += 1;
   }
+  return notSent;
 }
 
 function collectErrors(errors, date, results, scope) {
@@ -72,6 +83,17 @@ async function previousWeighIn(date) {
   return { grams: v.latest_weigh_in_g, date: v.weigh_in_date, source: v.weigh_in_source, at: null };
 }
 
+// Garmin returns a VO2 max row only on the day an estimate was made (1 of 27 past days in
+// September 2026); the phone shows the latest estimate every day. Carry the newest
+// estimate on or before the date forward, including this date's own row.
+async function previousVo2(date) {
+  const row = await get(
+    `SELECT value FROM health_days WHERE metric = 'vo2max' AND date <= ? AND json_extract(value, '$.date') IS NOT NULL AND json_extract(value, '$.carried') IS NOT 1 ORDER BY date DESC LIMIT 1`,
+    [date]
+  );
+  return row ? JSON.parse(row.value) : null;
+}
+
 // Decide what to do with one metric row. Returns 'write' | 'unchanged' | 'stale' | 'final'.
 // `force` (the script's --force only) lets a refetch replace a final row: Garmin does
 // correct days after the fact, and without it a correction could never reach the store.
@@ -79,8 +101,8 @@ function decide(existing, incoming, force = false) {
   if (!existing) return incoming.value === null && incoming.payload === null ? 'unchanged' : 'write';
   if (existing.final && !force) return 'final';
   const had = existing.value !== null && existing.value !== undefined;
-  if (incoming.value === null && had) return 'stale';
-  if (incoming.taken_at && existing.taken_at && incoming.taken_at < existing.taken_at) return 'stale';
+  if (!force && incoming.value === null && had) return 'stale';
+  if (!force && incoming.taken_at && existing.taken_at && incoming.taken_at < existing.taken_at) return 'stale';
   if (existing.value === incoming.valueJSON && existing.payload === incoming.payloadJSON && !!existing.final === incoming.final) return 'unchanged';
   return 'write';
 }
@@ -92,13 +114,13 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
   if (!results) {
     if (!budget.take(BUNDLE_SIZE)) return 'budget_stop';
     results = await garmin.callMany(garmin.dayCalls(date), { refresh, cacheOnly });
-    countCalls(counters, results);
+    budget.refund(countCalls(counters, results));
   }
   collectErrors(errors, date, results, 'bundle');
   // 2. The two static reads (24-hour cache; cheap).
   if (!budget.take(STATIC_SIZE)) return 'budget_stop';
   const statics = await garmin.callMany(Object.entries(STATIC_CALLS).map(([key, c]) => ({ key, name: c.name, kwargs: c.kwargs })), { cacheOnly });
-  countCalls(counters, statics);
+  budget.refund(countCalls(counters, statics));
   collectErrors(errors, date, statics, 'static');
   Object.assign(results, statics);
 
@@ -117,7 +139,7 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
     const any = await get(`SELECT 1 AS x FROM health_days WHERE metric = 'weight' LIMIT 1`);
     if (!any && budget.take(1)) {
       const seed = await garmin.callMany([{ key: 'weigh_ins_history', name: 'get_weigh_ins', kwargs: { startdate: WEIGH_IN_SEED_FROM, enddate: date } }], { cacheOnly });
-      countCalls(counters, seed);
+      budget.refund(countCalls(counters, seed));
       collectErrors(errors, date, seed, 'seed');
       const hist = seed.weigh_ins_history && seed.weigh_ins_history.ok ? seed.weigh_ins_history.data : null;
       const days = (hist && hist.dailyWeightSummaries) || [];
@@ -129,7 +151,7 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
   }
 
   // 4. Metrics.
-  const ctx = { date, previousWeighIn: previous };
+  const ctx = { date, previousWeighIn: previous, previousVo2: dryRun ? null : await previousVo2(date) };
   for (const metric of METRICS) {
     let value = null;
     try { value = metric.derive(results, ctx); } catch (err) { errors.push({ date, call: metric.key, scope: 'derive', code: 'derive', error: err.message }); value = null; }
@@ -173,7 +195,7 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
     if (a.hasPolyline && !polyline) {
       if (!budget.take(1)) return 'budget_stop';
       const det = await garmin.callMany([{ key: 'details', name: 'get_activity_details', kwargs: { activity_id: String(a.activityId), maxchart: 1, maxpoly: 200 } }], { cacheOnly });
-      countCalls(counters, det);
+      budget.refund(countCalls(counters, det));
       collectErrors(errors, date, det, `activity ${a.activityId}`);
       const geo = det.details && det.details.ok && det.details.data && det.details.data.geoPolylineDTO;
       if (geo && Array.isArray(geo.polyline)) polyline = JSON.stringify(geo.polyline.map((p) => [p.lat, p.lon]));
@@ -182,7 +204,7 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
     if (/strength/i.test(type || '') && !('exercise_sets' in prior)) {
       if (!budget.take(1)) return 'budget_stop';
       const sets = await garmin.callMany([{ key: 'sets', name: 'get_activity_exercise_sets', kwargs: { activity_id: String(a.activityId) } }], { cacheOnly });
-      countCalls(counters, sets);
+      budget.refund(countCalls(counters, sets));
       collectErrors(errors, date, sets, `activity ${a.activityId}`);
       if (sets.sets && sets.sets.ok) payload.exercise_sets = sets.sets.data;
     }

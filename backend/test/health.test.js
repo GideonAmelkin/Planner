@@ -107,7 +107,10 @@ test('a today run writes every metric non-final with zero direct calls and zero 
 
 test('the same day twice is idempotent: nothing written, nothing double counted', async () => {
   const before = await get('SELECT COUNT(*) AS n, SUM(fetched_at) AS f FROM health_days WHERE date = ?', [YESTERDAY]);
-  const out = await ingestDays([YESTERDAY], { kind: 'today', bundles: { [YESTERDAY]: bundle(YESTERDAY) } });
+  // Same data, different cache envelope (a later fetch of the same bytes).
+  const again = bundle(YESTERDAY);
+  for (const r of Object.values(again)) { r.cached = false; r.fetched_at = 999; }
+  const out = await ingestDays([YESTERDAY], { kind: 'today', bundles: { [YESTERDAY]: again } });
   const after = await get('SELECT COUNT(*) AS n, SUM(fetched_at) AS f FROM health_days WHERE date = ?', [YESTERDAY]);
   assert.equal(out.written, 0);
   assert.equal(out.unchanged, METRICS.length + 1, 'every metric + 1 activity unchanged');
@@ -178,6 +181,18 @@ test('a past day with no sync of its own is final once a later stored day proves
   assert.equal(row.final, 1, `final via the newest stored sync; errors ${JSON.stringify(out.errors)}`);
 });
 
+test('VO2 max carries the newest earlier estimate forward when a day has none', async () => {
+  const d = '2026-09-19';   // after YESTERDAY's estimate? no: before it, so nothing to carry yet
+  const none = bundle('2026-09-30', {}); none.max_metrics = ok([]); none.activities = ok([]);
+  none.summary.data.lastSyncTimestampGMT = null;
+  const out = await ingestDays(['2026-09-30'], { kind: 'today', bundles: { '2026-09-30': none } });
+  const v = JSON.parse((await get('SELECT value FROM health_days WHERE date = ? AND metric = ?', ['2026-09-30', 'vo2max'])).value);
+  assert.equal(v.value, 49, `carried from YESTERDAY's estimate: ${JSON.stringify(out.errors)}`);
+  assert.equal(v.carried, 1);
+  assert.equal(v.date, YESTERDAY, 'the estimate keeps its own date');
+  void d;
+});
+
 test('a today run never finalizes even when the sync is after midnight', async () => {
   const d = '2026-09-20';
   const late = bundle(d, { lastSync: '2026-09-21T12:00:00.0' });
@@ -199,12 +214,20 @@ test('a dry run makes no Garmin call, writes nothing, and reports what it would 
   assert.ok(out.report.length > 0);
 });
 
-test('the per-run call ceiling stops a run before it would exceed MAX_CALLS_PER_RUN', async () => {
-  const dates = ['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-04', '2026-09-05', '2026-09-06'];
-  const out = await ingestDays(dates, { kind: 'dry', dryRun: true, maxCalls: MAX_CALLS_PER_RUN });
-  assert.ok(out.stopped);
-  assert.ok(out.errors.some((e) => e.code === 'budget_stop'));
-  assert.equal(out.done.length, 5, '5 days x 20 = 100 fit, the sixth does not');
+test('the per-run call ceiling counts only calls that reach Garmin', async () => {
+  // Fourteen days handed over as bundles (the warm's, or cache hits): no Garmin call, no stop.
+  const dates = Array.from({ length: 14 }, (_, i) => `2026-08-${String(i + 1).padStart(2, '0')}`);
+  const bundles = Object.fromEntries(dates.map((d) => { const b = bundle(d); b.activities = ok([]); b.summary.data.lastSyncTimestampGMT = null; return [d, b]; }));
+  const out = await ingestDays(dates, { kind: 'today', bundles, maxCalls: MAX_CALLS_PER_RUN });
+  assert.equal(out.stopped, false, `cache hits must not consume the cap: ${JSON.stringify(out.errors)}`);
+  assert.equal(out.calls_garmin, 0);
+  assert.equal(out.done.length, 14);
+  // A batch is reserved before it runs, so a run with a cap of 30 stops before the second
+  // 18-call bundle when nothing is cached (dry run: every bundle call is a miss, refunded,
+  // so use a tiny cap that the two static reads alone exceed).
+  const small = await ingestDays(['2026-07-01'], { kind: 'dry', dryRun: true, maxCalls: 1 });
+  assert.ok(small.stopped);
+  assert.ok(small.errors.some((e) => e.code === 'budget_stop'));
 });
 
 test('every run is a health_runs row with started_at before finished_at and the counters', async () => {
@@ -232,6 +255,9 @@ test('GET /api/health is still the liveness probe, and /api/health/* is the Heal
     assert.equal(day.activities.length, 1);
     const status = await fetch(`${base}/health/status`).then((r) => r.json());
     assert.ok(['ok', 'warn', 'danger'].includes(status.level));
+    // 2026-09-20 was written by a today run above and never finalized: the status must say so.
+    assert.ok(status.never_final.days.includes('2026-09-20'), `never-final check must surface 2026-09-20: ${JSON.stringify(status.never_final)}`);
+    assert.equal(status.level, 'warn');
     assert.ok(status.last_run);
     const bad = await fetch(`${base}/health/day/nope`);
     assert.equal(bad.status, 400);

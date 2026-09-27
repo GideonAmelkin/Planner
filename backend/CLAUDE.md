@@ -145,8 +145,18 @@ Rules the writer enforces, all covered by `test/health.test.js`:
   null where a value exists, is counted `stale` and not written. Same day twice: every row
   `unchanged`, nothing rewritten, counters show it.
 - **Finality.** A day is marked final only by a run that is not the 30-minute `today` pass,
-  for a date before today, when the summary's `lastSyncTimestampGMT` is at or after the end
-  of that local day (the watch synced after midnight). A final row is never replaced.
+  for a date before today, when the newest Garmin sync the store knows of (today's summary,
+  written by the warm; past-day summaries carry `lastSyncTimestampGMT: null`) is at or after
+  the end of that local day. A final row is never replaced except by the script's `--force`.
+  `/api/health/status` lists `never_final` days (older than two days, not final) and goes
+  amber on any, because a finality rule that stops firing is otherwise silent.
+- **Field presence on past days, audited 2026-09-27 over 27 days:** summary totals and goals
+  present on 25 (the two days before the watch was set up carry an empty summary);
+  `dailyStepGoal` varies daily (3,440 to 7,990), `weekGoal` 150 and `weeklyTotal` returned by
+  Garmin on every day; `lastSyncTimestampGMT` null on every past day (hence the rule above);
+  `wellnessEndTimeGmt` present and equal to the day's end on past days; VO2 max present on
+  1 day only (carried forward by the ingest); sleep, HRV, pulse ox, training readiness and
+  training status null on every day (the watch is not worn at night); hydration on 4.
 - **Full payloads.** Every call in the 18-call day bundle plus the two static reads is kept
   in `health_days.payload`, including sleep, body battery, pulse ox, respiration and
   hydration, so a new card never needs a backfill.

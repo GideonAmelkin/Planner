@@ -133,5 +133,9 @@ carries a caption naming its call, field and date.
 | Fitness age target | 26.5 | `achievableFitnessAge` 26.967086641406862, stable across days and a forced refresh; no other endpoint carries a target | 27.0 (the API value, one decimal) with the caption noting the phone reading; the store keeps the raw value | 2026-09-27; re-check when the API value changes |
 | Fitness age | 31 | `fitnessAge` 30.6077 | 31 (`Math.round`) | 2026-09-27 |
 | VO2 max label | "Excellent" | no label from any endpoint (`maxMetCategory` is 0); computed from Garmin's manual table "VO2 Max. Standard Ratings" by sex and age | "Excellent" with the table named in the caption | 2026-09-27 |
+| VO2 max on days without an estimate | the latest estimate every day | `get_max_metrics` returns a row only on the day an estimate was made (1 of 27 past days) | the newest earlier estimate, carried forward with its own date in the caption | 2026-09-27 |
+| Last 7 Days averages | 3,130 steps, 59 resting, 2,284 calories at 4:44 PM | the means of Sep 21 to 26: the phone averages the window's completed days and excludes today; its counts (1 Workout, 1 Run) include today | the same rule: averages over final days, "of 6 completed days" shown, counts include today | 2026-09-27 |
+| Heart rate "latest" | 99 at 4:44 PM | the last non-null 2-minute sample in `heartRateValues` as of the last watch sync (98 at 4:42 PM) | the sample with its time in the caption | 2026-09-27 |
+| Today's totals after the last sync | calories 2,142 at 4:44 PM | Garmin's data is as of the watch's last sync (4:43 PM: 2,140); the phone syncs the watch when opened | the synced values; the status line says when they were fetched | 2026-09-27 |
 
 - No em dashes anywhere.

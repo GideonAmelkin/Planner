@@ -125,8 +125,11 @@ export function LastSeven({ date, history }) {
   const acts = (history.activities || []).filter((a) => dates.includes(a.date));
   const workouts = acts.filter((a) => !isRun(a.type) && !isWalk(a.type));
   const runs = acts.filter((a) => isRun(a.type));
+  // Averages run over the window's COMPLETED days only (final rows; today is never final),
+  // which is what the Garmin phone app does: on 2026-09-27 its Last 7 Days read 3,130 steps,
+  // 59 resting, 2,284 calories, the means of Sep 21 to 26. Counts include today.
   const avg = (metric, pick) => {
-    const vals = dates.map((d) => { const v = days[d] && days[d][metric] && days[d][metric].value; return v ? pick(v) : null; }).filter((x) => typeof x === 'number');
+    const vals = dates.map((d) => { const m = days[d] && days[d][metric]; return m && m.final && m.value ? pick(m.value) : null; }).filter((x) => typeof x === 'number');
     return vals.length ? { value: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length } : null;
   };
   const steps = avg('steps', (v) => v.value);
@@ -146,7 +149,7 @@ export function LastSeven({ date, history }) {
         {rows.map((r, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 20px', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 15, fontWeight: 600 }}><Glyph name={r.glyph} color={r.color} size={20} />{r.label}</span>
-            <span style={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{r.value}{r.n && r.n < 7 ? <span style={{ ...mutedLine, marginLeft: 6 }}>of {r.n} days</span> : null}</span>
+            <span style={{ fontSize: 15, fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{r.value}{r.n && r.n < 7 ? <span style={{ ...mutedLine, marginLeft: 6 }}>of {r.n} completed day{r.n === 1 ? '' : 's'}</span> : null}</span>
           </div>
         ))}
       </div>

@@ -27,6 +27,8 @@ export function statusLine(status) {
   const when = t.last_fetched_at ? timeOfDay(t.last_fetched_at) : null;
   const direct = last ? `${last.calls_garmin} direct call${last.calls_garmin === 1 ? '' : 's'} in the last run` : 'no run yet';
   const base = when ? `Garmin: updated ${when} today, ${t.metrics_with_value} of ${t.metrics_declared} metrics, ${direct}` : `Garmin: nothing stored for today yet, ${direct}`;
+  const nf = status.never_final || {};
+  if (nf.count > 0) return { text: `${base}; ${nf.count} stored day${nf.count === 1 ? '' : 's'} older than ${nf.after_days} days ${nf.count === 1 ? 'is' : 'are'} not final (${nf.days.slice(0, 3).join(', ')}${nf.count > 3 ? ', ...' : ''}), the finalize rule may have stopped firing`, color: COLORS.warn };
   const r = status.rate || {};
   if (r.direct_calls_last_hour > r.red_above_per_hour) return { text: `${base}; ${r.direct_calls_last_hour} Garmin calls in the last hour, over ${r.red_above_per_hour} (3x the measured ${r.measured_safe_per_hour}/h)`, color: COLORS.danger };
   if (status.level === 'warn') return { text: `${base}; ${r.direct_calls_last_hour} Garmin calls in the last hour, over ${r.amber_above_per_hour} (1.5x the measured ${r.measured_safe_per_hour}/h)`, color: COLORS.warn };

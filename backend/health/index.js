@@ -6,6 +6,7 @@ const { asyncHandler, isDate } = require('../lib/http');
 const { localISO, shiftISO } = require('../lib/dates');
 const { METRICS, BY_KEY } = require('./metrics');
 const { ingestDays, metricsForDate, history, activitiesBetween, recentRuns, MAX_CALLS_PER_RUN } = require('./ingest');
+const { all } = require('../db');
 const { paused, FINALIZE_HOUR, FINALIZE_MINUTE } = require('./scheduler');
 const { directCallStats } = require('../garmin/service');
 
@@ -20,6 +21,10 @@ const MEASURED_SAFE_PER_HOUR = 36;
 const AMBER_PER_HOUR = 54;   // 1.5x the measured rate
 const RED_PER_HOUR = 108;    // 3x
 const FAIL_STREAK_RED = 3;
+// A day older than this many days that is stored but not final is a rule that stopped
+// firing (the finality bug of 2026-09-27 was exactly that: a field null on every past
+// day). Surfaced on the status line so it cannot sit unnoticed.
+const NEVER_FINAL_AFTER_DAYS = 2;
 
 // The metric rows for a date with the absent reason filled in for every declared
 // metric that has no value, so a card can always say why.
@@ -61,7 +66,9 @@ router.get('/health/status', asyncHandler(async (req, res) => {
   const rate = directCallStats();
   const isPaused = await paused();
   const stuck = last && !last.finished_at && Date.now() - last.started_at > 10 * 60 * 1000;
-  const level = isPaused || streak >= FAIL_STREAK_RED || stuck || rate.last_hour > RED_PER_HOUR ? 'danger' : rate.last_hour > AMBER_PER_HOUR ? 'warn' : 'ok';
+  const cutoff = shiftISO(localISO(), -NEVER_FINAL_AFTER_DAYS);
+  const notFinal = await all(`SELECT date, COUNT(*) AS metrics FROM health_days WHERE date <= ? AND final = 0 GROUP BY date ORDER BY date`, [cutoff]);
+  const level = isPaused || streak >= FAIL_STREAK_RED || stuck || rate.last_hour > RED_PER_HOUR ? 'danger' : rate.last_hour > AMBER_PER_HOUR || notFinal.length > 0 ? 'warn' : 'ok';
   const todayRows = await metricsForDate(localISO());
   const withValue = Object.values(todayRows).filter((r) => r.value !== null).length;
   const lastFetched = Object.values(todayRows).reduce((m, r) => Math.max(m, r.fetched_at || 0), 0) || null;
@@ -71,6 +78,7 @@ router.get('/health/status', asyncHandler(async (req, res) => {
     today: { date: localISO(), metrics_with_value: withValue, metrics_declared: METRICS.length, last_fetched_at: lastFetched },
     last_24h: { runs: last24.length, calls_total: sum('calls_total'), calls_cached: sum('calls_cached'), calls_garmin: direct24 },
     rate: { direct_calls_last_hour: rate.last_hour, direct_calls_last_24h: rate.last_24h, counting_since: rate.since, measured_safe_per_hour: MEASURED_SAFE_PER_HOUR, amber_above_per_hour: AMBER_PER_HOUR, red_above_per_hour: RED_PER_HOUR },
+    never_final: { after_days: NEVER_FINAL_AFTER_DAYS, days: notFinal.map((r) => r.date), count: notFinal.length },
     caps: { max_calls_per_run: MAX_CALLS_PER_RUN },
     next_finalize: `${String(FINALIZE_HOUR).padStart(2, '0')}:${String(FINALIZE_MINUTE).padStart(2, '0')} local`,
     catchup_days: Math.max(0, Number(process.env.HEALTH_CATCHUP_DAYS || 0) || 0),
