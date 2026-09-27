@@ -155,6 +155,37 @@ def press(el):
     return 'clicked at %d,%d' % (x, y)
 
 
+def find_back(win):
+    """The sub-page's back button: named "BackNew" on most pages, unnamed on a session's detail
+    page, where it is the button sitting in the window's top-left corner under the title bar."""
+    named = find(win, lambda r, t: r == 'AXButton' and t == 'BackNew')
+    if named:
+        return named
+    wg = geom(win)
+    if not wg:
+        return None
+    wx, wy = wg[0], wg[1]
+
+    def corner(el):
+        g = geom(el)
+        return bool(g) and g[0] - wx < 40 and 25 < g[1] - wy < 90 and g[2] <= 60 and g[3] <= 60
+
+    return _find_el(win, lambda el: attr_str(el, 'AXRole') == 'AXButton' and not label(el) and corner(el))
+
+
+def _find_el(el, pred, depth=0, max_depth=16):
+    """Like find() but the predicate sees the element itself."""
+    if depth > max_depth:
+        return None
+    if pred(el):
+        return el
+    for kid in attr_list(el, 'AXChildren'):
+        hit = _find_el(kid, pred, depth + 1, max_depth)
+        if hit:
+            return hit
+    return None
+
+
 def set_bool(el, name, value):
     key = cfs(name)
     rc = AX.AXUIElementSetAttributeValue(el, key, kCFBooleanTrue if value else kCFBooleanFalse)
@@ -244,9 +275,9 @@ def trigger(log=print):
     if not win:
         log('app sync: timeout waiting for the window (pid %d%s)' % (pid, ', just launched' if launched else ''))
         return 'timeout'
-    # Leave any sub-page (History, a workout, Settings) so the tab bar is reachable.
+    # Leave any sub-page (History, a session's detail, Settings) so the tab bar is reachable.
     for _ in range(MAX_BACK):
-        back = find(win, lambda r, t: r == 'AXButton' and t == 'BackNew')
+        back = find_back(win)
         if not back:
             break
         log('app sync: back: %s' % press(back))
