@@ -114,7 +114,7 @@ export default function ReviewSection({ videos }) {
     <SocialCard title="Next Video Hooks & Ideas" aside={aside} actions={<>{stale}{button('Regenerate')}</>}>
       {running ? <div style={{ fontSize: 13, color: COLORS.muted, marginBottom: 10 }}>Reviewing your recent videos with Claude. This takes a minute or two; the card refreshes on its own.</div> : null}
       {messages}
-      <p style={{ margin: '4px 0 0', fontSize: 14, lineHeight: 1.6 }}>{review.window_summary}</p>
+      <div style={{ margin: '2px 0 0', fontSize: 13, lineHeight: 1.5, color: COLORS.muted }}>{review.window_summary}</div>
 
       <div style={blockLabel}>Top performers, {stats.basis} ({shortDate(stats.start)} to {shortDate(stats.end)})</div>
       <div style={tableWrap}>
@@ -136,7 +136,7 @@ export default function ReviewSection({ videos }) {
                     <td style={{ ...td, borderBottom: 'none' }}>
                       <a href={urlFor(v.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>{v.hook || v.caption || '(no opening line)'}</a>
                     </td>
-                    <td style={{ ...tdNum, borderBottom: 'none', fontWeight: 600 }}>{count(v.views)}</td>
+                    <td style={{ ...tdNum, borderBottom: 'none', fontWeight: 600 }} title={`Per 1,000 views: ${num(v.likes_per_k, 1)} likes, ${num(v.comments_per_k, 1)} comments, ${num(v.saves_per_k, 1)} saves, ${num(v.shares_per_k, 1)} shares`}>{count(v.views)}</td>
                     <td style={{ ...tdNum, borderBottom: 'none' }}>{count(v.likes)}</td>
                     <td style={{ ...tdNum, borderBottom: 'none' }}>{count(v.comments)}</td>
                     <td style={{ ...tdNum, borderBottom: 'none' }}>{count(v.saves)}</td>
@@ -144,16 +144,8 @@ export default function ReviewSection({ videos }) {
                     <td style={{ ...tdNum, borderBottom: 'none' }}>{multipleText(v.multiple, false)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={8} style={{ ...td, padding: '0 0 12px', fontSize: 13, lineHeight: 1.55 }}>
-                      {n ? (
-                        <div style={{ background: COLORS.page, borderRadius: 10, padding: '10px 14px' }}>
-                          <div>{n.why_it_worked}</div>
-                          {n.hook_note ? <div style={{ color: COLORS.muted, marginTop: 4 }}>{n.hook_note}</div> : null}
-                          <div style={{ color: COLORS.faint, fontSize: 11, marginTop: 6 }}>
-                            Per 1,000 views: {num(v.likes_per_k, 1)} likes, {num(v.comments_per_k, 1)} comments, {num(v.saves_per_k, 1)} saves, {num(v.shares_per_k, 1)} shares
-                          </div>
-                        </div>
-                      ) : null}
+                    <td colSpan={8} style={{ ...td, padding: '0 0 8px', fontSize: 12, lineHeight: 1.45, color: COLORS.muted }}>
+                      {n ? n.why_it_worked : null}
                     </td>
                   </tr>
                 </React.Fragment>
@@ -181,27 +173,28 @@ export default function ReviewSection({ videos }) {
       <div style={blockLabel}>Next video hooks and ideas</div>
       <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
         {(review.recommendations || []).map((r, i) => (
-          <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '10px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none' }}>
+          <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '7px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none' }}>
             <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>{i + 1}</div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.4 }}>"{r.hook}"</div>
-              <div style={{ fontSize: 13, lineHeight: 1.55, marginTop: 4 }}>{r.idea}</div>
-              <div style={{ fontSize: 13, lineHeight: 1.55, color: COLORS.muted, marginTop: 2 }}>{r.why}</div>
-              {r.evidence_video_ids && r.evidence_video_ids.length ? (
-                <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 4 }}>
-                  Based on:{' '}
-                  {r.evidence_video_ids.map((id, j) => (
-                    <React.Fragment key={id}>{j ? ', ' : ''}<a href={urlFor(id)} target="_blank" rel="noreferrer" style={tableLink}>{dateFor(id)}</a></React.Fragment>
-                  ))}
-                </div>
-              ) : null}
+              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4 }}>"{r.hook}"</div>
+              <div style={{ fontSize: 12, lineHeight: 1.5, color: COLORS.muted, marginTop: 2 }}>
+                {r.idea}
+                {r.evidence_video_ids && r.evidence_video_ids.length ? (
+                  <>
+                    {' \u00b7 '}
+                    {r.evidence_video_ids.map((id, j) => (
+                      <React.Fragment key={id}>{j ? ', ' : ''}<a href={urlFor(id)} target="_blank" rel="noreferrer" style={tableLink}>{dateFor(id)}</a></React.Fragment>
+                    ))}
+                  </>
+                ) : null}
+              </div>
             </div>
           </li>
         ))}
       </ol>
 
       <div style={{ fontSize: 11, color: COLORS.faint, marginTop: 14 }}>
-        {rev.model}{rev.usage && rev.usage.input_tokens ? `, ${num(rev.usage.input_tokens)} tokens in / ${num(rev.usage.output_tokens)} out` : ''}{rev.usage && rev.usage.duration_ms ? `, ${Math.round(rev.usage.duration_ms / 1000)} s` : ''}. Refreshes on its own each morning when new videos arrive.
+        {rev.model}{rev.usage && rev.usage.input_tokens ? `, ${num(rev.usage.input_tokens)} tokens in / ${num(rev.usage.output_tokens)} out` : ''}{rev.usage && rev.usage.duration_ms ? `, ${Math.round(rev.usage.duration_ms / 1000)} s` : ''}
       </div>
     </SocialCard>
   );
