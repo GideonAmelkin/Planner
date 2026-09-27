@@ -226,6 +226,17 @@ def trigger(log=print):
             log('app sync: timeout waiting for the app to start')
             return 'timeout'
     app = AX.AXUIElementCreateApplication(pid)
+    # A hidden iOS-on-Mac app stops answering accessibility after a few minutes in the background
+    # (kAXErrorCannotComplete, -25204); activating it wakes it. That raise is why the idle rule exists.
+    if attr_str(app, 'AXRole') is None:
+        subprocess.run(['/usr/bin/open', '-b', BUNDLE_ID], capture_output=True)
+        deadline = time.time() + WINDOW_WAIT_S
+        while attr_str(app, 'AXRole') is None and time.time() < deadline:
+            time.sleep(1)
+        if attr_str(app, 'AXRole') is None:
+            log('app sync: timeout: the app does not answer accessibility even after activation')
+            return 'timeout'
+        log('app sync: woke the app (it had gone to sleep in the background)')
     was_front = attr_bool(app, 'AXFrontmost') is True
     if attr_bool(app, 'AXHidden'):
         set_bool(app, 'AXHidden', False)
