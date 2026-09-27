@@ -13,7 +13,8 @@ const { localISO } = require('../lib/dates');
 const social = require('./service');
 
 const MODEL = 'claude-opus-5';
-const MAX_TOKENS = 16000;
+const MAX_TOKENS = 4000;
+const PROMPT_VERSION = 'v2';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 const MIN_GAP_MS = 30 * 60 * 1000;
 const DAILY_CAP = 12;
 const TOP_N = 5;
@@ -32,52 +33,48 @@ views, likes, comments, saves, shares, engagement per 1,000 views, and the track
 a rolling baseline of the creator's own previous posts; 1.0 is a normal post for this account, 2.0 is twice normal).
 You also receive the account's all-time best posts by multiple for context on what this audience has responded to before.
 
-Your job:
-1. For each of the top performers listed, explain concretely why it worked: the exact hook wording, the topic, the
-   structure and pacing visible in the transcript, the length, the caption, and which metric shows it (saves and shares
-   signal value, comments signal conversation, likes per 1,000 views signal resonance). Quote the opening line.
-2. Name the patterns across the videos that worked and the ones that did not (hooks, topics, structure, length, delivery).
-3. Propose 6 to 8 next videos. For each give an exact opening line the creator should say (a hook in the creator's own
-   voice, built on what has worked), the idea or angle in one or two sentences, why it should work, and the video ids
-   that are the evidence.
+Write for a creator scanning a card, not reading a report. Hard limits:
+- window_summary: one sentence, at most 25 words.
+- top_performers: one entry per top performer in the input, same order; why_it_worked is one sentence, at most 18
+  words, naming what made it work (hook, topic, structure, delivery). Do not repeat the numbers; the table shows them.
+- patterns_working and patterns_not_working: at most 4 bullets each, each at most 12 words, specific to this data.
+- recommendations: 6 to 8. hook is the exact opening line to say, in the creator's voice, at most 15 words. idea is
+  one sentence, at most 20 words, on the angle. evidence_video_ids lists the videos it is built on.
 
-Rules: be specific to this creator's data, never generic advice. Use the actual numbers. Plain sentences, no markdown.
-Never use em dashes or en dashes; use commas or periods. Write in second person ("your"). Refer to videos by their date
-and opening line rather than by id in the prose, and keep ids only in the id fields.`;
+Rules: no preamble, no generic advice, no restating metrics. Plain sentences, no markdown. Never use em dashes or en
+dashes; use commas or periods. Second person ("your"). Refer to videos by date or opening line in prose, ids only in id fields.`;
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['window_summary', 'top_performers', 'patterns_working', 'patterns_not_working', 'recommendations'],
   properties: {
-    window_summary: { type: 'string', description: 'Two or three sentences on the period as a whole.' },
+    window_summary: { type: 'string', description: 'One sentence, at most 25 words, on the period as a whole.' },
     top_performers: {
       type: 'array',
       description: 'One entry per top performer given in the input, same order.',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['video_id', 'why_it_worked', 'hook_note'],
+        required: ['video_id', 'why_it_worked'],
         properties: {
           video_id: { type: 'string' },
-          why_it_worked: { type: 'string', description: 'One paragraph, concrete, with the numbers.' },
-          hook_note: { type: 'string', description: 'One sentence on the hook itself.' },
+          why_it_worked: { type: 'string', description: 'One sentence, at most 18 words, no numbers.' },
         },
       },
     },
-    patterns_working: { type: 'array', items: { type: 'string' } },
-    patterns_not_working: { type: 'array', items: { type: 'string' } },
+    patterns_working: { type: 'array', description: 'At most 4, each at most 12 words.', items: { type: 'string' } },
+    patterns_not_working: { type: 'array', description: 'At most 4, each at most 12 words.', items: { type: 'string' } },
     recommendations: {
       type: 'array',
       description: '6 to 8 next videos.',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['hook', 'idea', 'why', 'evidence_video_ids'],
+        required: ['hook', 'idea', 'evidence_video_ids'],
         properties: {
-          hook: { type: 'string', description: 'The exact opening line to say.' },
-          idea: { type: 'string' },
-          why: { type: 'string' },
+          hook: { type: 'string', description: 'The exact opening line to say, at most 15 words.' },
+          idea: { type: 'string', description: 'One sentence, at most 20 words.' },
           evidence_video_ids: { type: 'array', items: { type: 'string' } },
         },
       },
@@ -238,7 +235,7 @@ async function generate(trigger) {
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
         input_tokens, output_tokens, duration_ms, stats_json, result_json, error)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
-      [generatedAt, trigger, stats.start, stats.end, stats.count, window.videos[0] && window.videos[0].video_id, model,
+      [generatedAt, `${trigger}/${PROMPT_VERSION}`, stats.start, stats.end, stats.count, window.videos[0] && window.videos[0].video_id, model,
         usage.input_tokens || null, usage.output_tokens || null, Date.now() - startedAt,
         JSON.stringify(stats), JSON.stringify(result)]
     );
@@ -249,7 +246,7 @@ async function generate(trigger) {
     await run(
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
         duration_ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [generatedAt, trigger, window && window.start, window && window.end, window ? window.videos.length : null,
+      [generatedAt, `${trigger}/${PROMPT_VERSION}`, window && window.start, window && window.end, window ? window.videos.length : null,
         window && window.videos[0] ? window.videos[0].video_id : null, MODEL, Date.now() - startedAt, lastError]
     ).catch((e) => console.error('[social] could not record the failed review:', e.message));
   } finally {
