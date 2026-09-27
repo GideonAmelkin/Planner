@@ -40,6 +40,11 @@ const longestStreak = (dates) => {
 const tileDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).replace(',', '.');
 
 const MAX_WIDTH = 1500;
+// The Workouts (templates) card is a dropdown, closed by default; a missing key reads as closed.
+// Stored like the sidebar's plannerNavCollapsed so it survives tab changes and reloads.
+const TEMPLATES_OPEN_KEY = 'plannerWorkoutTemplatesOpen';
+const readTemplatesOpen = () => { try { return localStorage.getItem(TEMPLATES_OPEN_KEY) === '1'; } catch (_) { return false; } };
+const writeTemplatesOpen = (v) => { try { localStorage.setItem(TEMPLATES_OPEN_KEY, v ? '1' : '0'); } catch (_) { /* ignore */ } };
 const MONTH_FETCH_DAYS = 45; // covers the mini calendar's six-week grid
 const KG_TO_LB = 2.20462;
 
@@ -148,6 +153,8 @@ export default function WorkoutView() {
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
   const [openTemplate, setOpenTemplate] = useState(null);
+  const [templatesOpen, setTemplatesOpen] = useState(readTemplatesOpen);
+  const toggleTemplates = () => setTemplatesOpen((o) => { writeTemplatesOpen(!o); if (o) { setOpenTemplate(null); setPlayingExercise(null); } return !o; });
   const [playingExercise, setPlayingExercise] = useState(null);
   const [logOpen, setLogOpen] = useState(false);
   const [error, setError] = useState(null);
@@ -295,7 +302,7 @@ export default function WorkoutView() {
           <WorkoutTile label="Weight" value={currentKg ? num(toUnit(currentKg, unit), 1) : null} unit={unit} sub={indicator} />
           <WorkoutTile label="Workouts" value={rangeSessions.length} sub={`${rangeGym} gym · ${rangeSessions.length - rangeGym} home`} />
           <WorkoutTile label="Duration" value={rangeSessions.length ? num(activeHours, 1) : null} unit="h" />
-          <WorkoutTile label="Streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
+          <WorkoutTile label="Longest streak" value={rangeStreak || null} unit={rangeStreak === 1 ? 'day' : 'days'} />
           <WorkoutTile label="Last workout" value={lastInRange ? tileDate(lastInRange.date) : null} size={16} />
         </div>
         {rangeControls}
@@ -376,7 +383,7 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
-      <WorkoutCard title="Workouts" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
+      <WorkoutCard title="Workouts" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot." collapsible open={templatesOpen} onToggle={toggleTemplates}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {templatesList.map((t) => {
             const [a, b] = titleLines(t.name);
