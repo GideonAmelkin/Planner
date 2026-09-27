@@ -142,7 +142,7 @@ export default function WorkoutView() {
   const [status, setStatus] = useState(null);
   const [monthRecent, setMonthRecent] = useState(null); // the mini calendar's month
   const [rangeRecent, setRangeRecent] = useState(null); // the Summary range
-  const [rangeKey, setRangeKey] = useState('y365');
+  const [rangeKey, setRangeKey] = useState('d30');
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
@@ -175,7 +175,7 @@ export default function WorkoutView() {
   useEffect(() => { load(); }, [load]);
 
   // The Summary range: fixed windows end on the shown date; Custom uses its own dates.
-  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[5];
+  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[2];
   const customValid = rangeKey !== 'custom' || (customFrom && customTo && customFrom <= customTo);
   const rangeEnd = rangeKey === 'custom' ? customTo : date;
   const rangeDays = rangeKey === 'custom'
