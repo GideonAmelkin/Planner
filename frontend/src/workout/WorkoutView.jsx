@@ -6,7 +6,8 @@ import MiniCalendar from '../shared/MiniCalendar';
 import WorkoutCard from './WorkoutCard';
 import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from './WorkoutTile';
 import { API_BASE } from '../shared/api';
-import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from './api';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
+import PersonalTrainer from './PersonalTrainer';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
@@ -152,6 +153,7 @@ export default function WorkoutView() {
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
   const [catalog, setCatalog] = useState(null);
+  const [strength, setStrength] = useState(null); // every gym session with sets, for Personal Trainer
   const [openTemplate, setOpenTemplate] = useState(null);
   const [templatesOpen, setTemplatesOpen] = useState(readTemplatesOpen);
   const toggleTemplates = () => setTemplatesOpen((o) => { writeTemplatesOpen(!o); if (o) { setOpenTemplate(null); setPlayingExercise(null); } return !o; });
@@ -173,6 +175,7 @@ export default function WorkoutView() {
       setStatus(s);
       setMonthRecent(m);
       if (!catalog) getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
+      getWorkoutStrength().then((d) => setStrength(d && d.sessions ? d : { sessions: [], weight_unit: 'lb' })).catch((err) => setError(err.message || String(err)));
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -383,6 +386,7 @@ export default function WorkoutView() {
   return shell(
     <>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20 }}>
+      <PersonalTrainer data={strength} date={date} />
       <WorkoutCard title="Workouts" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot." collapsible open={templatesOpen} onToggle={toggleTemplates}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {templatesList.map((t) => {
