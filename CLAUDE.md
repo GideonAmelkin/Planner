@@ -65,9 +65,9 @@ The Workout App tab shows the Home Workouts app (Leap Health, bundle
 `com.abishkking.maleworkout`) from two feeds: the phone posts its Apple Health workouts to
 `POST /api/workout/health` as they happen (a Shortcut on app close and nightly, token in the
 server `.env`; this is what makes a session appear within seconds), and the Mac, where the
-app also runs as an iPhone app, exports its SQLite files to one JSON snapshot and rsyncs it
-to `backend/workout-state/` every 6 hours (`tools/homeworkouts/`, launchd; the exercise
-detail, only what the Mac copy has synced). The header's status line says when the phone
+app also runs as an iPhone app, presses the app's own Sync button, exports its SQLite files
+to one JSON snapshot and rsyncs it to `backend/workout-state/` every hour
+(`tools/homeworkouts/`, launchd; the exercise detail, only what the app's cloud backup holds). The header's status line says when the phone
 last reported and how old the snapshot's newest session is. Runs and walks are not exported.
 
 The Social tab shows the user's TikTok account from TikTokAnalyzer's database

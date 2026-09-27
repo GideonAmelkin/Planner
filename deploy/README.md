@@ -164,8 +164,12 @@ The "Workout App" tab shows data from the Home Workouts iPhone app
   seconds. It carries type, start, end, duration, calories and the source app, no exercises.
 - **The Mac snapshot (detail).** The app is also installed on the Mac as an iPhone-on-Mac app;
   its SQLite files live in the app container, so the Mac exports them and rsyncs one JSON
-  snapshot to the server over the existing SSH key. This carries the exercise list and sets,
-  but only moves when the Mac app has synced from the phone (Me > Sync, a manual tap).
+  snapshot to the server over the existing SSH key. This carries the exercise list and sets.
+  It only moves when the Mac app has synced from the account's cloud backup, so since
+  2026-09-27 the hourly launchd job presses Me > Sync Data itself first (`app_sync.py`, below).
+  And the cloud backup only holds what the phone app has uploaded: as of 2026-09-27 the backup
+  ended at Sep 9 while the phone's Health app had newer sessions, so the phone side is a tap
+  too (Me > Sync Data on the phone) unless the app turns out to back up on its own.
 
 ```
 Phone: Apple Health  --Shortcut "Send workouts to Planner" (on app close, 9 PM)-->
@@ -213,14 +217,38 @@ Fallback if automations prove unreliable on the phone: the Health Auto Export ap
 Health data to a REST URL on a schedule; its payload differs, so a second parser would be
 added to `workout/service.js` then.
 
-One-time setup on the Mac (done 2026-09-26):
+### Hourly app sync on the Mac (since 2026-09-27)
+
+`tools/homeworkouts/app_sync.py` presses Me > Sync Data in the Mac app through System Events
+before every export (`sync.py --app-sync`, the launchd job's argument). What the app's Sync
+does: it downloads the account's cloud backup (one JSON on Firebase Storage: `allWorkOut`,
+`gymData`, weights, profile; left on disk as `Documents/remote_backup.json`) with the app's
+own login and rebuilds its databases. The login token lives in the app's private keychain,
+so nothing outside the app can fetch that file; the button is the only lever. Rules: skipped
+when the keyboard or mouse was used in the last 2 minutes (the app has to come to the front
+to be clicked; the next hourly run tries again); the previous app is put back and the window
+hidden afterwards; the outcome (`synced`, `skipped_active`, `no_permission`, `timeout`,
+`app_missing`) goes to `sync.log` and into the snapshot's `source.app_sync`, and the tab's
+status line shows "app synced <time>". Attended run that ignores the idle rule:
+`APP_SYNC_FORCE=1 python3 tools/homeworkouts/sync.py --app-sync`.
+
+One more grant for the same python3, once: System Settings > Privacy & Security >
+Accessibility > "+" > Cmd+Shift+G > `/Library/Developer/CommandLineTools/usr/bin/python3`.
+The first run also asks once to let python3 control System Events.
+
+Known gap (2026-09-27): a gym session's exercises are not in `workout_action` (those rows are
+the templates'); they travel in the backup's `gymData.exerciseRecordInfoStr` /
+`setRecordInfoStr` JSON strings, which the exporter does not read yet, so gym sessions export
+with duration and calories but an empty exercise list.
+
+One-time setup on the Mac (done 2026-09-26; the plist now runs hourly with `--app-sync`):
 
 ```bash
 # 1. Full Disk Access for python3, or the background job can read neither the app
 #    container (macOS "App Data" protection) nor this repo under ~/Documents.
 #    System Settings > Privacy & Security > Full Disk Access > "+" > Cmd+Shift+G >
 #    /Library/Developer/CommandLineTools/usr/bin/python3 > Open, then toggle it on.
-# 2. Install the launchd agent (every 6 hours, also at login)
+# 2. Install the launchd agent (every hour, also at login)
 cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
 # 3. Run it once now and read the log
