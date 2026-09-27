@@ -6,10 +6,10 @@ import { COLORS, navButton } from './styles';
 
 export const TABS = [
   { section: 'agenda', label: 'Agenda' },
-  { section: 'garmin', label: 'Garmin' },
-  { section: 'workout', label: 'Workout' },
   { section: 'social', label: 'Social' },
   { section: 'health', label: 'Health' },
+  { section: 'workout', label: 'Workout' },
+  { section: 'garmin', label: 'Garmin' },
 ];
 
 // Light header bar. `section` is the active tab; every date control stays inside it.
