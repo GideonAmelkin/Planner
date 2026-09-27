@@ -315,33 +315,73 @@ def read_templates(lk, names, sets, counts):
     return templates
 
 
+LB_PER_KG = 2.20462
+
+
+def gym_weight_unit(lk):
+    """'lb' or 'kg': the gym module's own unit setting. user.weightUnit is an LKDB pointer at a
+    user_unit row; that row's value is 1 for pounds, 0 for kilograms (the user's app shows lb and
+    the row reads 1). Unknown or missing falls back to lb, the app's US default."""
+    try:
+        u = rows(lk, 'SELECT weightUnit FROM user LIMIT 1')
+        pointer = json.loads(u[0]['weightUnit']) if u and u[0].get('weightUnit') else {}
+        rid = pointer.get('DB_RowId')
+        if rid is not None:
+            r = rows(lk, 'SELECT value FROM user_unit WHERE rowid = ?', (rid,))
+            if r:
+                return 'kg' if to_int(r[0]['value']) == 0 else 'lb'
+    except (sqlite3.Error, ValueError, TypeError, KeyError):
+        pass
+    return 'lb'
+
+
 def read_gym_sessions(lk, names, sets, counts):
-    """workout_record rows -> sessions. Exercises come from workout_action rows whose
-    workoutId equals the record's timeStamp (verified against a restored backup;
-    counts.gym_sessions_without_exercises says how many found none). When the app has
-    rewritten an action row, the newest row (highest rowid) is the one that counts."""
-    actions_by_workout = {}
-    for a in rows(lk, 'SELECT rowid, * FROM workout_action ORDER BY orderIndex, rowid'):
-        actions_by_workout.setdefault(a['workoutId'], []).append(a)
+    """Gym sessions from workout_record with their exercises from exercise_record and their sets
+    from set_record. Nothing about a session lives in workout_action (those rows are the
+    templates'): learned on the first real session, 2026-09-27. A set is tied to a session by its
+    exercise id and its time falling inside the session (set_record.workoutTimeStamp is 0 on
+    every row the app has written so far; it is honoured when present)."""
+    unit = gym_weight_unit(lk)
+    to_kg = (lambda w: None if w is None else round(w / LB_PER_KG, 3)) if unit == 'lb' else (lambda w: w)
+    ex_rows = rows(lk, 'SELECT * FROM exercise_record ORDER BY workoutTimeStamp, orderIndex')
+    set_rows = rows(lk, 'SELECT * FROM set_record ORDER BY timeStamp')
+    live_ex = [r for r in ex_rows if not r.get('isDeleted')]
+    live_sets = [r for r in set_rows if not r.get('isDeleted')]
+    ex_by_workout = {}
+    for r in live_ex:
+        ex_by_workout.setdefault(r['workoutTimeStamp'], []).append(r)
     sessions = []
     deleted = 0
     without = 0
+    used_workouts = set()
+    attached_set_pks = set()
     for r in rows(lk, 'SELECT * FROM workout_record ORDER BY startTime'):
         if r.get('isDeleted'):
             deleted += 1
             continue
         started = epoch_to_dt(r.get('startTime') or r.get('timeStamp'), 'workout_record.startTime')
-        acts = actions_by_workout.get(r['timeStamp'], [])
-        newest = {}
-        for a in acts:
-            k = str(a['actionId'])
-            if k not in newest or a['rowid'] > newest[k]['rowid']:
-                newest[k] = a
+        w_start = r.get('startTime') or r['timeStamp']
+        w_end = r['timeStamp']
+        used_workouts.add(r['timeStamp'])
         exercises = []
-        for a in sorted(newest.values(), key=lambda x: (x.get('orderIndex') or 0, x['rowid'])):
-            exercises.append(exercise_from_action(a, sets, names, len(exercises)))
+        lifted_from_sets = 0.0
+        for i, e in enumerate(sorted(ex_by_workout.get(r['timeStamp'], []), key=lambda x: (x.get('orderIndex') or 0, x['pk']))):
+            eid = str(e['exerciseId'])
+            own = [s for s in live_sets if str(s.get('exercisePk')) == eid and (
+                (s.get('workoutTimeStamp') or 0) == r['timeStamp']
+                or (not s.get('workoutTimeStamp') and s.get('timeStamp') is not None and w_start <= s['timeStamp'] <= w_end))]
+            attached_set_pks.update(s['pk'] for s in own)
+            set_items = []
+            for s in own:
+                kg = to_kg(to_float(s.get('weight')))
+                reps = to_int(s.get('reps'))
+                set_items.append({'reps': reps, 'weight_kg': kg, 'finished': True})
+                if kg is not None and reps:
+                    lifted_from_sets += kg * reps
+            exercises.append({'action_id': eid, 'name': names.get(eid), 'order': i, 'unit': '', 'sets': set_items})
         if not exercises:
             without += 1
+        total_kg = to_float(r.get('totalSIWeight'))
         sessions.append({
             'id': 'gym:%s' % r['timeStamp'],
             'kind': 'gym',
@@ -353,9 +393,20 @@ def read_gym_sessions(lk, names, sets, counts):
             'duration_s': ms_to_s(r.get('duration')),
             'rest_s': ms_to_s(r.get('restTime')),
             'calories': to_int(r.get('cal')),
-            'total_weight_kg': to_float(r.get('totalSIWeight')),
+            'total_weight_kg': total_kg if total_kg else (round(lifted_from_sets, 3) if lifted_from_sets else None),
+            'weight_unit': unit,
             'exercises': exercises,
         })
+    counts['exercise_record'] = len(ex_rows)
+    counts['exercise_record_deleted'] = len(ex_rows) - len(live_ex)
+    counts['gym_exercises'] = sum(len(s['exercises']) for s in sessions)
+    # Exercise rows of a deleted session (the app deletes the session, not its rows).
+    counts['exercise_record_of_deleted_sessions'] = sum(1 for r in live_ex if r['workoutTimeStamp'] not in used_workouts)
+    counts['set_record'] = len(set_rows)
+    counts['set_record_deleted'] = len(set_rows) - len(live_sets)
+    counts['set_record_attached'] = len(attached_set_pks)
+    # Sets logged outside every live session's window (a deleted attempt, an abandoned start).
+    counts['set_record_unattached'] = len(live_sets) - len(attached_set_pks)
     counts['workout_record'] = len(sessions) + deleted
     counts['gym_sessions'] = len(sessions)
     counts['gym_sessions_deleted'] = deleted
@@ -579,6 +630,10 @@ def reconcile(counts, sets):
     """Every source row is emitted or counted as excluded; anything else fails."""
     checks = [
         ('workout_record', counts['workout_record'], counts['gym_sessions'] + counts['gym_sessions_deleted']),
+        ('exercise_record', counts['exercise_record'],
+         counts['gym_exercises'] + counts['exercise_record_deleted'] + counts['exercise_record_of_deleted_sessions']),
+        ('set_record', counts['set_record'],
+         counts['set_record_attached'] + counts['set_record_unattached'] + counts['set_record_deleted']),
         ('workout', counts['workout'], counts['home_sessions']),
         ('gym_workout', counts['gym_workout'], counts['templates'] + counts['templates_deleted']),
         ('exe_table', counts['exe_table'], counts['plan_days']),

@@ -26,6 +26,10 @@ LKDB_SCHEMA = [
     "CREATE TABLE HWPlanProgressModel(updateTime double,goal integer,scheduleOn integer,finishDays integer,exerciseUpdateTime double,isCoachSelect integer,extraInfo text,rowid integer primary key autoincrement,lowerUpdateTime double,workoutDays text,currentDayIndex integer,focusArea text,trainDuration integer,totalDays integer,planDifficulty integer,injuryConcerns text,availableEquipments text,gender integer,isFinish integer)",
     "CREATE TABLE workout(uid integer,temp51 integer,isDistance integer,eachActionTimeDicStr text,kcalStr text,sportType integer,totalCount integer,adjustLevelNum text,temp5 integer,distanceUnit integer,temp3 text,sportsState text,bodysDetail text,during integer,updateTime integer,distance double,temp1 text,challengeIndex text,name text,iconName text,date integer,defaultMET text,caculatorType integer,ID integer primary key autoincrement,localizedKey text,elevationUnit integer,isElevation integer,heartRateStr text,temp6 integer,dayIndex integer,temp4 integer,completeCount integer,temp2 text,elevation double)",
     "CREATE TABLE workout_record(timeStamp integer primary key autoincrement,heartRateStr text,cal integer,awayTime integer,templateId integer,unlockActionId text,invalidTime integer,isDeleted integer,title text,totalSIWeight double,duration integer,totalBSWeight double,startTime integer,restTime integer,updateTime integer)",
+    "CREATE TABLE exercise_record(pk text primary key,exerciseId text,workoutTimeStamp integer,orderIndex integer,updateTime integer,isDeleted integer)",
+    "CREATE TABLE set_record(weight double,exercisePk text,isDeleted integer,reps integer,updateTime integer,originWeight double,timeStamp integer,pk text primary key,workoutTimeStamp integer)",
+    "CREATE TABLE user(firstGuideSettingsInfo text,weightUnit text,overAllRestTimeEnableInfo text,hasGuideCompleteInfo text,isDefaultEquipmentsInfo text,benchmarkInfo text,rowid integer primary key autoincrement,liftingWeightInfo text)",
+    "CREATE TABLE user_unit(value integer,rowid integer primary key autoincrement,updateTime integer)",
 ]
 PLAN_SCHEMA = [
     "CREATE TABLE exe_table (exe_id LONG PRIMARY KEY, exe_name TEXT, exe_number INTEGER, exe_detail TEXT, exe_create_date BIGINT ,exe_workoutType INTEGER ,exe_cycleRound INTEGER ,exe_min INTEGER ,exe_levelType INTEGER ,exe_bodysDetail TEXT ,exe_warmupsDetail TEXT ,exe_workoutsDetail TEXT ,exe_coolDownDetail TEXT ,exe_totalCount INTEGER ,exe_completeCount INTEGER ,exe_exerciseDate INTEGER ,exe_imageName TEXT ,exe_desc TEXT ,exe_wtype TEXT)",
@@ -133,18 +137,33 @@ class Fixture:
         self.lk.commit()
         return stale
 
-    def gym_session(self, ts, title, template_id, actions, deleted=0, finished=True):
+    def gym_unit(self, value):
+        """The gym module's weight unit: user.weightUnit points at a user_unit row (1 = lb, 0 = kg)."""
+        self.lk.execute("INSERT INTO user_unit(rowid,value,updateTime) VALUES(9,?,?)", (value, T_MS))
+        self.lk.execute("INSERT INTO user(rowid,weightUnit) VALUES(1,?)",
+                        (json.dumps({'DB_PKeyValue': {'rowid': '9'}, 'DB_Type': 'DB_Type_Model', 'DB_Class': 'GymUserUnitModel',
+                                     'DB_RowId': 9, 'DB_TableName': 'user_unit'}),))
+        self.lk.commit()
+
+    def gym_session(self, ts, title, template_id, actions, deleted=0, total_si=1240.5, stray_set=False):
+        """A workout_record that ran 45 minutes and ended at ts, with an exercise_record per action and
+        three set_record rows per exercise inside the session window (set_record.workoutTimeStamp is
+        0, as the app writes it). stray_set adds one set before the window: unattached."""
+        start = ts - 2700000
         self.lk.execute(
             "INSERT INTO workout_record(timeStamp,cal,templateId,isDeleted,title,totalSIWeight,duration,totalBSWeight,startTime,restTime,updateTime) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (ts, 210, template_id, deleted, title, 1240.5, 2700000, 2735.0, ts, 300000, ts))  # duration and rest in ms, as the app stores them
+            (ts, 210, template_id, deleted, title, total_si, 2700000, 2735.0, start, 300000, ts))  # duration and rest in ms, as the app stores them
         for i, a in enumerate(actions):
-            self.lk.execute(
-                "INSERT INTO workout_action(unit,workoutId,isFocus,orderIndex,roundList,actionId,isOpening) VALUES('',?,0,?,?,?,0)",
-                (ts, i, LK_JSON_EMPTY, a))
+            self.lk.execute("INSERT INTO exercise_record(pk,exerciseId,workoutTimeStamp,orderIndex,updateTime,isDeleted) VALUES(?,?,?,?,?,0)",
+                            ('ex-%d-%d' % (ts, i), a, ts, i, ts))
             for s in range(3):
                 self.lk.execute(
-                    "INSERT INTO workout_action_set(actionId,workoutId,isWeightChanged,isFinished,isRepsColorChange,weight,originWeight,isRepsChanged,isFocus,reps,isWeightColorChange) VALUES(?,?,0,?,0,?,?,0,0,?,0)",
-                    (a, ts, 1 if finished else 0, 80.0, 80.0, 5))
+                    "INSERT INTO set_record(weight,exercisePk,isDeleted,reps,updateTime,originWeight,timeStamp,pk,workoutTimeStamp) VALUES(?,?,0,?,?,?,?,?,0)",
+                    (80.0, a, 5, ts, 80.0, start + 60000 * (i * 3 + s + 1), 'set-%d-%d-%d' % (ts, i, s)))
+        if stray_set:
+            self.lk.execute(
+                "INSERT INTO set_record(weight,exercisePk,isDeleted,reps,updateTime,originWeight,timeStamp,pk,workoutTimeStamp) VALUES(?,?,0,?,?,?,?,?,0)",
+                (80.0, actions[0], 5, ts, 80.0, start - 60000, 'stray-%d' % ts))
         self.lk.commit()
 
     def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None, sport_type=0):
@@ -196,7 +215,8 @@ class ExportTest(unittest.TestCase):
         fx.template(101, 'Full Body Workout', 'full_body_workout', ['1317', '1073', '655'])
         fx.template(112, 'StrongLifts 5×5 · A', 'strong_5x5', ['655'], sets_per=5)
         fx.template(150, 'Old custom', 'custom', ['10'], deleted=1)
-        fx.gym_session(T_MS, 'Full Body Workout', 101, ['1317', '655'])
+        fx.gym_unit(0)  # kilograms: the weights below come through unchanged
+        fx.gym_session(T_MS, 'Full Body Workout', 101, ['1317', '655'], stray_set=True)
         fx.gym_session(T_MS + 86400000, 'Deleted one', 101, ['655'], deleted=1)
         fx.home_session(7, DAY_UTC_MS, 'Abs Beginner', temp1([(0, local_ms(2026, 9, 26, 6, 10), 30), (1, local_ms(2026, 9, 26, 6, 11), 45)]))
         fx.weight(77.11, 1790380800000, T_MS)
@@ -213,15 +233,18 @@ class ExportTest(unittest.TestCase):
         self.assertEqual((c['workout'], c['home_sessions']), (1, 1))
         self.assertEqual((c['gym_workout'], c['templates'], c['templates_deleted']), (3, 2, 1))
         self.assertEqual(c['template_exercises'], 4)
-        # 3 stale rows (one per template) + 5 referenced + 3 session rows
-        self.assertEqual(c['workout_action'], 11)
-        self.assertEqual(c['workout_action_unreferenced'], 11 - 4)
+        # 3 stale rows (one per template) + 5 referenced; sessions do not use workout_action
+        self.assertEqual(c['workout_action'], 8)
+        self.assertEqual(c['workout_action_unreferenced'], 8 - 4)
         # template sets 3*2 + 1*5 plus one stale-generation set per template (3, unattached),
-        # deleted template 1*2 + 1 stale (unattached), live session 2*3, deleted session 1*3 (unattached)
-        self.assertEqual(c['workout_action_set'], 6 + 5 + 2 + 3 + 6 + 3)
-        self.assertEqual(c['sets_attached'], 6 + 5 + 6)
-        self.assertEqual(c['sets_unattached'], 2 + 3 + 3)
+        # deleted template 1*2 + 1 stale (unattached)
+        self.assertEqual(c['workout_action_set'], 6 + 5 + 2 + 3)
+        self.assertEqual(c['sets_attached'], 6 + 5)
+        self.assertEqual(c['sets_unattached'], 2 + 3)
         self.assertEqual(c['set_pointers_missing'], 0)
+        # session exercises: 2 live + 1 of the deleted session; sets: 6 attached, 1 stray, 3 of the deleted session
+        self.assertEqual((c['exercise_record'], c['gym_exercises'], c['exercise_record_of_deleted_sessions'], c['exercise_record_deleted']), (3, 2, 1, 0))
+        self.assertEqual((c['set_record'], c['set_record_attached'], c['set_record_unattached'], c['set_record_deleted']), (10, 6, 4, 0))
         self.assertEqual(c['plan_days'], 2)
         self.assertEqual(c['unresolved_names'], 0)
 
@@ -232,7 +255,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(g['id'], 'gym:%d' % T_MS)
         self.assertEqual(g['date'], LOCAL_DATE)
         self.assertTrue(g['started_at'].startswith(LOCAL_DATE))
-        self.assertEqual((g['duration_s'], g['rest_s'], g['calories'], g['total_weight_kg']), (2700, 300, 210, 1240.5))
+        self.assertEqual((g['duration_s'], g['rest_s'], g['calories'], g['total_weight_kg'], g['weight_unit']), (2700, 300, 210, 1240.5, 'kg'))
         self.assertEqual([e['name'] for e in g['exercises']], ["Dumbbell Farmer's Carry", 'Bench Press · Barbell'])
         self.assertEqual(g['exercises'][1]['sets'], [{'reps': 5, 'weight_kg': 80.0, 'finished': True}] * 3)
 
@@ -244,7 +267,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual([(e['order'], e['name'], e['seconds']) for e in h['exercises']], [(0, None, 30), (1, None, 45)])
         self.assertEqual(c['home_sessions_from_temp1'], 1)
 
-        self.assertEqual(snap['weights'], [{'date': '2026-09-26', 'at': g['started_at'], 'kg': 77.11}])
+        self.assertEqual(snap['weights'], [{'date': '2026-09-26', 'at': export.local_iso(export.epoch_to_dt(T_MS, 'weight.startDate')), 'kg': 77.11}])
 
         t = {x['id']: x for x in snap['templates']}
         self.assertEqual(sorted(t), [101, 112])
@@ -360,3 +383,20 @@ class ExportTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class GymUnitTests(unittest.TestCase):
+    def setUp(self):
+        self.fx = Fixture()
+        self.addCleanup(self.fx.cleanup)
+
+    def test_pounds_convert_and_lifted_total_comes_from_sets_when_the_app_has_none(self):
+        self.fx.template(101, 'Full Body Workout', 'full_body_workout', ['1317'])
+        self.fx.gym_unit(1)  # pounds
+        self.fx.gym_session(T_MS, 'Full Body Workout', 101, ['1317'], total_si=0.0)
+        self.fx.close()
+        snap = export.build_snapshot(self.fx.container, self.fx.bundle)
+        g = [s for s in snap['sessions'] if s['kind'] == 'gym'][0]
+        self.assertEqual(g['weight_unit'], 'lb')
+        self.assertAlmostEqual(g['exercises'][0]['sets'][0]['weight_kg'], 80 / 2.20462, places=2)
+        self.assertAlmostEqual(g['total_weight_kg'], 3 * 5 * 80 / 2.20462, places=1)
