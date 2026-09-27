@@ -150,6 +150,20 @@ test('finality: only a non-today run, for a past date, with a sync after midnigh
   assert.equal(out.written, 0);
 });
 
+test('--force is the only way past a final row, and the scheduler kinds cannot pass it', async () => {
+  const corrected = bundle(YESTERDAY, { steps: 6000, lastSync: `${YESTERDAY.slice(0, 8)}28T12:00:00.0` });
+  corrected.summary.data.wellnessEndTimeGmt = `${YESTERDAY.slice(0, 8)}28T03:59:00.0`;
+  await assert.rejects(() => ingestDays([YESTERDAY], { kind: 'finalize', force: true, bundles: { [YESTERDAY]: corrected } }), /only accepted with kind "force"/);
+  const out = await ingestDays([YESTERDAY], { kind: 'force', force: true, bundles: { [YESTERDAY]: corrected } });
+  const steps = JSON.parse((await get('SELECT value FROM health_days WHERE date = ? AND metric = ?', [YESTERDAY, 'steps'])).value);
+  assert.equal(steps.value, 6000, 'the correction landed');
+  assert.ok(out.forced >= 1);
+  assert.ok(out.errors.some((e) => e.code === 'force'), 'recorded on the run row');
+  assert.equal(out.failed, 0, 'the force note is not a failure');
+  const row = await get('SELECT final FROM health_days WHERE date = ? AND metric = ?', [YESTERDAY, 'steps']);
+  assert.equal(row.final, 1, 'still final afterwards');
+});
+
 test('a today run never finalizes even when the sync is after midnight', async () => {
   const d = '2026-09-20';
   const late = bundle(d, { lastSync: '2026-09-21T12:00:00.0' });
@@ -198,7 +212,7 @@ test('GET /api/health is still the liveness probe, and /api/health/* is the Heal
     const probe = await fetch(`${base}/health`).then((r) => r.json());
     assert.deepEqual(probe, { status: 'ok' });
     const day = await fetch(`${base}/health/day/${YESTERDAY}`).then((r) => r.json());
-    assert.equal(day.metrics.steps.value.value, 5078);
+    assert.equal(day.metrics.steps.value.value, 6000, "the forced correction from the test above");
     assert.equal(day.metrics.hrv.value, null);
     assert.equal(day.metrics.hrv.absent, 'Wear your device while sleeping to reveal your status.');
     assert.equal(day.activities.length, 1);

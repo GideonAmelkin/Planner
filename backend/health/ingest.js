@@ -70,9 +70,11 @@ async function previousWeighIn(date) {
 }
 
 // Decide what to do with one metric row. Returns 'write' | 'unchanged' | 'stale' | 'final'.
-function decide(existing, incoming) {
+// `force` (the script's --force only) lets a refetch replace a final row: Garmin does
+// correct days after the fact, and without it a correction could never reach the store.
+function decide(existing, incoming, force = false) {
   if (!existing) return incoming.value === null && incoming.payload === null ? 'unchanged' : 'write';
-  if (existing.final) return 'final';
+  if (existing.final && !force) return 'final';
   const had = existing.value !== null && existing.value !== undefined;
   if (incoming.value === null && had) return 'stale';
   if (incoming.taken_at && existing.taken_at && incoming.taken_at < existing.taken_at) return 'stale';
@@ -80,7 +82,7 @@ function decide(existing, incoming) {
   return 'write';
 }
 
-async function ingestDay(date, { kind, refresh, dryRun, bundle, budget, counters, errors, report, today }) {
+async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, counters, errors, report, today }) {
   const cacheOnly = !!dryRun;
   let results = bundle || null;
   // 1. The day bundle (18 calls) unless the warm handed it over.
@@ -138,8 +140,9 @@ async function ingestDay(date, { kind, refresh, dryRun, bundle, budget, counters
     const anyOk = metric.calls.some((k) => results[k] && results[k].ok);
     const incoming = { value, taken_at: taken, final, valueJSON: value === null ? null : stableJSON(value), payload: anyOk ? payload : null, payloadJSON: anyOk ? stableJSON(payload) : null };
     const existing = dryRun ? null : await get('SELECT value, payload, taken_at, final FROM health_days WHERE date = ? AND metric = ?', [date, metric.key]);
-    const action = decide(existing, incoming);
-    report.push({ date, metric: metric.key, action, final, taken_at: taken, value: value === null ? null : value });
+    const action = decide(existing, incoming, force);
+    if (force && existing && existing.final && action === 'write') counters.forced += 1;
+    report.push({ date, metric: metric.key, action: force && existing && existing.final && action === 'write' ? 'FORCED' : action, final, taken_at: taken, value: value === null ? null : value });
     if (action === 'write') {
       counters.written += 1;
       if (!dryRun) {
@@ -205,9 +208,11 @@ async function ingestDay(date, { kind, refresh, dryRun, bundle, budget, counters
 
 // Ingest one or more dates. `bundles` maps a date to results the caller already holds
 // (the warm's); those calls are not counted, the run only counts what it added.
-async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = false, bundles = {}, maxCalls = MAX_CALLS_PER_RUN } = {}) {
+async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = false, force = false, bundles = {}, maxCalls = MAX_CALLS_PER_RUN } = {}) {
   const today = localISO();
-  const counters = { calls_total: 0, calls_cached: 0, calls_garmin: 0, written: 0, unchanged: 0, stale: 0 };
+  const counters = { calls_total: 0, calls_cached: 0, calls_garmin: 0, written: 0, unchanged: 0, stale: 0, forced: 0 };
+  if (force && kind !== 'force') throw new Error('force is only accepted with kind "force" (scripts/health-fetch.js --force); the scheduler never passes it');
+  if (force) console.error(`[health] FORCE: final rows for ${dates.join(', ')} may be replaced by this run`);
   const errors = [];
   const report = [];
   const budget = new Budget(maxCalls);
@@ -221,7 +226,7 @@ async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = fa
   let stopped = false;
   try {
     for (const date of dates) {
-      const outcome = await ingestDay(date, { kind, refresh, dryRun, bundle: bundles[date] || null, budget, counters, errors, report, today });
+      const outcome = await ingestDay(date, { kind, refresh, dryRun, force, bundle: bundles[date] || null, budget, counters, errors, report, today });
       if (outcome === 'budget_stop') {
         errors.push({ date, call: null, scope: 'run', code: 'budget_stop', error: `stopped before ${date}: the run would exceed ${budget.max} Garmin calls (${budget.used} planned)` });
         stopped = true;
@@ -232,7 +237,8 @@ async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = fa
   } catch (err) {
     errors.push({ date: null, call: null, scope: 'run', code: 'exception', error: err.message });
   }
-  const failed = errors.length;
+  if (force) errors.push({ date: null, call: null, scope: 'run', code: 'force', error: `--force replaced ${counters.forced} final row(s)` });
+  const failed = errors.filter((e) => e.code !== 'force').length;
   const ok = counters.calls_total - errors.filter((e) => e.call).length;
   const summary = { id: runId, kind, dates, done, dry_run: dryRun, stopped, started_at: startedAt, finished_at: Date.now(), ok, failed, ...counters, errors, report };
   if (!dryRun) {

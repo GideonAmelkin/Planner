@@ -7,14 +7,18 @@ const { localISO, shiftISO } = require('../lib/dates');
 const { METRICS, BY_KEY } = require('./metrics');
 const { ingestDays, metricsForDate, history, activitiesBetween, recentRuns, MAX_CALLS_PER_RUN } = require('./ingest');
 const { paused, FINALIZE_HOUR, FINALIZE_MINUTE } = require('./scheduler');
+const { directCallStats } = require('../garmin/service');
 
 const router = Router();
 
 const HISTORY_DAYS = 28;
 const MANUAL_THROTTLE_MS = 30 * 60 * 1000;
-// What a day costs by design: the warm's own bundle is not the ingest's; a today run
-// makes 0 direct calls, a finalize about 20, plus 1 or 2 per new activity.
-const DAILY_BUDGET_DIRECT_CALLS = 60;
+// Rate thresholds, from the one rate measured as tolerated: the warm's 18 calls every 30
+// minutes, about 36 an hour, from RT100 since 2026-09-26 without a rate_limited answer.
+// Counted over every source in this process (warm, Garmin tab views, Health ingest).
+const MEASURED_SAFE_PER_HOUR = 36;
+const AMBER_PER_HOUR = 54;   // 1.5x the measured rate
+const RED_PER_HOUR = 108;    // 3x
 const FAIL_STREAK_RED = 3;
 
 // The metric rows for a date with the absent reason filled in for every declared
@@ -54,9 +58,10 @@ router.get('/health/status', asyncHandler(async (req, res) => {
   const last24 = real.filter((r) => r.started_at >= dayAgo);
   const sum = (k) => last24.reduce((n, r) => n + (r[k] || 0), 0);
   const direct24 = sum('calls_garmin');
+  const rate = directCallStats();
   const isPaused = await paused();
   const stuck = last && !last.finished_at && Date.now() - last.started_at > 10 * 60 * 1000;
-  const level = isPaused || streak >= FAIL_STREAK_RED || stuck ? 'danger' : direct24 > DAILY_BUDGET_DIRECT_CALLS ? 'warn' : 'ok';
+  const level = isPaused || streak >= FAIL_STREAK_RED || stuck || rate.last_hour > RED_PER_HOUR ? 'danger' : rate.last_hour > AMBER_PER_HOUR ? 'warn' : 'ok';
   const todayRows = await metricsForDate(localISO());
   const withValue = Object.values(todayRows).filter((r) => r.value !== null).length;
   const lastFetched = Object.values(todayRows).reduce((m, r) => Math.max(m, r.fetched_at || 0), 0) || null;
@@ -64,7 +69,8 @@ router.get('/health/status', asyncHandler(async (req, res) => {
     level, paused: isPaused, stuck: !!stuck, failed_streak: streak, fail_streak_red_at: FAIL_STREAK_RED,
     last_run: last ? { id: last.id, kind: last.kind, dates: last.dates, started_at: last.started_at, finished_at: last.finished_at, ok: last.ok, failed: last.failed, written: last.written, unchanged: last.unchanged, stale: last.stale, calls_total: last.calls_total, calls_cached: last.calls_cached, calls_garmin: last.calls_garmin, errors: last.errors } : null,
     today: { date: localISO(), metrics_with_value: withValue, metrics_declared: METRICS.length, last_fetched_at: lastFetched },
-    last_24h: { runs: last24.length, calls_total: sum('calls_total'), calls_cached: sum('calls_cached'), calls_garmin: direct24, budget_direct_calls: DAILY_BUDGET_DIRECT_CALLS },
+    last_24h: { runs: last24.length, calls_total: sum('calls_total'), calls_cached: sum('calls_cached'), calls_garmin: direct24 },
+    rate: { direct_calls_last_hour: rate.last_hour, direct_calls_last_24h: rate.last_24h, counting_since: rate.since, measured_safe_per_hour: MEASURED_SAFE_PER_HOUR, amber_above_per_hour: AMBER_PER_HOUR, red_above_per_hour: RED_PER_HOUR },
     caps: { max_calls_per_run: MAX_CALLS_PER_RUN },
     next_finalize: `${String(FINALIZE_HOUR).padStart(2, '0')}:${String(FINALIZE_MINUTE).padStart(2, '0')} local`,
     catchup_days: Math.max(0, Number(process.env.HEALTH_CATCHUP_DAYS || 0) || 0),

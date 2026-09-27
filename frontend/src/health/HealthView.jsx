@@ -27,7 +27,9 @@ export function statusLine(status) {
   const when = t.last_fetched_at ? timeOfDay(t.last_fetched_at) : null;
   const direct = last ? `${last.calls_garmin} direct call${last.calls_garmin === 1 ? '' : 's'} in the last run` : 'no run yet';
   const base = when ? `Garmin: updated ${when} today, ${t.metrics_with_value} of ${t.metrics_declared} metrics, ${direct}` : `Garmin: nothing stored for today yet, ${direct}`;
-  if (status.level === 'warn') return { text: `${base}; ${status.last_24h.calls_garmin} direct calls in 24 h, over the ${status.last_24h.budget_direct_calls} the design assumes`, color: COLORS.warn };
+  const r = status.rate || {};
+  if (r.direct_calls_last_hour > r.red_above_per_hour) return { text: `${base}; ${r.direct_calls_last_hour} Garmin calls in the last hour, over ${r.red_above_per_hour} (3x the measured ${r.measured_safe_per_hour}/h)`, color: COLORS.danger };
+  if (status.level === 'warn') return { text: `${base}; ${r.direct_calls_last_hour} Garmin calls in the last hour, over ${r.amber_above_per_hour} (1.5x the measured ${r.measured_safe_per_hour}/h)`, color: COLORS.warn };
   return { text: base, color: COLORS.muted };
 }
 

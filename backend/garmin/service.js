@@ -23,6 +23,22 @@ const WARM_INTERVAL_MS = 30 * 60 * 1000;
 
 const BY_NAME = Object.fromEntries(registry.map((e) => [e.name, e]));
 
+// Every call that actually went to Garmin from this process (warm, Garmin tab page
+// views, Health ingest), as timestamps, kept for 24 hours. In memory: a restart resets
+// it, and the attended script runs in its own process, so those are not in here.
+const DIRECT_CALLS = [];
+function noteDirectCalls(n) {
+  const now = Date.now();
+  for (let i = 0; i < n; i++) DIRECT_CALLS.push(now);
+  const cutoff = now - 24 * 60 * 60 * 1000;
+  while (DIRECT_CALLS.length && DIRECT_CALLS[0] < cutoff) DIRECT_CALLS.shift();
+}
+function directCallStats() {
+  const now = Date.now();
+  const hour = now - 60 * 60 * 1000; const day = now - 24 * 60 * 60 * 1000;
+  return { last_hour: DIRECT_CALLS.filter((t) => t >= hour).length, last_24h: DIRECT_CALLS.filter((t) => t >= day).length, since: DIRECT_CALLS.length ? DIRECT_CALLS[0] : null };
+}
+
 const configured = () => !!(process.env.GARMIN_EMAIL && process.env.GARMIN_PASSWORD);
 const pythonOk = () => fs.existsSync(PYTHON);
 const tokenFileExists = () => fs.existsSync(TOKEN_FILE);
@@ -257,6 +273,7 @@ async function callMany(calls, { refresh = false, cacheOnly = false } = {}) {
     for (const c of pending) results[c.key] = { ok: false, code: 'no_python', error: `Python not found at ${PYTHON}` };
     return results;
   }
+  noteDirectCalls(pending.length);
   const out = await enqueue(() => spawnBridge('call', { calls: pending }).result);
   const now = Date.now();
   for (const c of pending) {
@@ -336,5 +353,5 @@ function startWarmCache() {
 module.exports = {
   registry, BY_NAME, configured, pythonOk, tokenFileExists,
   login, submitMfa, logout, status,
-  buildKwargs, callOne, callMany, dayBundle, dayCalls, warm, startWarmCache,
+  buildKwargs, callOne, callMany, dayBundle, dayCalls, warm, startWarmCache, directCallStats,
 };
