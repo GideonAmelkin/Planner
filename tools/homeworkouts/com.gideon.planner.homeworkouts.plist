@@ -2,10 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Ships the Home Workouts snapshot to RT100 every 6 hours. python3 is run
-       directly (no shell) so it is the one binary that needs Full Disk Access.
+  <!-- Every hour: press Me > Sync Data in the Home Workouts Mac app (skipped while the user is
+       active; retried next hour), export the app, ship the snapshot to RT100. python3 is run
+       directly (no shell) so it is the one binary that needs the grants: Full Disk Access (the
+       app container and this repo) and Accessibility (to click the app). Both in System
+       Settings > Privacy & Security, "+" > Cmd+Shift+G > /Library/Developer/CommandLineTools/usr/bin/python3.
        Install: cp tools/homeworkouts/com.gideon.planner.homeworkouts.plist ~/Library/LaunchAgents/
                 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.gideon.planner.homeworkouts.plist
+       Reinstall after editing: launchctl bootout gui/$(id -u)/com.gideon.planner.homeworkouts, then the two lines above
        Run now: launchctl kickstart -k gui/$(id -u)/com.gideon.planner.homeworkouts
        Log:     ~/Library/Application Support/PlannerHomeWorkouts/sync.log -->
   <key>Label</key>
@@ -14,9 +18,10 @@
   <array>
     <string>/Library/Developer/CommandLineTools/usr/bin/python3</string>
     <string>/Users/gideonamelkin/Documents/Planner/tools/homeworkouts/sync.py</string>
+    <string>--app-sync</string>
   </array>
   <key>StartInterval</key>
-  <integer>21600</integer>
+  <integer>3600</integer>
   <key>RunAtLoad</key>
   <true/>
   <key>StandardOutPath</key>
