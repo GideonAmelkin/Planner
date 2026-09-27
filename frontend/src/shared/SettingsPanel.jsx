@@ -6,25 +6,17 @@ import { todayISO } from './dayInfo';
 import ConnectionRow from './ConnectionRow';
 import GarminSettings from '../garmin/GarminSettings';
 import { COLORS, modalBackdrop, modalCard, modalClose, modalTitle, outlineButton, pill, sectionHeader } from './styles';
+import { snapshotAge } from './snapshotAge';
 
 const PROVIDERS = [
   { key: 'google', name: 'Google', color: COLORS.google, hint: 'GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set in backend/.env' },
   { key: 'outlook', name: 'Outlook', color: COLORS.outlook, hint: 'MS_CLIENT_ID / MS_CLIENT_SECRET not set in backend/.env' },
 ];
 const noticeStyle = { marginTop: 12, padding: '10px 12px', background: COLORS.page, borderRadius: 8, fontSize: 12, color: COLORS.muted, lineHeight: 1.5 };
-const FRESH_MS = 48 * 60 * 60 * 1000;
-
-function relative(iso) {
-  const t = Date.parse(iso);
-  if (!t) return '';
-  const mins = Math.round((Date.now() - t) / 60000);
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `${hours} h ago`;
-  return `${Math.round(hours / 24)} days ago`;
-}
 
 // The Home Workouts snapshot the Mac ships every 6 hours: nothing to click here.
+// Judged by the newest session in it (shared/snapshotAge.js), the same rule and
+// colors as the Workout tab's status line, so the two screens agree.
 function WorkoutConnection() {
   const [status, setStatus] = useState(null);
   useEffect(() => {
@@ -33,14 +25,11 @@ function WorkoutConnection() {
       .catch((err) => setStatus({ available: false, error: err.message || String(err) }));
   }, []);
   if (!status) return <ConnectionRow status="off" name="Home Workouts" detail="Loading..." />;
-  const receivedAt = status.received_at ? Date.parse(status.received_at) : null;
-  const fresh = status.available && receivedAt && Date.now() - receivedAt < FRESH_MS;
-  const detail = status.available
-    ? `Synced ${relative(status.received_at)}${fresh ? '' : ', the Mac has not synced in two days'}`
-    : 'No snapshot on the server yet';
+  const age = snapshotAge(status, todayISO());
+  const dot = age.level === 'ok' ? 'ok' : age.level === 'warn' ? 'warn' : 'error';
   return (
-    <ConnectionRow status={fresh ? 'ok' : 'error'} name="Home Workouts" detail={detail} detailColor={fresh ? undefined : COLORS.danger}>
-      <span style={pill} title="The Mac exports the Home Workouts app and ships one snapshot every 6 hours">Mac sync</span>
+    <ConnectionRow status={dot} name="Home Workouts" detail={age.text.replace(/^Workouts: /, '')} detailColor={age.level === 'ok' ? undefined : age.color}>
+      <span style={pill} title="The Mac exports the Home Workouts app and ships one snapshot every 6 hours; new history only arrives after the Mac app syncs from the phone">Mac sync</span>
     </ConnectionRow>
   );
 }

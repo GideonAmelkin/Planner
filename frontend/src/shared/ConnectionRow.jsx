@@ -1,7 +1,8 @@
 import React from 'react';
 import { COLORS } from './styles';
 
-const DOT = { ok: COLORS.done, error: COLORS.danger, off: COLORS.faint };
+const DOT = { ok: COLORS.done, warn: COLORS.warn, error: COLORS.danger, off: COLORS.faint };
+const TITLE = { ok: 'Connected', warn: 'Getting stale', error: 'Error', off: 'Not connected' };
 
 // One integration in Settings > Connections: status dot, name, detail line,
 // and whatever action sits on the right (a Connect / Disconnect or Sign In /
@@ -14,7 +15,7 @@ export default function ConnectionRow({ status = 'off', name, detail, detailColo
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
         <span
-          title={status === 'ok' ? 'Connected' : status === 'error' ? 'Error' : 'Not connected'}
+          title={TITLE[status] || TITLE.off}
           style={{ width: 8, height: 8, borderRadius: '50%', background: DOT[status] || DOT.off, flexShrink: 0 }}
         />
         <div style={{ minWidth: 0 }}>

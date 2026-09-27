@@ -14,6 +14,7 @@ export const COLORS = {
   todayCell: '#EEF0FE',  // indigo wash
   danger: '#D64545',
   dangerBg: '#FDECEA',
+  warn: '#C98A1B',       // amber: a feed that is getting stale but not yet dead
   done: '#3BA55D',
   google: '#4285F4',
   outlook: '#0F6CBD',

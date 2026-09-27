@@ -10,6 +10,7 @@ import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog } from './api';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
+import { snapshotAge } from '../shared/snapshotAge';
 import { templateBanner, titleLines, APP_BLUE, POPPINS } from './art';
 
 const RANGES = [
@@ -279,6 +280,11 @@ export default function WorkoutView() {
               />
             </div>
           </div>
+          {status ? (
+            // How old the data on this page really is: the snapshot only moves when the
+            // Mac app has pulled new history from the phone. Same rule as Settings.
+            <div style={{ fontSize: 12, color: snapshotAge(status, date).color, marginTop: 8 }}>{snapshotAge(status, date).text}</div>
+          ) : null}
         </div>
         <MiniCalendar dateISO={date} section="workout" marks={workoutDays} />
       </div>
