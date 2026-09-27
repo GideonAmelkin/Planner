@@ -14,7 +14,7 @@ const social = require('./service');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 2500;
-const PROMPT_VERSION = 'v3';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const PROMPT_VERSION = 'v4';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 const MIN_GAP_MS = 30 * 60 * 1000;
 const DAILY_CAP = 12;
 const TOP_N = 5;
@@ -27,23 +27,33 @@ let lastError = null;
 
 const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
-const HOOK_TYPES = ['Curiosity', 'Result', 'Relatability', 'Confession', 'Challenge', 'Contrarian', 'Question', 'Story', 'Milestone', 'How-to'];
+// Suggested hook moves. The model names each hook's move in one or two words and may coin its own.
+const HOOK_TYPES = ['Verdict', 'Mirror', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
 
-const SYSTEM = `You are a TikTok content analyst working for one creator, on their own account only.
+const SYSTEM = `You write TikTok hooks for one creator, in their own voice, from their own data.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
 views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
 divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
-You also receive the account's all-time best posts by multiple for context on what this audience has responded to before.
+You also receive "series": where the creator is today in their current run of daily posts (day number, posts so far,
+days left if it is a 30-day challenge), and the account's all-time best posts for what this audience has responded to.
 
-Hook types, the only labels you may use: ${HOOK_TYPES.join(', ')}.
+Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Coin your own when none fits.
 
-Do three things:
+Do four things:
 1. window_summary: one sentence, at most 25 words, on how the period went.
-2. hook_types: classify the opening line of EVERY video in the window into exactly one hook type. Then look at which
-   types the top-ranked and highest-multiple videos share; those are the types that are working for this creator.
-3. hooks: 8 hooks to consider for the next videos, weighted toward the types that are working. Each is an exact
-   opening line to say in the first three seconds, in the creator's own voice, at most 15 words, grounded in this
-   creator's topics, and tagged with its type. Do not repeat the creator's existing opening lines.
+2. hook_types: name the move of the opening line of EVERY video in the window. Notice which moves the top-ranked
+   and highest-multiple videos share; write toward those.
+3. hooks: 8 hooks to consider for the next videos, weighted toward the moves that are working. Each is the first
+   three seconds as the creator would say them on camera:
+   - one or two short sentences, at most 12 words in total; at least four of the eight under 9 words;
+   - open a loop and do not close it: the line promises, it never explains;
+   - anchored in today's position in the series where it helps (the day number, the days left, what has changed);
+   - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
+     "let me tell you", "what nobody tells you"; never start with a count of days unless it is today's day number;
+   - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
+   Shape examples (shape only, do not copy): "It's working. Just not the way I thought it would." /
+   "I almost skipped today. That's exactly why I didn't." / "You're probably like me. You thought this stuff was soft."
+4. pick: the one hook to post next (its index in hooks, starting at 0) and a caption of at most 6 words.
 
 Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
 periods. Ids only in id fields.`;
@@ -51,33 +61,42 @@ periods. Ids only in id fields.`;
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['window_summary', 'hook_types', 'hooks'],
+  required: ['window_summary', 'hook_types', 'hooks', 'pick'],
   properties: {
     window_summary: { type: 'string', description: 'One sentence, at most 25 words, on the period as a whole.' },
     hook_types: {
       type: 'array',
-      description: 'One entry per video in the window: the type of its opening line.',
+      description: 'One entry per video in the window: the move its opening line makes, one or two words.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['video_id', 'type'],
         properties: {
           video_id: { type: 'string' },
-          type: { type: 'string', enum: HOOK_TYPES },
+          type: { type: 'string', description: 'One or two words naming the move.' },
         },
       },
     },
     hooks: {
       type: 'array',
-      description: '8 hooks to consider, weighted toward the types that are working.',
+      description: '8 hooks to consider, weighted toward the moves that are working.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['hook', 'type'],
         properties: {
-          hook: { type: 'string', description: 'The exact opening line to say, at most 15 words.' },
-          type: { type: 'string', enum: HOOK_TYPES },
+          hook: { type: 'string', description: 'The first three seconds, spoken: one or two short sentences, at most 12 words.' },
+          type: { type: 'string', description: 'One or two words naming the move.' },
         },
+      },
+    },
+    pick: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['index', 'caption'],
+      properties: {
+        index: { type: 'integer', description: 'Index into hooks (0-based) of the one to post next.' },
+        caption: { type: 'string', description: 'At most 6 words.' },
       },
     },
   },
@@ -99,6 +118,37 @@ const median = (nums) => {
   const mid = Math.floor(s.length / 2);
   return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
 };
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dayDiff = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / DAY_MS);
+
+// Where the creator is today in the current run of posts: the run is everything since
+// the last gap of more than RUN_GAP_DAYS between posts (the creator posts most days, not
+// every day). days_left is set when the run reads like a 30-day challenge.
+const RUN_GAP_DAYS = 7;
+function seriesContext(window) {
+  const days = [...new Set(window.videos.map((v) => v.date_posted).filter(Boolean))].sort();
+  if (!days.length) return null;
+  let start = days[0];
+  for (let i = 1; i < days.length; i++) {
+    if (dayDiff(days[i - 1], days[i]) > RUN_GAP_DAYS) start = days[i];
+  }
+  const today = localISO();
+  const dayNumber = dayDiff(start, today) + 1;
+  const text = window.videos.map((v) => `${v.caption || ''} ${v.script || ''}`).join(' ').toLowerCase();
+  const challenge = /\b30 days\b|thirty days|\/30\b/.test(text);
+  const previous = window.previous_post || null;
+  return {
+    today,
+    run_started: start,
+    day_number_today: dayNumber,
+    posts_in_run: window.videos.filter((v) => v.date_posted && v.date_posted >= start).length,
+    newest_post: days[days.length - 1],
+    days_since_last_post: dayDiff(days[days.length - 1], today),
+    gap_before_run_days: previous && start === days[0] ? dayDiff(previous, start) : null,
+    days_left: challenge ? Math.max(0, 30 - dayNumber) : null,
+  };
+}
 
 // Deterministic figures: rank by views, engagement per 1k views, window medians.
 function computeStats(window) {
@@ -126,6 +176,7 @@ function computeStats(window) {
   const ranked = [...videos].sort((a, b) => b.views - a.views || (b.multiple || 0) - (a.multiple || 0));
   ranked.forEach((v, i) => { v.rank = i + 1; });
   return {
+    series: seriesContext(window),
     basis: window.basis,
     start: window.start,
     end: window.end,
@@ -147,6 +198,7 @@ function buildInput(window, stats, best) {
   const byId = new Map(window.videos.map((v) => [v.video_id, v]));
   return {
     period: { basis: stats.basis, start: stats.start, end: stats.end, videos: stats.count, medians: stats.medians },
+    series: stats.series,
     top_performers: stats.top,
     videos: stats.videos.map((v) => ({
       video_id: v.video_id,

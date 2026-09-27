@@ -116,10 +116,13 @@ async function recentWindow() {
     basis = `last ${WINDOW_FALLBACK} posts`;
   }
   const dates = list.map((r) => r.date_posted).filter(Boolean).sort();
+  // The last post before the window, so the review knows how long the account was quiet.
+  const prev = dates.length ? await get(db, 'SELECT MAX(date_posted) AS d FROM videos WHERE date_posted < ?', [dates[0]]) : null;
   return {
     basis,
     start: dates[0] || null,
     end: dates[dates.length - 1] || null,
+    previous_post: prev && prev.d ? prev.d : null,
     videos: list,
   };
 }
