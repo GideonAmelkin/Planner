@@ -13,8 +13,8 @@ const { localISO } = require('../lib/dates');
 const social = require('./service');
 
 const MODEL = 'claude-opus-5';
-const MAX_TOKENS = 4000;
-const PROMPT_VERSION = 'v2';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const MAX_TOKENS = 2500;
+const PROMPT_VERSION = 'v3';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 const MIN_GAP_MS = 30 * 60 * 1000;
 const DAILY_CAP = 12;
 const TOP_N = 5;
@@ -27,55 +27,56 @@ let lastError = null;
 
 const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
+const HOOK_TYPES = ['Curiosity', 'Result', 'Relatability', 'Confession', 'Challenge', 'Contrarian', 'Question', 'Story', 'Milestone', 'How-to'];
+
 const SYSTEM = `You are a TikTok content analyst working for one creator, on their own account only.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
-views, likes, comments, saves, shares, engagement per 1,000 views, and the tracker's "multiple" (views divided by
-a rolling baseline of the creator's own previous posts; 1.0 is a normal post for this account, 2.0 is twice normal).
+views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
+divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
 You also receive the account's all-time best posts by multiple for context on what this audience has responded to before.
 
-Write for a creator scanning a card, not reading a report. Hard limits:
-- window_summary: one sentence, at most 25 words.
-- top_performers: one entry per top performer in the input, same order; why_it_worked is one sentence, at most 18
-  words, naming what made it work (hook, topic, structure, delivery). Do not repeat the numbers; the table shows them.
-- patterns_working and patterns_not_working: at most 4 bullets each, each at most 12 words, specific to this data.
-- recommendations: 6 to 8. hook is the exact opening line to say, in the creator's voice, at most 15 words. idea is
-  one sentence, at most 20 words, on the angle. evidence_video_ids lists the videos it is built on.
+Hook types, the only labels you may use: ${HOOK_TYPES.join(', ')}.
 
-Rules: no preamble, no generic advice, no restating metrics. Plain sentences, no markdown. Never use em dashes or en
-dashes; use commas or periods. Second person ("your"). Refer to videos by date or opening line in prose, ids only in id fields.`;
+Do three things:
+1. window_summary: one sentence, at most 25 words, on how the period went.
+2. hook_types: classify the opening line of EVERY video in the window into exactly one hook type. Then look at which
+   types the top-ranked and highest-multiple videos share; those are the types that are working for this creator.
+3. hooks: 8 hooks to consider for the next videos, weighted toward the types that are working. Each is an exact
+   opening line to say in the first three seconds, in the creator's own voice, at most 15 words, grounded in this
+   creator's topics, and tagged with its type. Do not repeat the creator's existing opening lines.
+
+Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
+periods. Ids only in id fields.`;
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['window_summary', 'top_performers', 'patterns_working', 'patterns_not_working', 'recommendations'],
+  required: ['window_summary', 'hook_types', 'hooks'],
   properties: {
     window_summary: { type: 'string', description: 'One sentence, at most 25 words, on the period as a whole.' },
-    top_performers: {
+    hook_types: {
       type: 'array',
-      description: 'One entry per top performer given in the input, same order.',
+      description: 'One entry per video in the window: the type of its opening line.',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['video_id', 'why_it_worked'],
+        required: ['video_id', 'type'],
         properties: {
           video_id: { type: 'string' },
-          why_it_worked: { type: 'string', description: 'One sentence, at most 18 words, no numbers.' },
+          type: { type: 'string', enum: HOOK_TYPES },
         },
       },
     },
-    patterns_working: { type: 'array', description: 'At most 4, each at most 12 words.', items: { type: 'string' } },
-    patterns_not_working: { type: 'array', description: 'At most 4, each at most 12 words.', items: { type: 'string' } },
-    recommendations: {
+    hooks: {
       type: 'array',
-      description: '6 to 8 next videos.',
+      description: '8 hooks to consider, weighted toward the types that are working.',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['hook', 'idea', 'evidence_video_ids'],
+        required: ['hook', 'type'],
         properties: {
           hook: { type: 'string', description: 'The exact opening line to say, at most 15 words.' },
-          idea: { type: 'string', description: 'One sentence, at most 20 words.' },
-          evidence_video_ids: { type: 'array', items: { type: 'string' } },
+          type: { type: 'string', enum: HOOK_TYPES },
         },
       },
     },
@@ -354,5 +355,5 @@ function startReviewScheduler() {
 }
 
 module.exports = {
-  MODEL, hasKey, computeStats, sanitize, requestGenerate, current, startReviewScheduler, isRunning: () => running,
+  MODEL, HOOK_TYPES, hasKey, computeStats, sanitize, requestGenerate, current, startReviewScheduler, isRunning: () => running,
 };
