@@ -9,7 +9,7 @@ import { num } from '../shared/format';
 const POLL_MS = 3000;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
-// "Next Video Hooks & Ideas": the latest Claude review of the recent videos, in three
+// "Summary": the latest Claude review of the recent videos, in three
 // blocks: Summary, Top performers (the backend's own numbers, each opening line tagged
 // with its hook type) and Hooks to consider (opening lines tagged with their type). The
 // server generates a review each morning when new videos arrive; the card only reads.
@@ -42,7 +42,7 @@ export default function ReviewSection({ videos }) {
     return (v && v.url) || TIKTOK_URL(id);
   };
 
-  const title = 'Next Video Hooks & Ideas';
+  const title = 'Summary';
   const muted = { color: COLORS.muted, fontSize: 13 };
 
   if (error) return <SocialCard title={title}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
@@ -65,7 +65,8 @@ export default function ReviewSection({ videos }) {
   const byId = new Map(stats.videos.map((v) => [v.video_id, v]));
   const typeOf = new Map((review.hook_types || []).map((t) => [t.video_id, t.type]));
   const top = (stats.top || []).map((id) => byId.get(id)).filter(Boolean);
-  const hooks = review.hooks || [];
+  // Reviews made before the typed-hooks prompt carry `recommendations`; show their hook lines untyped.
+  const hooks = review.hooks || (review.recommendations || []).map((r) => ({ hook: r.hook, type: null }));
   const typeTag = (type) => (type ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> ({type})</span> : null);
 
   return (
@@ -73,7 +74,6 @@ export default function ReviewSection({ videos }) {
       {rev.running ? <div style={{ ...muted, marginBottom: 8 }}>Reviewing your recent videos...</div> : null}
       {failed}
 
-      <div style={{ ...blockLabel, marginTop: 4 }}>Summary</div>
       <div style={{ fontSize: 14, lineHeight: 1.5 }}>{review.window_summary}</div>
 
       <div style={blockLabel}>Top performers</div>
