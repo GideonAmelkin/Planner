@@ -240,6 +240,15 @@ function planDay(snap, date) {
   return days.find((d) => d.done_at && d.done_at.slice(0, 10) === date) || null;
 }
 
+// Every gym session with its exercises and sets, oldest first, for the Personal Trainer section.
+// Only the snapshot has sets; phone-only Health sessions are home sessions and are not included.
+function strengthSessions(snap, health) {
+  const gym = allSessions(snap, health).filter((s) => s.kind === 'gym');
+  gym.sort((a, b) => ((a.started_at || '') < (b.started_at || '') ? -1 : 1));
+  const newest = gym[gym.length - 1];
+  return { sessions: gym, weight_unit: (newest && newest.weight_unit) || 'lb' };
+}
+
 function weightsOn(snap, date) {
   return ((snap && snap.weights) || []).filter((w) => w.date === date);
 }
@@ -255,4 +264,4 @@ function day(snap, date, health) {
 
 module.exports = {
   media, mediaPath, SNAPSHOT, HEALTH, load, loadHealth, storeHealth, status, day, recent, sessionsForDate,
-  allSessions, localDateOf, workoutKey, MAX_PUSH_WORKOUTS };
+  allSessions, strengthSessions, localDateOf, workoutKey, MAX_PUSH_WORKOUTS };

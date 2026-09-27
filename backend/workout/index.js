@@ -54,6 +54,14 @@ router.get('/workout/recent', asyncHandler(async (req, res) => {
   res.json({ end: endDate, days, sessions: workout.recent(snap, endDate, days, health), weights: (snap && snap.weights) || [], exported_at: snap ? snap.exported_at : null, health_received_at: health ? health.received_at : null });
 }));
 
+// Every gym session with exercises and sets (recent strips them), oldest first: the Personal Trainer section.
+router.get('/workout/strength', asyncHandler(async (req, res) => {
+  const snap = workout.load();
+  const health = workout.loadHealth();
+  if (!snap && !health) return notAvailable(res);
+  res.json({ ...workout.strengthSessions(snap, health), exported_at: snap ? snap.exported_at : null });
+}));
+
 router.get('/workout/catalog', asyncHandler(async (req, res) => {
   const snap = workout.load();
   if (!snap) return notAvailable(res);

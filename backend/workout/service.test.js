@@ -84,3 +84,20 @@ test('status, recent and day merge the phone report with the snapshot', () => {
 });
 
 test.after(() => fs.rmSync(STATE, { recursive: true, force: true }));
+
+
+test('strengthSessions keeps gym sessions with their sets, oldest first, and leaves home sessions out', () => {
+  const snap = {
+    sessions: [
+      { id: 'gym:2', kind: 'gym', title: 'Lower Body Workout', started_at: '2026-09-27T15:02:49-04:00', date: '2026-09-27', duration_s: 1882, calories: 159, total_weight_kg: 5429.512, weight_unit: 'lb',
+        exercises: [{ action_id: '1279', name: 'Smith Machine Squat', order: 0, sets: [{ reps: 8, weight_kg: 43.091, finished: true }] }] },
+      { id: 'home:1', kind: 'home', title: 'Abs', started_at: '2026-09-26T07:00:00-04:00', date: '2026-09-26', duration_s: 700, exercises: [{}, {}] },
+      { id: 'gym:1', kind: 'gym', title: 'Full Body Workout', started_at: '2026-09-20T15:00:00-04:00', date: '2026-09-20', duration_s: 1500, calories: 120, total_weight_kg: 1000, weight_unit: 'lb', exercises: [] },
+    ],
+  };
+  const out = workout.strengthSessions(snap, null);
+  assert.deepEqual(out.sessions.map((s) => s.id), ['gym:1', 'gym:2']);
+  assert.equal(out.sessions[1].exercises[0].sets[0].weight_kg, 43.091, 'sets are kept');
+  assert.equal(out.weight_unit, 'lb');
+  assert.deepEqual(workout.strengthSessions(null, null), { sessions: [], weight_unit: 'lb' });
+});

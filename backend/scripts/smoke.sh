@@ -43,6 +43,8 @@ check workout-push-auth 401 POST /workout/health
 # 200 once the Mac has shipped a snapshot, 404 before that; both are healthy
 WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/day/$TODAY")
 if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-day ($WCODE)"; else echo "FAIL workout-day: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
+WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/strength")
+if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-strength ($WCODE)"; else echo "FAIL workout-strength: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
 WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/catalog")
 if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-catalog ($WCODE)"; else echo "FAIL workout-catalog: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
 check social-status     200 GET  /social/status
