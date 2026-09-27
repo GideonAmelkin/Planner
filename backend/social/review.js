@@ -13,7 +13,7 @@ const { localISO } = require('../lib/dates');
 const social = require('./service');
 
 const MODEL = 'claude-opus-5';
-const MAX_TOKENS = 2500;
+const MAX_TOKENS = 8000;   // adaptive thinking counts against this; 2500 was hit once
 const PROMPT_VERSION = 'v6';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 const MIN_GAP_MS = 5 * 60 * 1000;   // the card has a Refresh button; the daily cap is the spend guard
 const DAILY_CAP = 12;
