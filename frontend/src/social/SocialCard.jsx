@@ -13,7 +13,7 @@ export default function SocialCard({ title, dot = COLORS.social, children, aside
           {title}
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {aside ? <span style={pill}>{aside}</span> : null}
+          {aside ? <span style={{ ...pill, whiteSpace: 'normal' }}>{aside}</span> : null}
           {actions}
         </span>
       </div>
