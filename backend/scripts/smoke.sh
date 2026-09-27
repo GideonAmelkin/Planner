@@ -44,6 +44,13 @@ WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/day/$TODAY")
 if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-day ($WCODE)"; else echo "FAIL workout-day: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
 WCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/workout/catalog")
 if [ "$WCODE" = 200 ] || [ "$WCODE" = 404 ]; then echo "ok   workout-catalog ($WCODE)"; else echo "FAIL workout-catalog: got $WCODE"; cat /tmp/smoke-body; echo; fail=1; fi
+check social-status     200 GET  /social/status
+check social-bad-id     400 GET  /social/videos/not-an-id
+# 200 with the tracker db on this box, 404 without it; the review is 404 until the first run
+for p in videos review; do
+  SCODE=$(curl -s -o /tmp/smoke-body -w '%{http_code}' "$BASE/social/$p")
+  if [ "$SCODE" = 200 ] || [ "$SCODE" = 404 ]; then echo "ok   social-$p ($SCODE)"; else echo "FAIL social-$p: got $SCODE"; cat /tmp/smoke-body; echo; fail=1; fi
+done
 
 check task-create 200 POST  /tasks "{\"date\":\"$TODAY\",\"text\":\"SMOKE-TEST task\",\"priority\":\"C\"}"; TID=$(id)
 check task-patch    200 PATCH "/tasks/$TID" '{"text":"SMOKE-TEST task edited","status":"completed"}'

@@ -1,0 +1,361 @@
+// The "Next Video Hooks & Ideas" review: Claude reads the creator's recent videos
+// (metrics, the tracker's baseline multiple, transcript, caption) and explains what
+// made the winners work, then proposes the next hooks. The numbers the model sees
+// are computed here and stored next to its text, so the page shows the same figures.
+//
+// The Planner API has no auth and nginx exposes /api/ publicly, so every run is
+// throttled from the social_reviews table: one per 30 minutes, twelve per local day.
+// A scheduler generates one review a day at 07:15 (after the tracker's 06:15 cron and
+// the 06:45 hook job) when the tracker db has new videos since the last review.
+const Anthropic = require('@anthropic-ai/sdk');
+const { run, get, all } = require('../db');
+const { localISO } = require('../lib/dates');
+const social = require('./service');
+
+const MODEL = 'claude-opus-5';
+const MAX_TOKENS = 16000;
+const MIN_GAP_MS = 30 * 60 * 1000;
+const DAILY_CAP = 12;
+const TOP_N = 5;
+const SCHEDULE_HOUR = 7;
+const SCHEDULE_MINUTE = 15;
+const SWEEP_MS = 15 * 60 * 1000;
+
+let running = false;
+let lastError = null;
+
+const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
+
+const SYSTEM = `You are a TikTok content analyst working for one creator, on their own account only.
+You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
+views, likes, comments, saves, shares, engagement per 1,000 views, and the tracker's "multiple" (views divided by
+a rolling baseline of the creator's own previous posts; 1.0 is a normal post for this account, 2.0 is twice normal).
+You also receive the account's all-time best posts by multiple for context on what this audience has responded to before.
+
+Your job:
+1. For each of the top performers listed, explain concretely why it worked: the exact hook wording, the topic, the
+   structure and pacing visible in the transcript, the length, the caption, and which metric shows it (saves and shares
+   signal value, comments signal conversation, likes per 1,000 views signal resonance). Quote the opening line.
+2. Name the patterns across the videos that worked and the ones that did not (hooks, topics, structure, length, delivery).
+3. Propose 6 to 8 next videos. For each give an exact opening line the creator should say (a hook in the creator's own
+   voice, built on what has worked), the idea or angle in one or two sentences, why it should work, and the video ids
+   that are the evidence.
+
+Rules: be specific to this creator's data, never generic advice. Use the actual numbers. Plain sentences, no markdown.
+Never use em dashes or en dashes; use commas or periods. Write in second person ("your"). Refer to videos by their date
+and opening line rather than by id in the prose, and keep ids only in the id fields.`;
+
+const SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['window_summary', 'top_performers', 'patterns_working', 'patterns_not_working', 'recommendations'],
+  properties: {
+    window_summary: { type: 'string', description: 'Two or three sentences on the period as a whole.' },
+    top_performers: {
+      type: 'array',
+      description: 'One entry per top performer given in the input, same order.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['video_id', 'why_it_worked', 'hook_note'],
+        properties: {
+          video_id: { type: 'string' },
+          why_it_worked: { type: 'string', description: 'One paragraph, concrete, with the numbers.' },
+          hook_note: { type: 'string', description: 'One sentence on the hook itself.' },
+        },
+      },
+    },
+    patterns_working: { type: 'array', items: { type: 'string' } },
+    patterns_not_working: { type: 'array', items: { type: 'string' } },
+    recommendations: {
+      type: 'array',
+      description: '6 to 8 next videos.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['hook', 'idea', 'why', 'evidence_video_ids'],
+        properties: {
+          hook: { type: 'string', description: 'The exact opening line to say.' },
+          idea: { type: 'string' },
+          why: { type: 'string' },
+          evidence_video_ids: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+};
+
+// House rule: no em dashes anywhere, including AI text.
+const clean = (s) => String(s).replace(/\s*—\s*/g, ', ').replace(/–/g, '-');
+function sanitize(v) {
+  if (typeof v === 'string') return clean(v);
+  if (Array.isArray(v)) return v.map(sanitize);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sanitize(x)]));
+  return v;
+}
+
+const perK = (n, views) => (views ? Math.round((Number(n) || 0) / views * 10000) / 10 : null);
+const median = (nums) => {
+  const s = nums.filter((x) => x !== null && x !== undefined).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
+
+// Deterministic figures: rank by views, engagement per 1k views, window medians.
+function computeStats(window) {
+  const videos = window.videos.map((v) => {
+    const views = Number(v.views) || 0;
+    return {
+      video_id: v.video_id,
+      date_posted: v.date_posted,
+      url: v.url,
+      caption: v.caption || '',
+      hook: v.hook_summary || '',
+      views,
+      likes: Number(v.likes) || 0,
+      comments: Number(v.comments) || 0,
+      saves: Number(v.saves) || 0,
+      shares: Number(v.shares) || 0,
+      likes_per_k: perK(v.likes, views),
+      comments_per_k: perK(v.comments, views),
+      saves_per_k: perK(v.saves, views),
+      shares_per_k: perK(v.shares, views),
+      multiple: v.multiple === null || v.multiple === undefined ? null : Number(v.multiple),
+      script_chars: (v.script || '').length,
+    };
+  });
+  const ranked = [...videos].sort((a, b) => b.views - a.views || (b.multiple || 0) - (a.multiple || 0));
+  ranked.forEach((v, i) => { v.rank = i + 1; });
+  return {
+    basis: window.basis,
+    start: window.start,
+    end: window.end,
+    count: videos.length,
+    medians: {
+      views: median(videos.map((v) => v.views)),
+      likes: median(videos.map((v) => v.likes)),
+      likes_per_k: median(videos.map((v) => v.likes_per_k)),
+      saves_per_k: median(videos.map((v) => v.saves_per_k)),
+      shares_per_k: median(videos.map((v) => v.shares_per_k)),
+      comments_per_k: median(videos.map((v) => v.comments_per_k)),
+    },
+    top: ranked.slice(0, TOP_N).map((v) => v.video_id),
+    videos: ranked,
+  };
+}
+
+function buildInput(window, stats, best) {
+  const byId = new Map(window.videos.map((v) => [v.video_id, v]));
+  return {
+    period: { basis: stats.basis, start: stats.start, end: stats.end, videos: stats.count, medians: stats.medians },
+    top_performers: stats.top,
+    videos: stats.videos.map((v) => ({
+      video_id: v.video_id,
+      rank_by_views: v.rank,
+      date_posted: v.date_posted,
+      views: v.views, likes: v.likes, comments: v.comments, saves: v.saves, shares: v.shares,
+      likes_per_1k_views: v.likes_per_k, comments_per_1k_views: v.comments_per_k,
+      saves_per_1k_views: v.saves_per_k, shares_per_1k_views: v.shares_per_k,
+      multiple_vs_own_baseline: v.multiple,
+      caption: v.caption,
+      opening_line: v.hook,
+      transcript: (byId.get(v.video_id) || {}).script || '',
+    })),
+    all_time_best_by_multiple: best.map((b) => ({
+      video_id: b.video_id, date_posted: b.date_posted, views: b.views, likes: b.likes, comments: b.comments,
+      saves: b.saves, shares: b.shares, multiple: b.multiple, opening_line: b.hook_summary || '', caption: b.caption || '',
+    })),
+  };
+}
+
+async function callModel(input) {
+  const client = new Anthropic();
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: SYSTEM,
+    messages: [{ role: 'user', content: JSON.stringify(input) }],
+    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+  });
+  if (response.stop_reason !== 'end_turn') {
+    throw new Error(`model stopped early (${response.stop_reason})`);
+  }
+  const text = response.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+  return {
+    result: sanitize(JSON.parse(text)),
+    usage: response.usage || {},
+    model: response.model || MODEL,
+  };
+}
+
+// A readable reason for the stored error column; the SDK's typed errors first.
+function describeError(err) {
+  if (err instanceof Anthropic.RateLimitError) return 'Claude API rate limit; try again later';
+  if (err instanceof Anthropic.AuthenticationError) return 'Claude API key rejected';
+  if (err instanceof Anthropic.APIConnectionError) return `Could not reach the Claude API: ${err.message}`;
+  if (err instanceof Anthropic.APIError) return `Claude API error ${err.status}: ${err.message}`;
+  return err.message || String(err);
+}
+
+const latestRow = (onlyOk) => get(
+  `SELECT * FROM social_reviews ${onlyOk ? 'WHERE error IS NULL' : ''} ORDER BY generated_at DESC, id DESC LIMIT 1`
+);
+
+// null when a run may start now, otherwise { reason, next_allowed_at }.
+async function throttle() {
+  const last = await latestRow(false);
+  if (last) {
+    const at = Date.parse(last.generated_at);
+    if (Date.now() - at < MIN_GAP_MS) {
+      return { reason: 'one review per 30 minutes', next_allowed_at: new Date(at + MIN_GAP_MS).toISOString() };
+    }
+  }
+  const today = localISO();
+  const rowsToday = await all('SELECT generated_at FROM social_reviews ORDER BY generated_at DESC');
+  const n = rowsToday.filter((r) => localISO(new Date(r.generated_at)) === today).length;
+  if (n >= DAILY_CAP) {
+    const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
+    return { reason: `${DAILY_CAP} reviews per day`, next_allowed_at: midnight.toISOString() };
+  }
+  return null;
+}
+
+// The actual run. Writes a row whether it succeeds or fails.
+async function generate(trigger) {
+  running = true;
+  lastError = null;
+  const startedAt = Date.now();
+  const generatedAt = new Date(startedAt).toISOString();
+  let window = null;
+  try {
+    window = await social.recentWindow();
+    if (!window || !window.videos.length) throw new Error('no videos in the tracker database');
+    const stats = computeStats(window);
+    const best = await social.allTimeBest(10);
+    const { result, usage, model } = await callModel(buildInput(window, stats, best));
+    await run(
+      `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
+        input_tokens, output_tokens, duration_ms, stats_json, result_json, error)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      [generatedAt, trigger, stats.start, stats.end, stats.count, window.videos[0] && window.videos[0].video_id, model,
+        usage.input_tokens || null, usage.output_tokens || null, Date.now() - startedAt,
+        JSON.stringify(stats), JSON.stringify(result)]
+    );
+    console.log(`[social] review generated (${trigger}): ${stats.count} videos, ${usage.input_tokens || '?'} in / ${usage.output_tokens || '?'} out, ${Math.round((Date.now() - startedAt) / 1000)} s`);
+  } catch (err) {
+    lastError = describeError(err);
+    console.error(`[social] review failed (${trigger}):`, lastError);
+    await run(
+      `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
+        duration_ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [generatedAt, trigger, window && window.start, window && window.end, window ? window.videos.length : null,
+        window && window.videos[0] ? window.videos[0].video_id : null, MODEL, Date.now() - startedAt, lastError]
+    ).catch((e) => console.error('[social] could not record the failed review:', e.message));
+  } finally {
+    running = false;
+  }
+}
+
+// Start a run in the background. Returns { status, body } for the route.
+async function requestGenerate(trigger = 'manual') {
+  if (!hasKey()) return { status: 503, body: { error: 'ANTHROPIC_API_KEY is not set on the server' } };
+  if (running) return { status: 409, body: { running: true, error: 'a review is already being generated' } };
+  const t = await throttle();
+  if (t) {
+    return {
+      status: 429,
+      body: { error: `Throttled: ${t.reason}`, next_allowed_at: t.next_allowed_at,
+        retry_after_seconds: Math.max(1, Math.ceil((Date.parse(t.next_allowed_at) - Date.now()) / 1000)) },
+    };
+  }
+  generate(trigger);   // not awaited: the page polls GET /social/review
+  return { status: 202, body: { running: true } };
+}
+
+// Videos posted after the review's window or added to it since (the "stale" line).
+function newVideosSince(review, stats, rowsNow) {
+  if (!rowsNow) return 0;
+  const inWindow = new Set((stats.videos || []).map((v) => v.video_id));
+  return rowsNow.filter((r) => r.date_posted && (
+    r.date_posted > review.window_end || (r.date_posted >= review.window_start && !inWindow.has(r.video_id))
+  )).length;
+}
+
+// What GET /social/review returns.
+async function current() {
+  const row = await latestRow(true);
+  const latestAny = await latestRow(false);
+  const t = await throttle();
+  const base = {
+    running,
+    has_key: hasKey(),
+    last_error: latestAny && latestAny.error ? { at: latestAny.generated_at, message: latestAny.error } : (lastError ? { message: lastError } : null),
+    throttle: t ? { reason: t.reason, next_allowed_at: t.next_allowed_at } : null,
+  };
+  if (!row) return { available: false, ...base };
+  const stats = JSON.parse(row.stats_json);
+  const rowsNow = await social.rows();
+  return {
+    available: true,
+    ...base,
+    id: row.id,
+    generated_at: row.generated_at,
+    trigger: row.trigger,
+    model: row.model,
+    window: { basis: stats.basis, start: row.window_start, end: row.window_end, count: row.video_count },
+    usage: { input_tokens: row.input_tokens, output_tokens: row.output_tokens, duration_ms: row.duration_ms },
+    stats,
+    review: JSON.parse(row.result_json),
+    stale: { new_videos: newVideosSince(row, stats, rowsNow) },
+  };
+}
+
+// Daily refresh: once past 07:15, if nothing was generated today and the tracker has
+// videos the last review did not see, run one. Cheap to call often; it is throttled.
+async function maybeAutoGenerate() {
+  if (!hasKey() || running) return;
+  const now = new Date();
+  if (now.getHours() < SCHEDULE_HOUR || (now.getHours() === SCHEDULE_HOUR && now.getMinutes() < SCHEDULE_MINUTE)) return;
+  const latestAny = await latestRow(false);
+  if (latestAny && localISO(new Date(latestAny.generated_at)) === localISO(now)) return;
+  const last = await latestRow(true);
+  const st = await social.status();
+  if (!st.available) return;
+  if (last) {
+    const stats = JSON.parse(last.stats_json);
+    const rowsNow = await social.rows();
+    const changed = st.newest_video_id !== last.newest_video_id || newVideosSince(last, stats, rowsNow) > 0;
+    if (!changed) return;
+  }
+  const t = await throttle();
+  if (t) return;
+  await generate('schedule');
+}
+
+function msUntilNextRun() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), SCHEDULE_HOUR, SCHEDULE_MINUTE, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1);
+  return next - now;
+}
+
+function scheduleDaily() {
+  setTimeout(async () => {
+    await maybeAutoGenerate().catch((e) => console.error('[social] scheduled review:', e.message));
+    scheduleDaily();
+  }, msUntilNextRun());
+}
+
+// Arm the daily job: a 07:15 fire that re-arms, a 15-minute sweep that catches a
+// missed fire (restart, sleep), and one sweep a minute after start-up.
+function startReviewScheduler() {
+  if (!hasKey()) { console.log('[social] ANTHROPIC_API_KEY not set; review scheduler off'); return; }
+  setTimeout(() => maybeAutoGenerate().catch((e) => console.error('[social] start-up review sweep:', e.message)), 60 * 1000);
+  setInterval(() => maybeAutoGenerate().catch((e) => console.error('[social] review sweep:', e.message)), SWEEP_MS);
+  scheduleDaily();
+}
+
+module.exports = {
+  MODEL, hasKey, computeStats, sanitize, requestGenerate, current, startReviewScheduler, isRunning: () => running,
+};

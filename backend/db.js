@@ -181,6 +181,27 @@ db.serialize(() => {
   // Records that a day's incomplete items were pulled forward, so the nightly
   // auto-rollover skips days already handled (manually or by a prior auto run).
   // `date` is the SOURCE day (its leftovers moved to date + 1).
+  // Claude reviews of the recent TikTok videos (social/review.js): the numbers the
+  // model saw (stats_json) beside its text (result_json). Failed runs keep a row too,
+  // with `error` set; the throttle counts every row.
+  db.run(`CREATE TABLE IF NOT EXISTS social_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    generated_at TEXT NOT NULL,
+    trigger TEXT,
+    window_start TEXT,
+    window_end TEXT,
+    video_count INTEGER,
+    newest_video_id TEXT,
+    model TEXT,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    duration_ms INTEGER,
+    stats_json TEXT,
+    result_json TEXT,
+    error TEXT
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_social_reviews_at ON social_reviews(generated_at)`);
+
   db.run(`CREATE TABLE IF NOT EXISTS pull_forward_runs (
     date TEXT PRIMARY KEY,
     trigger TEXT,

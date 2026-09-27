@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const agenda = require('./agenda');
 const { startWarmCache } = require('./garmin/service');
+const { startReviewScheduler } = require('./social/review');
 
 const PORT = process.env.PORT || 5002;
 const JSON_LIMIT = '2mb';
@@ -17,6 +18,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api', agenda);
 app.use('/api', require('./garmin'));
 app.use('/api', require('./workout'));
+app.use('/api', require('./social'));
 
 // Anything thrown inside an asyncHandler lands here.
 app.use((err, req, res, _next) => {
@@ -28,4 +30,5 @@ app.listen(PORT, () => {
   console.log(`Planner backend listening on ${PORT}`);
   agenda.startScheduler();
   startWarmCache();
+  startReviewScheduler();
 });
