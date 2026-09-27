@@ -3,7 +3,7 @@ import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink, blockLabel } from './SocialTable';
 import { getReview } from './api';
 import { shortDate, dateTime, multipleText, count } from './format';
-import { COLORS } from '../shared/styles';
+import { COLORS, pill } from '../shared/styles';
 import { num } from '../shared/format';
 
 const POLL_MS = 3000;
@@ -67,6 +67,7 @@ export default function ReviewSection({ videos }) {
   const top = (stats.top || []).map((id) => byId.get(id)).filter(Boolean);
   // Reviews made before the typed-hooks prompt carry `recommendations`; show their hook lines untyped.
   const hooks = review.hooks || (review.recommendations || []).map((r) => ({ hook: r.hook, type: null }));
+  const pick = review.pick && Number.isInteger(review.pick.index) ? review.pick : null;
   const typeTag = (type) => (type ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> ({type})</span> : null);
 
   return (
@@ -113,7 +114,15 @@ export default function ReviewSection({ videos }) {
             {hooks.map((h, i) => (
               <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
                 <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }}>"{h.hook}"{typeTag(h.type)}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }}>
+                  "{h.hook}"{typeTag(h.type)}
+                  {pick && pick.index === i ? (
+                    <>
+                      <span style={{ ...pill, background: COLORS.calloutBg, color: COLORS.calloutText, marginLeft: 8, padding: '2px 8px', fontSize: 11 }}>Pick</span>
+                      {pick.caption ? <span style={{ color: COLORS.muted, fontWeight: 400, fontSize: 12, marginLeft: 8 }}>caption: {pick.caption}</span> : null}
+                    </>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ol>
