@@ -29,6 +29,7 @@ function WorkoutConnection() {
   const dot = age.level === 'ok' ? 'ok' : age.level === 'warn' ? 'warn' : 'error';
   return (
     <ConnectionRow status={dot} name="Home Workouts" detail={age.text.replace(/^Workouts: /, '')} detailColor={age.level === 'ok' ? undefined : age.color}>
+      <span style={pill} title={age.phone ? `The phone's Shortcut posts Apple Health workouts as they happen; last report ${age.phone.reported}` : 'The phone has not reported yet: set up the Shortcut (deploy/README.md, Home Workouts)'}>{age.phone ? 'Phone push' : 'No phone push'}</span>
       <span style={pill} title="The Mac exports the Home Workouts app and ships one snapshot every 6 hours; new history only arrives after the Mac app syncs from the phone">Mac sync</span>
     </ConnectionRow>
   );

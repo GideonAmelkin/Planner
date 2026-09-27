@@ -49,7 +49,8 @@ const toUnit = (kg, unit) => (kg === null || kg === undefined ? null : (unit ===
 
 // Every date on this tab reads 'Mon, Sep 8, 2026'.
 const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-');
-const kindLabel = (s) => (s.kind === 'gym' ? 'Gym' : 'Home');
+// A session the phone reported through Apple Health and the Mac snapshot does not have yet.
+const kindLabel = (s) => (s.via === 'health' ? 'Home (phone)' : s.kind === 'gym' ? 'Gym' : 'Home');
 // Six gym exercises have no name on disk; the exporter keeps the id, say so instead of a bare number.
 // Exercise thumbnail: the synced JPEG when there is one, else the clip's own frame at 0.5 s
 // (18 clips decode in the browser but not in AVFoundation, so they have no JPEG).
@@ -340,9 +341,9 @@ export default function WorkoutView() {
           </div>
         ) : <div style={{ marginTop: 10, fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>
       ) : null}
-      {status && !counts.sessions ? (
+      {status && !counts.sessions && !(status.health && status.health.count) ? (
         <div style={{ marginTop: 12, fontSize: 12, color: COLORS.muted }}>
-          No workouts in the snapshot yet. Sync the Home Workouts app on the Mac to pull history.
+          No workouts yet: the phone has not reported and the Mac snapshot is empty. Sync the Home Workouts app on the Mac to pull history.
         </div>
       ) : null}
     </div>
@@ -366,8 +367,8 @@ export default function WorkoutView() {
   if (status && !available) {
     return shell(
       <div style={{ ...card, maxWidth: 560, fontSize: 13, lineHeight: 1.6 }}>
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>No Home Workouts snapshot on the server yet.</div>
-        <div>The Mac exports the app's data and ships it here every 6 hours (<code>tools/homeworkouts/sync.py</code>). Run it by hand once, or check that the launchd job has Full Disk Access. See the Home Workouts section of <code>deploy/README.md</code>.</div>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>No Home Workouts data on the server yet.</div>
+        <div>Two things feed this tab: the phone's Shortcut posts Apple Health workouts as they happen, and the Mac exports the app's data every 6 hours (<code>tools/homeworkouts/sync.py</code>). Neither has arrived. See the Home Workouts section of <code>deploy/README.md</code>.</div>
       </div>
     );
   }
@@ -458,7 +459,7 @@ export default function WorkoutView() {
       </WorkoutCard>
       </div>
       <div style={{ fontSize: 11, color: COLORS.faint }}>
-        Home Workouts app data, exported on the Mac and read from <code>backend/workout-state</code>. Only what the Mac copy of the app has synced is here.
+        Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac exports the app every 6 hours (per-exercise detail, only what the Mac copy of the app has synced). Both live in <code>backend/workout-state</code>.
       </div>
     </>
   );

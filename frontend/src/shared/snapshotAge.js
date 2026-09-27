@@ -1,14 +1,23 @@
-// How current the Home Workouts snapshot is, judged by its newest session rather
-// than by when the file arrived: the Mac ships the same bytes every 6 hours whether
-// or not the app on the Mac has pulled new history from the phone, so "synced 2 h
-// ago" says nothing about the data. The Workout tab's status line and the Settings
-// row both use this so the two screens agree.
+// How current the Workout tab's data is. Two sources, one rule, used by the tab's status
+// line and by Settings so the two screens agree:
+//   the phone report (POST /api/workout/health, pushed by the Shortcut as workouts happen):
+//     judged by when the phone last reported, since a rest week has no workouts to show;
+//   the Mac snapshot: judged by its newest session rather than by when the file arrived,
+//     because the Mac ships the same bytes every 6 hours whether or not the app on the Mac
+//     has pulled new history from the phone.
+// Once the phone reports, its age colours the line; the snapshot is then the detail source
+// and only says how old it is in words.
 import { COLORS } from './styles';
 
 export const STALE_AFTER_DAYS = 3;   // amber past this
 export const DEAD_AFTER_DAYS = 7;    // red past this
 
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
+const localDay = (iso) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const todayLocal = () => localDay(new Date().toISOString());
 
 // "Sep 27, 11:32 AM" from an ISO timestamp with offset; "Sep 9" (or "Sep 9, 2025"
 // when the year differs from `asOfISO`) from a calendar date.
@@ -19,22 +28,47 @@ const day = (iso, asOfISO) => {
   return d.toLocaleDateString('en-US', sameYear ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// status is GET /api/workout/status; asOfISO is the day being looked at (the
-// viewed date on the tab, today in Settings). Returns { level, days, text, color }
-// where level is 'ok' | 'warn' | 'danger'.
-export function snapshotAge(status, asOfISO) {
-  if (!status || !status.available) {
-    return { level: 'danger', days: null, color: COLORS.danger, text: 'Workouts: no snapshot on the server' };
-  }
+const levelOf = (days) => (days > DEAD_AFTER_DAYS ? 'danger' : days > STALE_AFTER_DAYS ? 'warn' : 'ok');
+const colorOf = (level) => (level === 'danger' ? COLORS.danger : level === 'warn' ? COLORS.warn : COLORS.muted);
+const ageSuffix = (days) => (days > STALE_AFTER_DAYS ? ` (${days} days)` : '');
+
+// The snapshot half: { level, days, text } with text like "snapshot exported Sep 27, 5:32 PM,
+// newest session Sep 9 (18 days)". Null when there is no snapshot.
+function snapshotPart(status, asOfISO) {
+  if (!status || !status.exported_at) return null;
   const exported = stamp(status.exported_at);
-  const newest = status.last_session && status.last_session.date;
-  if (!newest) {
-    return { level: 'danger', days: null, color: COLORS.danger, text: `Workouts: snapshot exported ${exported}, no sessions in it` };
-  }
+  const last = status.snapshot_last_session || status.last_session;
+  const newest = last && last.date;
+  if (!newest) return { level: 'danger', days: null, text: `snapshot exported ${exported}, no sessions in it` };
   // Looking at a day before the newest session is not staleness.
   const days = Math.max(0, daysBetween(newest, asOfISO));
-  const level = days > DEAD_AFTER_DAYS ? 'danger' : days > STALE_AFTER_DAYS ? 'warn' : 'ok';
-  const color = level === 'danger' ? COLORS.danger : level === 'warn' ? COLORS.warn : COLORS.muted;
-  const age = days > STALE_AFTER_DAYS ? ` (${days} days)` : '';
-  return { level, days, color, text: `Workouts: snapshot exported ${exported}, newest session ${day(newest, asOfISO)}${age}` };
+  return { level: levelOf(days), days, text: `snapshot exported ${exported}, newest session ${day(newest, asOfISO)}${ageSuffix(days)}` };
+}
+
+// The phone half: { level, days, reported, text }. Age is days since the phone last reported,
+// against the real today (the pipe's health does not depend on the day being viewed).
+function phonePart(status, asOfISO) {
+  const h = status && status.health;
+  if (!h || !h.available || !h.received_at) return null;
+  const days = Math.max(0, daysBetween(localDay(h.received_at), todayLocal()));
+  const newest = h.last_workout && h.last_workout.date;
+  const newestText = newest ? `newest workout ${day(newest, asOfISO)}` : 'no workouts reported yet';
+  return { level: levelOf(days), days, reported: stamp(h.received_at), text: `phone reported ${stamp(h.received_at)}${ageSuffix(days)}, ${newestText}` };
+}
+
+// status is GET /api/workout/status; asOfISO is the day being looked at (the viewed date on
+// the tab, today in Settings). Returns { level, days, text, color, phone, snapshot } where level
+// is 'ok' | 'warn' | 'danger' and phone / snapshot are the halves above (null when absent).
+export function snapshotAge(status, asOfISO) {
+  if (!status || !status.available) {
+    return { level: 'danger', days: null, color: COLORS.danger, text: 'Workouts: no snapshot and no phone report on the server', phone: null, snapshot: null };
+  }
+  const phone = phonePart(status, asOfISO);
+  const snapshot = snapshotPart(status, asOfISO);
+  if (!phone) {
+    const s = snapshot || { level: 'danger', days: null, text: 'no snapshot on the server' };
+    return { level: s.level, days: s.days, color: colorOf(s.level), text: `Workouts: ${s.text}`, phone: null, snapshot };
+  }
+  const detail = snapshot ? ` · app detail: ${snapshot.text}` : '';
+  return { level: phone.level, days: phone.days, color: colorOf(phone.level), text: `Workouts: ${phone.text}${detail}`, phone, snapshot };
 }
