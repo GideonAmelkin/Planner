@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { run, get } = require('../db');
 const { localISO } = require('../lib/dates');
+const bus = require('../lib/bus');
 const registry = require('./registry.json');
 
 const GARMIN_DIR = __dirname;
@@ -230,7 +231,9 @@ async function writeCache(name, kwargs, data) {
 
 // Run a batch of {key, name, kwargs}. Reads hit the cache first; whatever is
 // missing goes to Garmin in one bridge run. Returns {key: {ok, data, cached, fetched_at | error, code}}.
-async function callMany(calls, { refresh = false } = {}) {
+// `cacheOnly` never spawns the bridge: a miss comes back as {ok:false, code:'cache_miss'}
+// (the Health ingest's dry run uses it, so a dry run cannot make a Garmin call).
+async function callMany(calls, { refresh = false, cacheOnly = false } = {}) {
   const results = {};
   const pending = [];
   for (const c of calls) {
@@ -240,12 +243,16 @@ async function callMany(calls, { refresh = false } = {}) {
       continue;
     }
     if (entry.kind === 'read') {
-      const hit = await readCache(c.name, c.kwargs, refresh);
+      const hit = await readCache(c.name, c.kwargs, refresh && !cacheOnly);
       if (hit) { results[c.key] = { ok: true, cached: true, fetched_at: hit.fetched_at, data: hit.data }; continue; }
     }
     pending.push(c);
   }
   if (pending.length === 0) return results;
+  if (cacheOnly) {
+    for (const c of pending) results[c.key] = { ok: false, code: 'cache_miss', error: `${c.name} is not in garmin_cache (dry run makes no Garmin calls)` };
+    return results;
+  }
   if (!pythonOk()) {
     for (const c of pending) results[c.key] = { ok: false, code: 'no_python', error: `Python not found at ${PYTHON}` };
     return results;
@@ -300,15 +307,24 @@ async function dayBundle(date, { refresh = false } = {}) {
   return { date, fetched_at: fetched.length ? Math.max(...fetched) : null, results };
 }
 
-// Keep today's bundle warm so the tab opens instantly.
+// Keep today's bundle warm so the tab opens instantly. The bundle is then announced on
+// the bus ('garmin:day') for the Health ingest, which consumes the very same result
+// objects, so the Health store and this cache can never hold different bytes for the
+// same minute. The announcement is guarded: a listener that throws, rejects or hangs
+// cannot fail, delay or change what warm() resolves with. `fetch` is injectable for
+// the test of that guarantee.
 let warmTimer = null;
-async function warm() {
-  if (!tokenFileExists() || pendingLogin || !pythonOk()) return;
+async function warm({ fetch = dayBundle } = {}) {
+  if (fetch === dayBundle && (!tokenFileExists() || pendingLogin || !pythonOk())) return null;
+  let bundle = null;
   try {
-    await dayBundle(localISO());
+    bundle = await fetch(localISO());
   } catch (err) {
     console.error('Garmin warm-cache failed:', err.message);
+    return null;
   }
+  bus.announce('garmin:day', { kind: 'warm', date: bundle.date, results: bundle.results, fetched_at: bundle.fetched_at });
+  return bundle;
 }
 function warmSoon() { setTimeout(warm, 2000); }
 function startWarmCache() {
@@ -320,5 +336,5 @@ function startWarmCache() {
 module.exports = {
   registry, BY_NAME, configured, pythonOk, tokenFileExists,
   login, submitMfa, logout, status,
-  buildKwargs, callOne, callMany, dayBundle, startWarmCache,
+  buildKwargs, callOne, callMany, dayBundle, dayCalls, warm, startWarmCache,
 };

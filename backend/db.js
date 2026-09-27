@@ -1,7 +1,8 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'planner.db');
+// PLANNER_DB_PATH lets the tests open a throwaway file instead of the real database.
+const DB_PATH = process.env.PLANNER_DB_PATH || path.join(__dirname, 'planner.db');
 
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
@@ -206,6 +207,62 @@ db.serialize(() => {
     date TEXT PRIMARY KEY,
     trigger TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // The Health tab's store (health/ingest.js). One row per Garmin calendar date and
+  // metric: `value` is the small JSON the cards read, `payload` the full response of
+  // every Garmin call the metric was derived from (keyed by call), `taken_at` Garmin's
+  // own timestamp for the reading (a write never moves it backwards), `final` set only
+  // once the day is over and the watch has synced past midnight. Nothing here is a
+  // cache: rows are never expired, only superseded by a newer reading.
+  db.run(`CREATE TABLE IF NOT EXISTS health_days (
+    date TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    value TEXT,
+    payload TEXT,
+    taken_at TEXT,
+    fetched_at INTEGER NOT NULL,
+    final INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, metric)
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS health_activities (
+    activity_id INTEGER PRIMARY KEY,
+    date TEXT NOT NULL,
+    type TEXT,
+    name TEXT,
+    start_local TEXT,
+    duration_s REAL,
+    distance_m REAL,
+    calories INTEGER,
+    avg_hr INTEGER,
+    max_hr INTEGER,
+    sets INTEGER,
+    reps INTEGER,
+    polyline TEXT,
+    payload TEXT,
+    taken_at TEXT,
+    fetched_at INTEGER NOT NULL
+  )`);
+  db.run(`CREATE INDEX IF NOT EXISTS idx_health_activities_date ON health_activities(date)`);
+  // One row per ingest run, inserted with started_at before any work so a run that
+  // dies shows as a row without finished_at. The call counters separate what the
+  // run took from garmin_cache from what went to Garmin.
+  db.run(`CREATE TABLE IF NOT EXISTS health_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at INTEGER NOT NULL,
+    finished_at INTEGER,
+    kind TEXT NOT NULL,
+    dates TEXT,
+    ok INTEGER,
+    failed INTEGER,
+    written INTEGER,
+    unchanged INTEGER,
+    stale INTEGER,
+    errors TEXT,
+    dry_run INTEGER NOT NULL DEFAULT 0,
+    calls_total INTEGER,
+    calls_cached INTEGER,
+    calls_garmin INTEGER
   )`);
 });
 

@@ -14,13 +14,14 @@ export const COLORS = {
   todayCell: '#EEF0FE',  // indigo wash
   danger: '#D64545',
   dangerBg: '#FDECEA',
-  warn: '#C98A1B',       // amber: a feed that is getting stale but not yet dead
+  warn: '#9A6A10',       // amber: a feed that is getting stale but not yet dead (4.7:1 on white; #C98A1B was 2.9:1)
   done: '#3BA55D',
   google: '#4285F4',
   outlook: '#0F6CBD',
   garmin: '#007CC3',
   workout: '#B5471B',
   social: '#D93A6A',    // the Social tab's section dot
+  health: '#D0342C',    // the Health tab's glyph and section dot
   calloutBg: '#EEF0FE',  // the quote callout
   calloutText: '#2F3A9E',
   allDayBg: '#E8F0FE',

@@ -14,6 +14,12 @@ function nextDayISO(dateISO) {
   return localISO(new Date(y, m - 1, d + 1));
 }
 
+// 'YYYY-MM-DD' shifted by `delta` days (negative for earlier), also 'YYYY-MM-DD'.
+function shiftISO(dateISO, delta) {
+  const [y, m, d] = dateISO.split('-').map(Number);
+  return localISO(new Date(y, m - 1, d + delta));
+}
+
 // Date or ISO string -> 'YYYY-MM-DDTHH:MM' in local time; null when unparseable.
 function toLocalDateTime(dt) {
   if (!dt) return null;
@@ -33,4 +39,4 @@ function monthPrefix(year, month) {
   return `${year}-${pad(month)}-%`;
 }
 
-module.exports = { pad, localISO, nextDayISO, toLocalDateTime, dayWindow, monthPrefix };
+module.exports = { pad, localISO, nextDayISO, shiftISO, toLocalDateTime, dayWindow, monthPrefix };

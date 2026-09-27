@@ -9,6 +9,7 @@ export const TABS = [
   { section: 'garmin', label: 'Garmin' },
   { section: 'workout', label: 'Workout' },
   { section: 'social', label: 'Social' },
+  { section: 'health', label: 'Health' },
 ];
 
 // Light header bar. `section` is the active tab; every date control stays inside it.

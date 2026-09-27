@@ -4,12 +4,11 @@ import AgendaView from './agenda/AgendaView';
 import GarminView from './garmin/GarminView';
 import WorkoutView from './workout/WorkoutView';
 import SocialView from './social/SocialView';
+import HealthView from './health/HealthView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 
-// The top-level tabs, each with its own /<section>/:date route. 'health' is
-// reserved for the Health dashboard; until it lands, /health/:date redirects to
-// the Garmin tab (see HealthToGarmin).
+// The top-level tabs, each with its own /<section>/:date route.
 export const SECTIONS = ['agenda', 'garmin', 'workout', 'social', 'health'];
 
 function TodayRedirect() {
@@ -40,14 +39,12 @@ function LegacyDayRedirect() {
   return <Navigate to={`/agenda/${isValidISO(date) ? date : todayISO()}`} replace />;
 }
 
-// The Garmin tab lived at /health until 2026-09-27. Its sub-pages redirect for
-// good (bookmarks, old calendar chips); the bare /health/:date redirect is
-// temporary and goes away when the Health dashboard takes that route.
+// The Garmin tab lived at /health until 2026-09-27. Its sub-page URLs redirect for
+// good (bookmarks, old calendar chips); bare /health/:date is the Health tab now.
 function HealthToGarmin() {
   const { date, page, id } = useParams();
   const d = isValidISO(date) ? date : todayISO();
-  const to = id ? `/garmin/${d}/activity/${id}` : page ? `/garmin/${d}/${page}` : `/garmin/${d}`;
-  return <Navigate to={to} replace />;
+  return <Navigate to={id ? `/garmin/${d}/activity/${id}` : `/garmin/${d}/${page}`} replace />;
 }
 
 // On fresh page load (reload, new tab, bookmark), snap any /<section>/:date URL
@@ -77,7 +74,7 @@ export default function App() {
         <Route path="/garmin/:date" element={<Dated section="garmin"><GarminView /></Dated>} />
         <Route path="/garmin/:date/:page" element={<Dated section="garmin"><GarminView /></Dated>} />
         <Route path="/garmin/:date/activity/:id" element={<Dated section="garmin"><GarminView /></Dated>} />
-        <Route path="/health/:date" element={<HealthToGarmin />} />
+        <Route path="/health/:date" element={<Dated section="health"><HealthView /></Dated>} />
         <Route path="/health/:date/:page" element={<HealthToGarmin />} />
         <Route path="/health/:date/activity/:id" element={<HealthToGarmin />} />
         <Route path="/workout/:date" element={<Dated section="workout"><WorkoutView /></Dated>} />
