@@ -14,7 +14,7 @@ const social = require('./service');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 2500;
-const PROMPT_VERSION = 'v5';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const PROMPT_VERSION = 'v6';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 const MIN_GAP_MS = 5 * 60 * 1000;   // the card has a Refresh button; the daily cap is the spend guard
 const DAILY_CAP = 12;
 const TOP_N = 5;
@@ -40,11 +40,10 @@ days left if it is a 30-day challenge), and the account's all-time best posts fo
 Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
 situation before anything about the creator. Coin your own move when none fits.
 
-Do four things:
-1. window_summary: one sentence, at most 25 words, on how the period went.
-2. hook_types: name the move of the opening line of EVERY video in the window. Notice which moves the top-ranked
+Do two things:
+1. hook_types: name the move of the opening line of EVERY video in the window. Notice which moves the top-ranked
    and highest-multiple videos share; write toward those.
-3. hooks: 10 hooks to consider for the next videos, across 4 or 5 moves, at least 2 per move, returned grouped
+2. hooks: 10 hooks to consider for the next videos, across 4 or 5 moves, at least 2 per move, returned grouped
    (all hooks of one move consecutive), the moves ordered by how well that move has performed for this creator.
    Relatable must be one of the moves, and the moves of the top three performers must be included.
    Each hook is the first three seconds as the creator would say them on camera:
@@ -56,7 +55,6 @@ Do four things:
    - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
    Shape examples (shape only, do not copy or paraphrase): "It's working. Just not the way I thought it would." /
    "I almost skipped today. That's exactly why I didn't." / "You're probably like me. You thought this stuff was soft."
-4. pick: the one hook to post next (its index in hooks, starting at 0) and a caption of at most 6 words.
 
 Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
 periods. Ids only in id fields.`;
@@ -64,9 +62,8 @@ periods. Ids only in id fields.`;
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['window_summary', 'hook_types', 'hooks', 'pick'],
+  required: ['hook_types', 'hooks'],
   properties: {
-    window_summary: { type: 'string', description: 'One sentence, at most 25 words, on the period as a whole.' },
     hook_types: {
       type: 'array',
       description: 'One entry per video in the window: the move its opening line makes, one or two words.',
@@ -91,15 +88,6 @@ const SCHEMA = {
           hook: { type: 'string', description: 'The first three seconds, spoken: one or two short sentences, at most 12 words.' },
           type: { type: 'string', description: 'One or two words naming the move.' },
         },
-      },
-    },
-    pick: {
-      type: 'object',
-      additionalProperties: false,
-      required: ['index', 'caption'],
-      properties: {
-        index: { type: 'integer', description: 'Index into hooks (0-based) of the one to post next.' },
-        caption: { type: 'string', description: 'At most 6 words.' },
       },
     },
   },
