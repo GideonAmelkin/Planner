@@ -19,6 +19,7 @@ export const COLORS = {
   outlook: '#0F6CBD',
   garmin: '#007CC3',
   workout: '#B5471B',
+  social: '#D93A6A',    // the Social tab's section dot
   calloutBg: '#EEF0FE',  // the quote callout
   calloutText: '#2F3A9E',
   allDayBg: '#E8F0FE',

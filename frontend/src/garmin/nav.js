@@ -23,6 +23,7 @@ export const NAV = [
   { cluster: 'planner', items: [
     { slug: '__agenda', label: 'Agenda', icon: 'agenda', color: 'white' },
     { slug: '__workout', label: 'Workout', icon: 'workout', color: 'white' },
+    { slug: '__social', label: 'Social', icon: 'social', color: 'white' },
   ] },
   { cluster: 'home', items: [
     { slug: '', label: 'Home', icon: 'home', color: 'white' },

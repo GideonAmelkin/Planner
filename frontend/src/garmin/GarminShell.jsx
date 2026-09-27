@@ -53,6 +53,7 @@ function Sidebar({ dateISO, activeSlug, onNavigate }) {
   const hrefFor = (slug) => {
     if (slug === '__agenda') return `/agenda/${dateISO}`;
     if (slug === '__workout') return `/workout/${dateISO}`;
+    if (slug === '__social') return `/social/${dateISO}`;
     return slug ? `/health/${dateISO}/${slug}` : `/health/${dateISO}`;
   };
 

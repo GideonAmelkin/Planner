@@ -3,11 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from '
 import AgendaView from './agenda/AgendaView';
 import GarminView from './garmin/GarminView';
 import WorkoutView from './workout/WorkoutView';
+import SocialView from './social/SocialView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 
-// Three top-level tabs, each with its own /<section>/:date route.
-export const SECTIONS = ['agenda', 'health', 'workout'];
+// Four top-level tabs, each with its own /<section>/:date route.
+export const SECTIONS = ['agenda', 'health', 'workout', 'social'];
 
 function TodayRedirect() {
   return <Navigate to={`/agenda/${todayISO()}`} replace />;
@@ -45,7 +46,7 @@ function BootRedirectToToday() {
   React.useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    const m = window.location.pathname.match(/^\/(agenda|health|workout)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/);
+    const m = window.location.pathname.match(/^\/(agenda|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/);
     if (m && m[2] !== todayISO()) {
       navigate(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
     }
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="/health/:date/:page" element={<Dated section="health"><GarminView /></Dated>} />
         <Route path="/health/:date/activity/:id" element={<Dated section="health"><GarminView /></Dated>} />
         <Route path="/workout/:date" element={<Dated section="workout"><WorkoutView /></Dated>} />
+        <Route path="/social/:date" element={<Dated section="social"><SocialView /></Dated>} />
         <Route path="/day/:date" element={<LegacyDayRedirect />} />
         <Route path="*" element={<TodayRedirect />} />
       </Routes>
