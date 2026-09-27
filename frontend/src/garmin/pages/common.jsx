@@ -7,7 +7,7 @@ import { series, localOffset } from '../format';
 
 export const ok = (results, key) => (results && results[key] && results[key].ok ? results[key].data : null);
 export const first = (v) => (Array.isArray(v) ? v[0] : v);
-export const pageTo = (slug) => (d) => `/health/${d}/${slug}`;
+export const pageTo = (slug) => (d) => `/garmin/${d}/${slug}`;
 export const rangeOptions = (keys) => RANGES.filter((r) => keys.includes(r.key));
 export const dayMs = (iso) => Date.parse(`${iso}T00:00:00Z`);
 

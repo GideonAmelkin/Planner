@@ -22,7 +22,7 @@ export const hasBespoke = (slug) => !!PAGE_COMPONENTS[slug];
 
 export function MetricHeader({ page, slug, dateISO, range, setRange, narrow }) {
   const ranges = page.ranges || [];
-  const to = (d) => `/health/${d}/${slug}`;
+  const to = (d) => `/garmin/${d}/${slug}`;
   const seg = (active) => ({
     padding: '5px 18px', fontSize: 12, fontWeight: active ? 600 : 400, color: active ? G.text : G.muted,
     background: active ? 'white' : 'transparent', border: 'none', borderRadius: 4, cursor: 'pointer', fontFamily: G.font,

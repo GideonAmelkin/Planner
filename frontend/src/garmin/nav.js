@@ -24,6 +24,7 @@ export const NAV = [
     { slug: '__agenda', label: 'Agenda', icon: 'agenda', color: 'white' },
     { slug: '__workout', label: 'Workout', icon: 'workout', color: 'white' },
     { slug: '__social', label: 'Social', icon: 'social', color: 'white' },
+    { slug: '__health', label: 'Health', icon: 'health', color: 'white' },
   ] },
   { cluster: 'home', items: [
     { slug: '', label: 'Home', icon: 'home', color: 'white' },

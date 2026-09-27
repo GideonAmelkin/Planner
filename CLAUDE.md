@@ -28,7 +28,7 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 ## What is on the page
 
 Four tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
-`/health/:date`, **Workout** at `/workout/:date` and **Social** at `/social/:date` (`/`,
+`/garmin/:date`, **Workout** at `/workout/:date` and **Social** at `/social/:date` (`/`,
 `/day/:date` and anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
 The Agenda, Workout App and Social tabs share a fixed 240px left rail (`AgendaRail`: wordmark,
 the four tab links, Recap / Settings at the bottom) and the card look; each has its own header
@@ -57,7 +57,7 @@ Battery (sparklines behind "View details"), Intensity Minutes, Floors, Calories,
 Respiration, Hydration, HRV, Training, Weight, green activity blocks, and a collapsed
 "All Garmin Endpoints" explorer that lists every mapped endpoint with its parameters and
 the raw JSON it returns. Its sidebar is Garmin's own navigation tree; every item opens a
-sub-page at `/health/:date/<slug>` fed by the mapped endpoints (`frontend/src/garmin/nav.js`),
+sub-page at `/garmin/:date/<slug>` fed by the mapped endpoints (`frontend/src/garmin/nav.js`),
 each laid out like the matching Garmin page (rings, timelines, tables, badges, maps), and items Garmin keeps off its API render Garmin's empty state with a link out.
 
 The Workout App tab shows the Home Workouts app (Leap Health, bundle

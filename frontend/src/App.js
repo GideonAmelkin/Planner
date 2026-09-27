@@ -7,8 +7,10 @@ import SocialView from './social/SocialView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 
-// Four top-level tabs, each with its own /<section>/:date route.
-export const SECTIONS = ['agenda', 'health', 'workout', 'social'];
+// The top-level tabs, each with its own /<section>/:date route. 'health' is
+// reserved for the Health dashboard; until it lands, /health/:date redirects to
+// the Garmin tab (see HealthToGarmin).
+export const SECTIONS = ['agenda', 'garmin', 'workout', 'social', 'health'];
 
 function TodayRedirect() {
   return <Navigate to={`/agenda/${todayISO()}`} replace />;
@@ -38,6 +40,16 @@ function LegacyDayRedirect() {
   return <Navigate to={`/agenda/${isValidISO(date) ? date : todayISO()}`} replace />;
 }
 
+// The Garmin tab lived at /health until 2026-09-27. Its sub-pages redirect for
+// good (bookmarks, old calendar chips); the bare /health/:date redirect is
+// temporary and goes away when the Health dashboard takes that route.
+function HealthToGarmin() {
+  const { date, page, id } = useParams();
+  const d = isValidISO(date) ? date : todayISO();
+  const to = id ? `/garmin/${d}/activity/${id}` : page ? `/garmin/${d}/${page}` : `/garmin/${d}`;
+  return <Navigate to={to} replace />;
+}
+
 // On fresh page load (reload, new tab, bookmark), snap any /<section>/:date URL
 // back to today in that section. SPA navigation within the session is unaffected.
 function BootRedirectToToday() {
@@ -46,7 +58,7 @@ function BootRedirectToToday() {
   React.useEffect(() => {
     if (ran.current) return;
     ran.current = true;
-    const m = window.location.pathname.match(/^\/(agenda|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/);
+    const m = window.location.pathname.match(/^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/);
     if (m && m[2] !== todayISO()) {
       navigate(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
     }
@@ -62,9 +74,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<TodayRedirect />} />
         <Route path="/agenda/:date" element={<Dated section="agenda"><AgendaView /></Dated>} />
-        <Route path="/health/:date" element={<Dated section="health"><GarminView /></Dated>} />
-        <Route path="/health/:date/:page" element={<Dated section="health"><GarminView /></Dated>} />
-        <Route path="/health/:date/activity/:id" element={<Dated section="health"><GarminView /></Dated>} />
+        <Route path="/garmin/:date" element={<Dated section="garmin"><GarminView /></Dated>} />
+        <Route path="/garmin/:date/:page" element={<Dated section="garmin"><GarminView /></Dated>} />
+        <Route path="/garmin/:date/activity/:id" element={<Dated section="garmin"><GarminView /></Dated>} />
+        <Route path="/health/:date" element={<HealthToGarmin />} />
+        <Route path="/health/:date/:page" element={<HealthToGarmin />} />
+        <Route path="/health/:date/activity/:id" element={<HealthToGarmin />} />
         <Route path="/workout/:date" element={<Dated section="workout"><WorkoutView /></Dated>} />
         <Route path="/social/:date" element={<Dated section="social"><SocialView /></Dated>} />
         <Route path="/day/:date" element={<LegacyDayRedirect />} />

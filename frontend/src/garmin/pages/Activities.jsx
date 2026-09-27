@@ -39,7 +39,7 @@ export function AllActivities({ dateISO, results }) {
           <div key={a.activityId} style={{ display: 'grid', gridTemplateColumns: '32px 56px minmax(140px, 1.6fr) repeat(5, minmax(70px, 1fr))', alignItems: 'center', gap: 10, padding: '10px 6px', borderBottom: `1px solid ${G.border}`, fontSize: 13 }}>
             <div style={{ width: 28, height: 28, borderRadius: '50%', background: typeColor(a.activityType && a.activityType.typeKey), display: 'flex', alignItems: 'center', justifyContent: 'center' }}><GarminIcon name={typeIcon(a.activityType && a.activityType.typeKey)} color="white" size={16} /></div>
             <div><div style={{ fontSize: 12 }}>{d.top}</div><div style={{ fontSize: 10, color: G.muted }}>{d.bottom}</div></div>
-            <div><Link to={`/health/${dateISO}/activity/${a.activityId}`} style={{ color: G.text }}>{a.activityName}</Link><div style={{ fontSize: 10, color: G.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{titleCase(a.activityType && a.activityType.typeKey)}</div></div>
+            <div><Link to={`/garmin/${dateISO}/activity/${a.activityId}`} style={{ color: G.text }}>{a.activityName}</Link><div style={{ fontSize: 10, color: G.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{titleCase(a.activityType && a.activityType.typeKey)}</div></div>
             {[[`${num(metersToMiles(a.distance), 2)} mi`, 'Distance'], [hms(a.duration), 'Time'], [pace(a.duration, a.distance), 'Avg Pace'], [a.averageHR ? `${a.averageHR} bpm` : '--', 'Avg HR'], [num(a.calories) || '--', 'Calories']].map(([v, l]) => <div key={l}><div style={{ fontWeight: 300 }}>{v}</div><div style={{ fontSize: 9, color: G.muted, textTransform: 'uppercase', letterSpacing: 0.5 }}>{l}</div></div>)}
           </div>
         );
@@ -78,7 +78,7 @@ export function ActivityDetail({ dateISO, results }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(260px, 1fr)', gap: 16 }}>
       <PageContainer style={{ padding: 'clamp(16px, 3vw, 30px)', maxWidth: 'none', margin: 0 }}>
-        <div style={{ ...sectionLabel, fontSize: 10, marginBottom: 10 }}><Link to={`/health/${dateISO}/activities`} style={{ color: G.text }}>Activities</Link> / By {a.ownerFullName || 'you'}{start ? ` on ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}</div>
+        <div style={{ ...sectionLabel, fontSize: 10, marginBottom: 10 }}><Link to={`/garmin/${dateISO}/activities`} style={{ color: G.text }}>Activities</Link> / By {a.ownerFullName || 'you'}{start ? ` on ${start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} at ${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : ''}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
           <div style={{ width: 36, height: 36, borderRadius: '50%', background: G.surface2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><GarminIcon name={typeIcon(type)} color={typeColor(type)} size={20} /></div>
           <div><div style={{ fontSize: 22, fontWeight: 300 }}>{a.activityName || `Activity ${id}`} <span style={{ color: G.muted, fontSize: 12 }}>✎</span></div><div style={{ fontSize: 10, color: G.muted }}>{titleCase(type)} · Event Type: {titleCase((a.eventTypeDTO || {}).typeKey || 'uncategorized')} · Course: -- · Gear: <span style={{ color: G.blue }}>Add</span></div></div>

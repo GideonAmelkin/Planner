@@ -49,14 +49,14 @@ export function Calendar({ dateISO, results }) {
   const firstDow = new Date(y, m - 1, 1).getDay(); const daysIn = new Date(y, m, 0).getDate();
   const cells = []; for (let i = 0; i < firstDow; i++) cells.push(null); for (let d = 1; d <= daysIn; d++) cells.push(d); while (cells.length % 7) cells.push(null);
   const byDay = {}; acts.forEach((a) => { const d = Number(String(a.startTimeLocal || '').slice(8, 10)); (byDay[d] = byDay[d] || []).push(a); });
-  const monthTo = (delta) => `/health/${new Date(y, m - 1 + delta, 1).toISOString().slice(0, 10)}/calendar`;
+  const monthTo = (delta) => `/garmin/${new Date(y, m - 1 + delta, 1).toISOString().slice(0, 10)}/calendar`;
   const totals = { n: acts.length, dist: acts.reduce((s, a) => s + (a.distance || 0), 0), time: acts.reduce((s, a) => s + (a.duration || 0), 0), cal: acts.reduce((s, a) => s + (a.calories || 0), 0) };
   const today = todayISO();
   return (
     <PageContainer style={{ padding: 'clamp(12px, 2vw, 20px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to={`/health/${today}/calendar`} style={pillButton()}>Today</Link>
+          <Link to={`/garmin/${today}/calendar`} style={pillButton()}>Today</Link>
           <Link to={monthTo(-1)} style={chevronButton}>‹</Link><Link to={monthTo(1)} style={chevronButton}>›</Link>
           <span style={{ fontSize: 14 }}>{new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
         </div>
@@ -70,7 +70,7 @@ export function Calendar({ dateISO, results }) {
           return (
             <div key={i} style={{ minHeight: 84, padding: 4, borderRight: `1px solid ${G.border}`, borderBottom: `1px solid ${G.border}`, background: d ? 'white' : G.surface2, outline: iso === dateISO ? `2px solid ${G.text}` : 'none', outlineOffset: -2 }}>
               {d ? <div style={{ fontSize: 10, color: G.muted }}>{d}</div> : null}
-              {(byDay[d] || []).map((a) => <Link key={a.activityId} to={`/health/${iso}/activity/${a.activityId}`} style={{ display: 'block', fontSize: 9, background: G.green, color: 'white', borderRadius: 2, padding: '2px 4px', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.activityName} · {num(metersToMiles(a.distance), 1)} mi</Link>)}
+              {(byDay[d] || []).map((a) => <Link key={a.activityId} to={`/garmin/${iso}/activity/${a.activityId}`} style={{ display: 'block', fontSize: 9, background: G.green, color: 'white', borderRadius: 2, padding: '2px 4px', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.activityName} · {num(metersToMiles(a.distance), 1)} mi</Link>)}
             </div>
           );
         })}

@@ -25,6 +25,9 @@ const PATHS = {
   agenda: 'M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3zm-2 7v11h14V9zm2 3h10v2H7zm0 4h7v2H7z',
   workout: 'M2 10h2V7h3v10H4v-3H2zm18 0h2v4h-2v3h-3V7h3zM9 9h6v6H9z',
   social: 'M13 2h3c0 2.4 1.9 4.3 4.3 4.3v3a7.2 7.2 0 0 1-4.3-1.4v6.6a5.5 5.5 0 1 1-5.5-5.5c.3 0 .7 0 1 .1v3.1a2.5 2.5 0 1 0 1.5 2.3z',
+  // The Health tab: the heart above with a pulse line cut out of it (the pulse
+  // subpath winds the other way, so it reads as a hole under the nonzero fill).
+  health: 'M12 21.3 3.6 13a5.2 5.2 0 0 1 7.4-7.4l1 1 1-1a5.2 5.2 0 0 1 7.4 7.4zM6 13.25h3l1.5-3 2 6 1.5-3h4v-1.5h-4l-1.5 3-2-6-1.5 3H6z',
   sync: 'M6.5 19a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 17.6 8.2 4 4 0 0 1 17 19h-4v-4h2.5L12 11.5 8.5 15H11v4z',
   recap: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 1 1 0 16 8 8 0 0 1 0-16zm-1 3h2v5.6l3.5 2-1 1.7L11 13.2z',
   settings: 'M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3H9l-.3 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L4.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1c.5.4 1.1.8 1.7 1L9 21h6l.3-2.9c.6-.2 1.2-.6 1.7-1l2.5 1 2-3.5zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z',

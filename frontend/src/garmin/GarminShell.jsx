@@ -54,7 +54,8 @@ function Sidebar({ dateISO, activeSlug, onNavigate }) {
     if (slug === '__agenda') return `/agenda/${dateISO}`;
     if (slug === '__workout') return `/workout/${dateISO}`;
     if (slug === '__social') return `/social/${dateISO}`;
-    return slug ? `/health/${dateISO}/${slug}` : `/health/${dateISO}`;
+    if (slug === '__health') return `/health/${dateISO}`;
+    return slug ? `/garmin/${dateISO}/${slug}` : `/garmin/${dateISO}`;
   };
 
   return (
@@ -99,7 +100,7 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
 
   useEffect(() => { setDrawer(false); }, [dateISO, activeSlug]);
 
-  const onPickDate = (e) => { if (e.target.value) navigate(`/health/${e.target.value}${activeSlug ? `/${activeSlug}` : ''}`); };
+  const onPickDate = (e) => { if (e.target.value) navigate(`/garmin/${e.target.value}${activeSlug ? `/${activeSlug}` : ''}`); };
   const closeDrawer = () => setDrawer(false);
 
   const defaultHeader = (
@@ -114,9 +115,9 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Link to={`/health/${todayISO()}`} style={pillButton()}>Today</Link>
-          <Link to={`/health/${shiftISO(dateISO, -1)}`} style={chevronButton} aria-label="Previous day">‹</Link>
-          <Link to={`/health/${shiftISO(dateISO, 1)}`} style={chevronButton} aria-label="Next day">›</Link>
+          <Link to={`/garmin/${todayISO()}`} style={pillButton()}>Today</Link>
+          <Link to={`/garmin/${shiftISO(dateISO, -1)}`} style={chevronButton} aria-label="Previous day">‹</Link>
+          <Link to={`/garmin/${shiftISO(dateISO, 1)}`} style={chevronButton} aria-label="Next day">›</Link>
         </div>
         <span style={syncedText}>{syncedAt ? `Synced ${syncedAt}` : (loading ? 'Syncing...' : 'Not synced')}</span>
       </div>

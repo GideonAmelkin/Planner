@@ -10,10 +10,10 @@ const REPORT_RANGES = [{ key: '4w', label: 'Most Recent' }, { key: '4w2', label:
 const hms = (sec) => { if (!sec && sec !== 0) return '--'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
 
 const INDEX = (dateISO) => [
-  { key: 'all', label: 'All Activities', to: `/health/${dateISO}/reports`, children: ['Activities', 'Activity Calories', 'Average Heart Rate', 'Average Pace', 'Average Speed', 'Fitness Age', 'FTP', 'HRV Status', 'Max Heart Rate', 'Total Activity Time', 'Total Distance', 'VO2 Max'].map((l) => ({ key: `all:${l}`, label: l })) },
+  { key: 'all', label: 'All Activities', to: `/garmin/${dateISO}/reports`, children: ['Activities', 'Activity Calories', 'Average Heart Rate', 'Average Pace', 'Average Speed', 'Fitness Age', 'FTP', 'HRV Status', 'Max Heart Rate', 'Total Activity Time', 'Total Distance', 'VO2 Max'].map((l) => ({ key: `all:${l}`, label: l })) },
   { key: 'cycling', label: 'Cycling' },
   { key: 'health', label: 'Health & Fitness' },
-  { key: 'running', label: 'Running', children: [['Activities'], ['Activity Calories'], ['Average GCT Balance'], ['Average Ground Contact Time'], ['Average Heart Rate'], ['Average Pace'], ['Average Run Cadence'], ['Average Speed'], ['Average Stride Length'], ['Average Vertical Oscillation'], ['Average Vertical Ratio'], ['HRV Status', 'hrv-status'], ['Lactate Threshold'], ['Max Heart Rate'], ['Race Predictor', 'race-predictor'], ['Total Activity Time'], ['Total Ascent'], ['Total Distance'], ['Training Effect', 'training-effect'], ['VO2 Max', 'vo2-max']].map(([l, slug]) => ({ key: slug || `run:${l}`, label: l, to: slug ? `/health/${dateISO}/${slug}` : null })) },
+  { key: 'running', label: 'Running', children: [['Activities'], ['Activity Calories'], ['Average GCT Balance'], ['Average Ground Contact Time'], ['Average Heart Rate'], ['Average Pace'], ['Average Run Cadence'], ['Average Speed'], ['Average Stride Length'], ['Average Vertical Oscillation'], ['Average Vertical Ratio'], ['HRV Status', 'hrv-status'], ['Lactate Threshold'], ['Max Heart Rate'], ['Race Predictor', 'race-predictor'], ['Total Activity Time'], ['Total Ascent'], ['Total Distance'], ['Training Effect', 'training-effect'], ['VO2 Max', 'vo2-max']].map(([l, slug]) => ({ key: slug || `run:${l}`, label: l, to: slug ? `/garmin/${dateISO}/${slug}` : null })) },
   { key: 'progress', label: 'Progress Summary' },
 ];
 
@@ -87,7 +87,7 @@ export function VO2Max({ dateISO, results }) {
             <div style={{ display: 'inline-block' }}><ArcGauge value={v} /></div>
             <div style={{ fontSize: 16, marginTop: 8 }}>{label}</div>
             <Para style={{ maxWidth: 380, margin: '8px auto' }}>Your VO₂ Max is <strong>{v}</strong> which is {label ? label.toLowerCase() : ''} for men ages 30-39. You are in the <strong>top {v >= 50 ? '15%' : v >= 43 ? '35%' : '60%'}</strong> for your age and gender.</Para>
-            <Link to={`/health/${dateISO}/fitness-age`} style={{ fontSize: 12, color: G.blue }}>View Your Fitness Age</Link>
+            <Link to={`/garmin/${dateISO}/fitness-age`} style={{ fontSize: 12, color: G.blue }}>View Your Fitness Age</Link>
           </>
         )}
       </Center>

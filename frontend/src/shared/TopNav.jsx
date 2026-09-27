@@ -6,14 +6,14 @@ import { COLORS, navButton } from './styles';
 
 export const TABS = [
   { section: 'agenda', label: 'Agenda' },
-  { section: 'health', label: 'Garmin' },
+  { section: 'garmin', label: 'Garmin' },
   { section: 'workout', label: 'Workout' },
   { section: 'social', label: 'Social' },
 ];
 
 // Light header bar. `section` is the active tab; every date control stays inside it.
-// The Agenda tab does not use this bar (it has AgendaRail) and neither does the
-// Garmin tab (components/health/GarminShell.jsx); the Workout tab still does.
+// No tab renders it any more (Agenda, Workout and Social use AgendaRail, Garmin uses
+// garmin/GarminShell.jsx); it stays because it exports TABS.
 export default function TopNav({ dateISO, section = 'agenda' }) {
   const navigate = useNavigate();
 
