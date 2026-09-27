@@ -86,7 +86,7 @@ const SCHEMA = {
 };
 
 // House rule: no em dashes anywhere, including AI text.
-const clean = (s) => String(s).replace(/\s*—\s*/g, ', ').replace(/–/g, '-');
+const clean = (s) => String(s).replace(/\s*\u2014\s*/g, ', ').replace(/\u2013/g, '-');
 function sanitize(v) {
   if (typeof v === 'string') return clean(v);
   if (Array.isArray(v)) return v.map(sanitize);
