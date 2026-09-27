@@ -4,10 +4,13 @@
 //   - a row is never overwritten backwards: an incoming reading whose taken_at is older
 //     than the stored one, or a null where a value exists, is counted as `stale`, not written;
 //   - a final row is never replaced; a day is marked final only by a run that is not the
-//     30-minute "today" pass, for a date before today, when the summary's
-//     lastSyncTimestampGMT is at or after the end of that local day (the watch synced
-//     after midnight, so the totals cannot grow any more). Otherwise the row is written
-//     non-final and the next finalize / catch-up tries again;
+//     30-minute "today" pass, for a date before today, when the newest Garmin sync we know
+//     of is at or after the end of that local day (the watch synced after the day ended,
+//     so the totals cannot grow any more). Garmin reports lastSyncTimestampGMT only on
+//     today's summary (past days carry null), so the sync used is the newest of: the
+//     summaries fetched in this run, and the newest summary stored (today's, kept fresh
+//     by the warm). Otherwise the row is written non-final and the next finalize /
+//     catch-up tries again;
 //   - date is Garmin's calendarDate, never the write date; fetched_at is kept beside it;
 //   - every run is a health_runs row inserted with started_at before any work, so a run
 //     that dies mid-flight shows as a row without finished_at;
@@ -82,7 +85,7 @@ function decide(existing, incoming, force = false) {
   return 'write';
 }
 
-async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, counters, errors, report, today }) {
+async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, counters, errors, report, today, sync }) {
   const cacheOnly = !!dryRun;
   let results = bundle || null;
   // 1. The day bundle (18 calls) unless the warm handed it over.
@@ -100,9 +103,10 @@ async function ingestDay(date, { kind, refresh, dryRun, force, bundle, budget, c
   Object.assign(results, statics);
 
   const summary = results.summary && results.summary.ok ? results.summary.data : null;
-  const lastSync = summary ? parseGmt(summary.lastSyncTimestampGMT) : null;
+  const ownSync = summary ? parseGmt(summary.lastSyncTimestampGMT) : null;
+  if (ownSync !== null && ownSync > sync.newest) sync.newest = ownSync;
   const dayEnd = dayWindow(date).end.getTime();
-  const final = kind !== 'today' && date < today && lastSync !== null && lastSync >= dayEnd;
+  const final = kind !== 'today' && date < today && sync.newest > 0 && sync.newest >= dayEnd;
   const fetchedAt = Date.now();
 
   // 3. Weight: carry the newest earlier weigh-in; seed once from a wide window when the
@@ -216,6 +220,14 @@ async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = fa
   const errors = [];
   const report = [];
   const budget = new Budget(maxCalls);
+  // The newest Garmin sync we know of, from the store (today's summary, written by the
+  // warm every 30 minutes); the run's own summaries can only move it forward.
+  const sync = { newest: 0 };
+  if (!dryRun) {
+    const row = await get(`SELECT MAX(json_extract(payload, '$.summary.data.lastSyncTimestampGMT')) AS s FROM health_days WHERE metric = 'steps'`);
+    const t = row && row.s ? parseGmt(row.s) : null;
+    if (t) sync.newest = t;
+  }
   const startedAt = Date.now();
   let runId = null;
   if (!dryRun) {
@@ -226,7 +238,7 @@ async function ingestDays(dates, { kind = 'manual', refresh = false, dryRun = fa
   let stopped = false;
   try {
     for (const date of dates) {
-      const outcome = await ingestDay(date, { kind, refresh, dryRun, force, bundle: bundles[date] || null, budget, counters, errors, report, today });
+      const outcome = await ingestDay(date, { kind, refresh, dryRun, force, bundle: bundles[date] || null, budget, counters, errors, report, today, sync });
       if (outcome === 'budget_stop') {
         errors.push({ date, call: null, scope: 'run', code: 'budget_stop', error: `stopped before ${date}: the run would exceed ${budget.max} Garmin calls (${budget.used} planned)` });
         stopped = true;

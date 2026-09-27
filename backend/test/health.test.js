@@ -164,6 +164,20 @@ test('--force is the only way past a final row, and the scheduler kinds cannot p
   assert.equal(row.final, 1, 'still final afterwards');
 });
 
+test('a past day with no sync of its own is final once a later stored day proves the watch synced after it', async () => {
+  // Garmin's past-day summaries carry lastSyncTimestampGMT: null; the proof of a sync
+  // after the day comes from the newest stored summary (today's, written by the warm).
+  const d = '2026-09-18';
+  const past = bundle(d, { lastSync: null });
+  past.summary.data.lastSyncTimestampGMT = null;
+  past.summary.data.wellnessEndTimeGmt = '2026-09-19T04:00:00.0';
+  past.activities = ok([]);
+  // The store holds a later day whose summary says the watch synced on the 27th.
+  const out = await ingestDays([d], { kind: 'finalize', bundles: { [d]: past } });
+  const row = await get('SELECT final FROM health_days WHERE date = ? AND metric = ?', [d, 'steps']);
+  assert.equal(row.final, 1, `final via the newest stored sync; errors ${JSON.stringify(out.errors)}`);
+});
+
 test('a today run never finalizes even when the sync is after midnight', async () => {
   const d = '2026-09-20';
   const late = bundle(d, { lastSync: '2026-09-21T12:00:00.0' });
