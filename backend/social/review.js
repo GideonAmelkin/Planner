@@ -4,7 +4,7 @@
 // are computed here and stored next to its text, so the page shows the same figures.
 //
 // The Planner API has no auth and nginx exposes /api/ publicly, so every run is
-// throttled from the social_reviews table: one per 30 minutes, twelve per local day.
+// throttled from the social_reviews table: one per 5 minutes, twelve per local day.
 // A scheduler generates one review a day at 07:15 (after the tracker's 06:15 cron and
 // the 06:45 hook job) when the tracker db has new videos since the last review.
 const Anthropic = require('@anthropic-ai/sdk');
@@ -14,8 +14,8 @@ const social = require('./service');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 2500;
-const PROMPT_VERSION = 'v4';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
-const MIN_GAP_MS = 30 * 60 * 1000;
+const PROMPT_VERSION = 'v5';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const MIN_GAP_MS = 5 * 60 * 1000;   // the card has a Refresh button; the daily cap is the spend guard
 const DAILY_CAP = 12;
 const TOP_N = 5;
 const SCHEDULE_HOUR = 7;
@@ -28,7 +28,7 @@ let lastError = null;
 const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
 // Suggested hook moves. The model names each hook's move in one or two words and may coin its own.
-const HOOK_TYPES = ['Verdict', 'Mirror', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
+const HOOK_TYPES = ['Verdict', 'Relatable', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
 
 const SYSTEM = `You write TikTok hooks for one creator, in their own voice, from their own data.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
@@ -37,21 +37,24 @@ divided by a rolling baseline of the creator's own previous posts; 1.0 is a norm
 You also receive "series": where the creator is today in their current run of daily posts (day number, posts so far,
 days left if it is a 30-day challenge), and the account's all-time best posts for what this audience has responded to.
 
-Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Coin your own when none fits.
+Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
+situation before anything about the creator. Coin your own move when none fits.
 
 Do four things:
 1. window_summary: one sentence, at most 25 words, on how the period went.
 2. hook_types: name the move of the opening line of EVERY video in the window. Notice which moves the top-ranked
    and highest-multiple videos share; write toward those.
-3. hooks: 8 hooks to consider for the next videos, weighted toward the moves that are working. Each is the first
-   three seconds as the creator would say them on camera:
-   - one or two short sentences, at most 12 words in total; at least four of the eight under 9 words;
+3. hooks: 10 hooks to consider for the next videos, across 4 or 5 moves, at least 2 per move, returned grouped
+   (all hooks of one move consecutive), the moves ordered by how well that move has performed for this creator.
+   Relatable must be one of the moves, and the moves of the top three performers must be included.
+   Each hook is the first three seconds as the creator would say them on camera:
+   - one or two short sentences, at most 12 words in total; at least four of the ten are 8 words or fewer;
    - open a loop and do not close it: the line promises, it never explains;
    - anchored in today's position in the series where it helps (the day number, the days left, what has changed);
    - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
      "let me tell you", "what nobody tells you"; never start with a count of days unless it is today's day number;
    - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
-   Shape examples (shape only, do not copy): "It's working. Just not the way I thought it would." /
+   Shape examples (shape only, do not copy or paraphrase): "It's working. Just not the way I thought it would." /
    "I almost skipped today. That's exactly why I didn't." / "You're probably like me. You thought this stuff was soft."
 4. pick: the one hook to post next (its index in hooks, starting at 0) and a caption of at most 6 words.
 
@@ -79,7 +82,7 @@ const SCHEMA = {
     },
     hooks: {
       type: 'array',
-      description: '8 hooks to consider, weighted toward the moves that are working.',
+      description: '10 hooks to consider, grouped by move, at least 2 per move, 4 or 5 moves.',
       items: {
         type: 'object',
         additionalProperties: false,
@@ -258,7 +261,7 @@ async function throttle() {
   if (last) {
     const at = Date.parse(last.generated_at);
     if (Date.now() - at < MIN_GAP_MS) {
-      return { reason: 'one review per 30 minutes', next_allowed_at: new Date(at + MIN_GAP_MS).toISOString() };
+      return { reason: 'one review per 5 minutes', next_allowed_at: new Date(at + MIN_GAP_MS).toISOString() };
     }
   }
   const today = localISO();
