@@ -48,11 +48,7 @@ export default function ReviewSection({ videos }) {
     try {
       const r = await generateReview();
       if (r.status === 202 || r.status === 409) { setRev((cur) => ({ ...(cur || { available: false }), running: true })); return; }
-      if (r.status === 429) {
-        const mins = Math.max(1, Math.ceil((r.retry_after_seconds || 60) / 60));
-        setNotice(`Next refresh in ${mins} min.`);
-        return;
-      }
+      if (r.status === 429) { await load(); return; }   // the cap was hit; the button greys out
       setNotice(r.error || 'Could not start the review.');
     } catch (e) {
       setNotice(e.message);
@@ -62,8 +58,10 @@ export default function ReviewSection({ videos }) {
   const title = 'Summary';
   const muted = { color: COLORS.muted, fontSize: 13 };
   const running = Boolean(rev && rev.running);
+  const capped = Boolean(rev && rev.throttle);   // the day's refreshes are used up
+  const buttonTitle = running ? 'A new set is being written' : capped ? `${rev.throttle.cap} refreshes used today; more tomorrow` : 'Ask for a new set of hooks';
   const refreshButton = (
-    <button type="button" onClick={refresh} disabled={running} title="Ask for a new set of hooks" style={outlineButton(COLORS.accent, { disabled: running })}>
+    <button type="button" onClick={refresh} disabled={running || capped} title={buttonTitle} style={outlineButton(COLORS.accent, { disabled: running || capped })}>
       {running ? 'Refreshing...' : 'Refresh'}
     </button>
   );

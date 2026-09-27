@@ -4,7 +4,7 @@
 // are computed here and stored next to its text, so the page shows the same figures.
 //
 // The Planner API has no auth and nginx exposes /api/ publicly, so every run is
-// throttled from the social_reviews table: one per 5 minutes, twelve per local day.
+// capped from the social_reviews table: five manual runs per local day.
 // A scheduler generates one review a day at 07:15 (after the tracker's 06:15 cron and
 // the 06:45 hook job) when the tracker db has new videos since the last review.
 const Anthropic = require('@anthropic-ai/sdk');
@@ -15,8 +15,9 @@ const social = require('./service');
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 8000;   // adaptive thinking counts against this; 2500 was hit once
 const PROMPT_VERSION = 'v6';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
-const MIN_GAP_MS = 5 * 60 * 1000;   // the card has a Refresh button; the daily cap is the spend guard
-const DAILY_CAP = 12;
+// The card's Refresh button: at most DAILY_CAP manual runs per local day (the 07:15 scheduled run
+// does not count); the button greys out once they are used. No per-run gap.
+const DAILY_CAP = 5;
 const TOP_N = 5;
 const SCHEDULE_HOUR = 7;
 const SCHEDULE_MINUTE = 15;
@@ -243,21 +244,15 @@ const latestRow = (onlyOk) => get(
   `SELECT * FROM social_reviews ${onlyOk ? 'WHERE error IS NULL' : ''} ORDER BY generated_at DESC, id DESC LIMIT 1`
 );
 
-// null when a run may start now, otherwise { reason, next_allowed_at }.
+// null when a manual run may start now, otherwise { reason, next_allowed_at, used, cap }.
+// Failed runs count too: they cost the same call.
 async function throttle() {
-  const last = await latestRow(false);
-  if (last) {
-    const at = Date.parse(last.generated_at);
-    if (Date.now() - at < MIN_GAP_MS) {
-      return { reason: 'one review per 5 minutes', next_allowed_at: new Date(at + MIN_GAP_MS).toISOString() };
-    }
-  }
   const today = localISO();
-  const rowsToday = await all('SELECT generated_at FROM social_reviews ORDER BY generated_at DESC');
-  const n = rowsToday.filter((r) => localISO(new Date(r.generated_at)) === today).length;
-  if (n >= DAILY_CAP) {
+  const rows = await all("SELECT generated_at FROM social_reviews WHERE trigger LIKE 'manual%' ORDER BY generated_at DESC");
+  const used = rows.filter((r) => localISO(new Date(r.generated_at)) === today).length;
+  if (used >= DAILY_CAP) {
     const midnight = new Date(); midnight.setHours(24, 0, 0, 0);
-    return { reason: `${DAILY_CAP} reviews per day`, next_allowed_at: midnight.toISOString() };
+    return { reason: `${DAILY_CAP} refreshes per day`, next_allowed_at: midnight.toISOString(), used, cap: DAILY_CAP };
   }
   return null;
 }
@@ -369,9 +364,7 @@ async function maybeAutoGenerate() {
     const changed = st.newest_video_id !== last.newest_video_id || newVideosSince(last, stats, rowsNow) > 0;
     if (!changed) return;
   }
-  const t = await throttle();
-  if (t) return;
-  await generate('schedule');
+  await generate('schedule');   // the manual cap does not apply to the once-a-day scheduled run
 }
 
 function msUntilNextRun() {
