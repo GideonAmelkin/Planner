@@ -11,7 +11,9 @@ const big = { fontSize: 34, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.
 const mutedSm = { fontSize: 12, color: COLORS.muted };
 const divider = { borderTop: `1px solid ${COLORS.hairline}`, margin: '14px 0 12px' };
 
-export function CardShell({ label, glyph, color, caption, children, style }) {
+// `guide` is the visible grey line (how to read the card); `tooltip` is the provenance,
+// shown on hover.
+export function CardShell({ label, glyph, color, guide, tooltip, children, style }) {
   return (
     <section style={{ ...card, minHeight: MIN_H, display: 'flex', flexDirection: 'column', ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -19,14 +21,14 @@ export function CardShell({ label, glyph, color, caption, children, style }) {
         <span style={{ fontSize: 14, fontWeight: 600 }}>{label}</span>
       </div>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</div>
-      {caption ? <div style={{ fontSize: 10, color: COLORS.faint, marginTop: 12, lineHeight: 1.4, wordBreak: 'break-word' }}>{caption}</div> : null}
+      {guide ? <div title={tooltip || undefined} style={{ fontSize: 12, color: COLORS.muted, marginTop: 12, lineHeight: 1.4, cursor: tooltip ? 'help' : 'default' }}>{guide}</div> : null}
     </section>
   );
 }
 
-export function EmptyCard({ label, glyph, color, reason, caption }) {
+export function EmptyCard({ label, glyph, color, reason, guide, tooltip }) {
   return (
-    <CardShell label={label} glyph={glyph} color={color} caption={caption}>
+    <CardShell label={label} glyph={glyph} color={color} guide={guide} tooltip={tooltip}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '8px 6px' }}>
         <div style={{ width: 56, height: 56, borderRadius: '50%', background: COLORS.page, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
           <Glyph name={glyph} color={COLORS.faint} size={24} />
@@ -137,18 +139,18 @@ const SHAPES = { RING: RingCard, GAUGE: GaugeCard, SPLIT: SplitCard, STACK: Stac
 export default function HealthCard({ spec, row, ctx }) {
   const value = row && row.value;
   if (value === null || value === undefined) {
-    return <EmptyCard label={spec.label} glyph={spec.glyph} color={spec.color} reason={(row && row.absent) || 'Not fetched yet for this day.'} caption={`${spec.metric} · ${ctx.date}`} />;
+    return <EmptyCard label={spec.label} glyph={spec.glyph} color={spec.color} reason={(row && row.absent) || 'Not fetched yet for this day.'} guide={spec.guide} tooltip={`${spec.metric} · ${ctx.date}`} />;
   }
   let p;
   try { p = spec.build(value, ctx); } catch (err) {
-    return <EmptyCard label={spec.label} glyph={spec.glyph} color={spec.color} reason={`The stored value could not be drawn: ${err.message}`} caption={`${spec.metric} · ${ctx.date}`} />;
+    return <EmptyCard label={spec.label} glyph={spec.glyph} color={spec.color} reason={`The stored value could not be drawn: ${err.message}`} guide={spec.guide} tooltip={`${spec.metric} · ${ctx.date}`} />;
   }
   const Shape = SHAPES[spec.shape] || StackCard;
   let caption = null;
   try { caption = spec.caption ? spec.caption(value, ctx) : null; } catch (_) { caption = null; }
   const finalNote = row.final ? '' : ' · not final';
   return (
-    <CardShell label={spec.label} glyph={spec.glyph} color={spec.color} caption={caption ? `${caption}${finalNote}` : null}>
+    <CardShell label={spec.label} glyph={spec.glyph} color={spec.color} guide={spec.guide} tooltip={caption ? `${caption}${finalNote}` : null}>
       <Shape spec={spec} p={p} />
     </CardShell>
   );
