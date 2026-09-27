@@ -1,8 +1,8 @@
 # Planner
 
 A day-per-page digital agenda (the structure of a Franklin Planner Compass-Monarch, drawn
-as a card app since 2026-09-26), plus a Garmin tab fed by Garmin Connect and a Workout App
-tab fed by the Home Workouts iPhone app. Single user, persists to SQLite, pulls events
+as a card app since 2026-09-26), plus a Garmin tab fed by Garmin Connect, a Workout App
+tab fed by the Home Workouts iPhone app and a Social tab fed by the TikTok tracker's database. Single user, persists to SQLite, pulls events
 from Google Calendar and Outlook so the daily timeline shows real meetings next to whatever
 was typed by hand, and pulls the same day's steps, sleep, heart rate and the rest from the
 user's Garmin account.
@@ -27,11 +27,11 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 
 ## What is on the page
 
-Three tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
-`/health/:date` and **Workout** at `/workout/:date` (`/`, `/day/:date` and anything else
-redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
-The Agenda and Workout App tabs share a fixed 240px left rail (`AgendaRail`: wordmark, the
-three tab links, Recap / Settings at the bottom) and the card look; each has its own header
+Four tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
+`/health/:date`, **Workout** at `/workout/:date` and **Social** at `/social/:date` (`/`,
+`/day/:date` and anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
+The Agenda, Workout App and Social tabs share a fixed 240px left rail (`AgendaRail`: wordmark,
+the four tab links, Recap / Settings at the bottom) and the card look; each has its own header
 card. The Garmin tab has its own connect.garmin.com frame.
 
 The Agenda is white cards on a warm grey canvas, in three parts referred to by these names:
@@ -68,6 +68,18 @@ day (exercises and sets), Totals (streak, count, active minutes), Body Weight, L
 and a collapsed Plan and Templates catalog. Only what the Mac copy of the app has synced is
 shown, and the header says when the snapshot was taken. Runs and walks are not exported.
 
+The Social tab shows the user's TikTok account from TikTokAnalyzer's database
+(`~/Documents/Social/TikTokAnalyzer/data/tiktok.db` on RT100, override `TIKTOK_DB_PATH`).
+That tracker's 06:15 cron writes the db and then rewrites the "Tik Tok" Google Sheet from it;
+the Planner is a second, read-only reader of the same file and never writes it, so the sheet
+and the tab always show the same rows. Four stacked cards: a reserved top card, **Next Video
+Hooks & Ideas** (a Claude Opus 5 review of the last 30 days of posts: top performers with the
+backend's own numbers and the model's "why it worked", patterns, 6 to 8 next hooks; rows in
+`social_reviews`; one run per 30 minutes and twelve per day because `/api/` is public; a 07:15
+scheduler refreshes once a day when new videos arrived; needs `ANTHROPIC_API_KEY` in the server
+`.env`), **TikTok Data** (every sheet column, search, sort, click a row for the transcript, Open
+in Google Sheets) and an empty **Competitors** card.
+
 ## Architecture
 
 ```
@@ -86,6 +98,8 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 |    garmin/          index.js router, service.js,      |
 |                     bridge.py, registry.json          |
 |    workout/         index.js router, service.js       |
+|    social/          index.js router, service.js       |
+|                     (reads tiktok.db), review.js      |
 +----------------------------^--------------------------+
                              | axios, retry-once
 +----------------------------v--------------------------+
@@ -94,6 +108,7 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 |    agenda/          AgendaView + the spread's cards   |
 |    garmin/          GarminView, cards, pages, theme   |
 |    workout/         WorkoutView, card, tile, art      |
+|    social/          SocialView, review, data table    |
 |    shared/          api client, dayInfo, styles, rail,|
 |                     modals, mini calendar             |
 +-------------------------------------------------------+
@@ -138,9 +153,10 @@ Planner/
     agenda/               the Agenda tab: routes/, queries, rollover, quotes, calendars
     garmin/               the Garmin tab: router, service, bridge.py, registry.json (+ .venv on the server)
     workout/              the Workout tab: router, snapshot reader
-    lib/                  http + date helpers used by all three
+    social/               the Social tab: router, read-only tiktok.db reader, Claude review
+    lib/                  http + date helpers used by every tab
   frontend/src/           React app, see frontend/CLAUDE.md
-    agenda/ garmin/ workout/   one folder per tab: its view, its components, its api.js
+    agenda/ garmin/ workout/ social/   one folder per tab: its view, its components, its api.js
     shared/               what every tab uses: api client, dayInfo, format, styles, rail, modals
   tools/homeworkouts/     Mac-side Home Workouts exporter, sync job, launchd plist, tests
 ```

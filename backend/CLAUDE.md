@@ -3,7 +3,7 @@
 Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT100
 (`deploy/ecosystem.config.js`). `npm start` is plain `node server.js`.
 
-One folder per tab: `agenda/`, `garmin/`, `workout/`. Each exports an express `Router` from
+One folder per tab: `agenda/`, `garmin/`, `workout/`, `social/`. Each exports an express `Router` from
 its `index.js` that `server.js` mounts at `/api`, and requires only `../db` and `../lib/*`,
 never another tab. `db.js`, `lib/` and `scripts/` are shared.
 
@@ -11,7 +11,7 @@ never another tab. `db.js`, `lib/` and `scripts/` are shared.
 
 | File | Role |
 |---|---|
-| `server.js` | Setup, mounts the three tab routers under `/api`, error middleware, `agenda.startScheduler()` and `startWarmCache()`. |
+| `server.js` | Setup, mounts the four tab routers under `/api`, error middleware, `agenda.startScheduler()`, `startWarmCache()` and `startReviewScheduler()`. |
 | `agenda/index.js` | The Agenda router: mounts every file in `agenda/routes/` and re-exports `startScheduler`. |
 | `agenda/routes/day.js` | `GET /api/day/:date` (the whole spread in one payload) and pull-forward. |
 | `agenda/routes/tasks.js`, `notes.js`, `ongoing.js`, `appointments.js`, `masterTasks.js` | CRUD per resource. Each declares its full `/api/...` paths. |
@@ -31,13 +31,16 @@ never another tab. `db.js`, `lib/` and `scripts/` are shared.
 | `workout/service.js` | Reads `workout-state/home_workouts.json` (shipped by the Mac, see `tools/homeworkouts/`), re-parses on mtime change, filters sessions by local date. Never writes. |
 | `workout/index.js` | `GET /api/workout/{status,day/:date,recent,catalog}`. No upload route on purpose: the API has no auth. |
 | `garmin/index.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
+| `social/service.js` | Read-only reader of the TikTok tracker's `tiktok.db` (`TIKTOK_DB_PATH`, default `~/Documents/Social/TikTokAnalyzer/data/tiktok.db`): `OPEN_READONLY`, busy timeout, re-queries on mtime change, reopens if the inode changes. `rows` (every sheet column, no script), `video(id)` (with script), `summary`, `recentWindow` (last 30 days or the 20 most recent), `allTimeBest`. Never writes. |
+| `social/review.js` | The Claude review: deterministic stats (rank by views, per-1k engagement, medians) + `claude-opus-5` with a JSON schema output, stored in `social_reviews` beside the numbers; em dashes stripped. `requestGenerate` (202 background run; 409 running, 429 throttled: one per 30 min and 12 per day, 503 no key), `current` for the GET, and the 07:15 scheduler (15-minute catch-up sweep) that runs once a day when the tracker has new videos. |
+| `social/index.js` | `GET /api/social/{status,videos,videos/:id,review}`, `POST /api/social/review/generate`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
-| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`. Gitignored; the server copy is the live one. |
+| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`, `ANTHROPIC_API_KEY` (the Social review), optional `TIKTOK_DB_PATH`. Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
 | `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. `media/thumbs/` holds the app's own thumbnails plus frames the Mac renders from the clips with `tools/homeworkouts/thumbs.swift`; the Templates card falls back to the clip's first frame for the few clips AVFoundation cannot decode. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
-## Schema (11 tables)
+## Schema (12 tables)
 
 ```
 tasks                Action Items: priority A/B/C + number, status in_process|completed|forwarded,
@@ -52,6 +55,8 @@ calendar_accounts    One row per connected account: provider, email, tokens, exp
 pull_forward_runs    Which dates were pulled forward and by what trigger (manual|auto).
 daily_tracker        Legacy; no route reads or writes it.
 garmin_cache         Garmin read results: (name, params JSON) -> payload, fetched_at epoch ms.
+social_reviews       One row per Claude review run (also failed ones, with error): generated_at, trigger,
+                     window, video_count, newest_video_id, model, tokens, stats_json, result_json.
 ```
 
 ## API
@@ -90,6 +95,11 @@ garmin_cache         Garmin read results: (name, params JSON) -> payload, fetche
 | GET | `/api/workout/day/:date` | `{sessions, plan_day, weights}` for that local date; 404 `{available:false}` without a snapshot |
 | GET | `/api/workout/recent?end=&days=` | sessions (sets stripped) in the window, newest first, plus every weigh-in |
 | GET | `/api/workout/catalog` | `{templates, plan}` |
+| GET | `/api/social/status` | `{available, videos, total_views, views_30d, posts_30d, last_post, newest_video_id, updated_at, review:{has_key, running}}` |
+| GET | `/api/social/videos` | `{summary, videos, updated_at}`: every column of the tracker's `videos` table except `script`, newest first; 404 `{available:false}` without the db |
+| GET | `/api/social/videos/:id` | one video with `script` and `script_summary`; 400 non-numeric id, 404 unknown |
+| GET | `/api/social/review` | the latest successful review: `{review, stats, window, generated_at, usage, running, stale:{new_videos}, throttle, last_error}`; 404 `{available:false, running, throttle}` before the first run |
+| POST | `/api/social/review/generate` | starts a run in the background: 202 `{running}`; 409 already running; 429 `{error, next_allowed_at, retry_after_seconds}`; 503 no `ANTHROPIC_API_KEY` |
 | GET | `/api/workout/media/{video\|thumb}/:id` | the app's own exercise clip / thumbnail for an action id, from `workout-state/media/` (shipped by `tools/homeworkouts/sync.py`: the app's cached clips plus the rest fetched from its CDN by `fetch_media.py`); Range supported; `catalog.media` lists what exists |
 
 Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}` or

@@ -6,8 +6,8 @@ React 19, `react-scripts 5.0.1`, inline styles. Built on the server with
 
 ## Routes (`src/App.js`)
 
-`/agenda/:date` renders `agenda/AgendaView`, `/health/:date` renders `garmin/GarminView` and
-`/workout/:date` renders `workout/WorkoutView`;
+`/agenda/:date` renders `agenda/AgendaView`, `/health/:date` renders `garmin/GarminView`,
+`/workout/:date` renders `workout/WorkoutView` and `/social/:date` renders `social/SocialView`;
 `/`, the legacy `/day/:date` and unknown paths redirect to today's agenda. On a fresh page
 load any `/<section>/:date` snaps back to today in that section (`BootRedirectToToday`). `src/index.js` turns
 `?connected=` / `?calendar_error=` query params from the OAuth callback into a toast in
@@ -22,6 +22,7 @@ One folder per tab plus `shared/`:
   (one bespoke page per sidebar item), `primitives/` (the connect.garmin.com building blocks),
   `nav.js`, `theme.js`, `format.js`, `api.js`, `GarminSettings.jsx`.
 - `workout/`: `WorkoutView.jsx`, `WorkoutCard`, `WorkoutTile`, `art.js`, `api.js`.
+- `social/`: `SocialView.jsx`, `ReviewSection`, `DataSection`, `SocialCard`, `SocialTable`, `format.js`, `api.js`.
 - `shared/`: the axios client, `dayInfo`, `format`, `styles`, `AgendaRail`, `TopNav`,
   `NavLinks`, `RecapPanel`, `SettingsPanel`, `ConnectionRow`, `MiniCalendar`, `CheckMark`,
   `CalendarToast`.
@@ -46,8 +47,10 @@ Settings is where the connections live. Relative imports only; there is no `jsco
 | `garmin/MetricPage.jsx` | Loads a sub-page's registry calls in one `POST /api/garmin/batch` (plus a prelude call for pages that need the profile id) and dispatches to the bespoke component from `garmin/pages/index.js`; the generic `MetricHeader` + AutoData cards remain as the fallback for any slug without one. |
 | `garmin/AutoData.jsx` | Renders any endpoint payload Garmin-style: `[[ts, v]]` -> sparkline, arrays of objects -> table, objects -> key / value grid with nested sections; ids hidden; raw JSON behind a toggle. |
 | `workout/WorkoutView.jsx` | The Workout tab: loads `GET /api/workout/status`, `recent` and `catalog`, renders `AgendaRail` plus one header card (date headline with the day controls inline, `MiniCalendar` with green circles top right from a 45-day `recent` fetch, six tiles Height / Weight with the change over the range / Workouts / Duration / Streak / Last workout next to the range select 1 / 7 / 30 / 90 / 180 / 365 days / Lifetime / Custom, `RangeBars` by day up to 31 days then week / month / quarter with the count over each bar, and a collapsed "N workouts <range>" log with one row per day: types joined, durations and counts summed, empty columns hidden, the shown day tinted) and the Templates card (app banners from `workoutArt`, detail panel below the grid). |
+| `social/SocialView.jsx` | The Social tab: `AgendaRail` plus four stacked cards. A reserved empty top card; `ReviewSection` (loads `GET /api/social/review`, polls every 3 s while `running`, Regenerate posts `/api/social/review/generate` and shows the server's throttle or error; top performers table from `stats`, the model's paragraphs, What is working / What is not, the numbered hooks with "Based on" links); `DataSection` (tiles from `summary`, every sheet column in sheet order, search over caption / hook / id / date, click a header to sort, click a row to expand it and fetch the transcript from `GET /api/social/videos/:id`, 100 rows at a time, Open in Google Sheets); an empty Competitors card. |
+| `social/SocialCard.jsx`, `SocialTable.jsx`, `format.js` | Card (dotted title, aside pill, `actions` slot) and tile plus the table styles, copies of the Workout tab's because tabs do not import each other; `shortDate`, `monthDay`, `dateTime`, `multipleText`, `count`. |
 | `workout/WorkoutCard.jsx`, `WorkoutTile.jsx` | Card in the Agenda look (dotted title via `dot`, aside as a pill, `actions` slot for controls) and label-over-number tile for the Workout App tab, plus the shared table styles (`tileGrid`, `table`, `th`, `td`, `tableLink`). |
-| `shared/TopNav.jsx` | Light header bar (tabs, Prev / Today / Next, date picker, `NavLinks`). No tab renders it any more: Agenda and Workout use `AgendaRail`, Garmin uses `GarminShell`. Kept because it exports `TABS`. |
+| `shared/TopNav.jsx` | Light header bar (tabs, Prev / Today / Next, date picker, `NavLinks`). No tab renders it any more: Agenda, Workout and Social use `AgendaRail`, Garmin uses `GarminShell`. Kept because it exports `TABS`. |
 | `shared/NavLinks.jsx` | Recap and Settings buttons plus their modals; `direction="column"` stacks them for the rail. |
 | `workout/art.js`, `public/workout-art/` | The Home Workouts app's own template banners and detail headers (ids 101..113), copied once from the app bundle on the Mac; helpers `templateBanner`, `templateHeader`, `titleLines`, plus the app's blue and the Poppins stack used only on art overlays. Never load from the bundle path at runtime. |
 | `shared/ConnectionRow.jsx` | One row of Settings > Connections: status dot (green ok, red error, grey off), name, detail line, action on the right. |
@@ -75,7 +78,7 @@ Settings is where the connections live. Relative imports only; there is no `jsco
 | `shared/RecapPanel.jsx`, `SettingsPanel.jsx` | Modals, portalled to `document.body`: completed items by date; Settings > Connections lists Google / Outlook accounts (dot red when today's `calendar_errors` names the account, Connect / Disconnect), Garmin (Sign In / Sign Out) and the Home Workouts snapshot (Mac sync, red when older than 48 h). |
 | `shared/CalendarToast.jsx` | The post-OAuth toast. |
 | `shared/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx), `API_BASE` (used by Settings to build the connect URL and by the Workout tab for media URLs), and the calls more than one tab makes: `getDay`, `getRecap`, the calendar accounts. |
-| `agenda/api.js`, `garmin/api.js`, `workout/api.js` | One export per endpoint of that tab, built on the shared client: the list / appointment / Monthly Goals calls; the Garmin calls (`getGarminDay`, `callGarmin`, `garminBatch`, `postGarmin`, sign-in); the Workout reads (`getWorkoutStatus`, `getWorkoutRecent`, `getWorkoutCatalog`; 404 means no snapshot yet). |
+| `agenda/api.js`, `garmin/api.js`, `workout/api.js`, `social/api.js` | One export per endpoint of that tab, built on the shared client: the list / appointment / Monthly Goals calls; the Garmin calls (`getGarminDay`, `callGarmin`, `garminBatch`, `postGarmin`, sign-in); the Workout reads (`getWorkoutStatus`, `getWorkoutRecent`, `getWorkoutCatalog`; 404 means no snapshot yet); the Social reads (`getSocialStatus`, `getSocialVideos`, `getSocialVideo`, `getReview`; 404 means no tracker db or no review yet) and `generateReview` (202 / 409 / 429 / 503 resolved, not thrown). |
 | `shared/dayInfo.js` | `todayISO`, `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `headlineLong`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |
 | `shared/styles.js` | `COLORS` tokens (card look: white cards, `#F5F4F0` canvas, indigo accent; every key is also read by the Workout tab and the shared modals, so keep the keys), `card`, `pill`, `PRIORITY_CHIPS`, `GOAL_WASH`, `SECTION_DOTS`, `sectionDot`, `INDENT_PX`, and the shared style objects (section header, row input, nav button, outline button, modal shell, drop-zone borders). |
 
