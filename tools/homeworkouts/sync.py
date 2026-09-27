@@ -2,8 +2,12 @@
 """Export the Home Workouts app's data on this Mac and ship the snapshot to the
 Planner backend on RT100.
 
-Runs from launchd every 6 hours (com.gideon.planner.homeworkouts.plist) and
-by hand:  python3 tools/homeworkouts/sync.py
+Runs from launchd every hour (com.gideon.planner.homeworkouts.plist, with --app-sync) and
+by hand:  python3 tools/homeworkouts/sync.py [--app-sync]
+
+--app-sync first presses Me > Sync Data in the Home Workouts Mac app (app_sync.py), so the
+export sees the account's latest cloud backup. Without it the export reads whatever the app
+last synced. The app-sync outcome is stamped into the snapshot as source.app_sync.
 
 Besides the JSON it ships the app's own exercise clips and thumbnails (the app
 downloads a clip the first time an exercise is started, into its cache, named by
@@ -26,6 +30,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import app_sync  # noqa: E402
 import export  # noqa: E402
 import fetch_media  # noqa: E402
 
@@ -115,18 +120,43 @@ def snapshot_action_ids(path):
     return {i for i in ids if i.isdigit()}
 
 
-def main():
+def stamp_app_sync(path, outcome, at):
+    """Record the app-sync outcome in the snapshot's source block (the tab's status line shows it)."""
+    with open(path) as f:
+        snap = json.load(f)
+    snap.setdefault('source', {})['app_sync'] = {'at': at, 'outcome': outcome}
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(snap, f, indent=1)
+    os.replace(tmp, path)
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    do_app_sync = '--app-sync' in argv
     os.makedirs(STATE_DIR, exist_ok=True)
     log = open(LOG, 'a')
     os.dup2(log.fileno(), sys.stdout.fileno())
     os.dup2(log.fileno(), sys.stderr.fileno())
     os.environ['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin:' + os.environ.get('PATH', '')
     stamp = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
-    print('== %s sync start' % stamp())
+    print('== %s sync start%s' % (stamp(), ' (app sync first)' if do_app_sync else ''))
+    app_outcome = None
+    if do_app_sync:
+        app_at = time.strftime('%Y-%m-%dT%H:%M:%S%z')
+        try:
+            app_outcome = app_sync.trigger(log=lambda m: print('   ' + m))
+        except Exception as e:  # the export must still ship whatever the app has
+            app_outcome = 'error'
+            print('   app sync: error: %s' % e)
+        print('== %s app sync: %s' % (stamp(), app_outcome))
+        sys.stdout.flush()
     rc = export.main(['--out', SNAPSHOT])
     if rc != 0:
         print('== %s sync failed: export exit %d' % (stamp(), rc))
         return rc
+    if app_outcome is not None:
+        stamp_app_sync(SNAPSHOT, app_outcome, app_at)
     sys.stderr.flush()
     try:
         new_clips, new_thumbs = stage_media()
