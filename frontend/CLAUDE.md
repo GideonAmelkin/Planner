@@ -6,7 +6,7 @@ React 19, `react-scripts 5.0.1`, inline styles. Built on the server with
 
 ## Routes (`src/App.js`)
 
-`/agenda/:date` renders `agenda/AgendaView`, `/garmin/:date` renders `garmin/GarminView` (the tab lived at `/health` until 2026-09-27; `/health/:date/...` sub-page links redirect to `/garmin` for good, and bare `/health/:date` redirects there until the Health dashboard takes that route),
+`/agenda/:date` renders `agenda/AgendaView`, `/garmin/:date` renders `garmin/GarminView` (the tab lived at `/health` until 2026-09-27; `/health/:date/<page>` and `/health/:date/activity/:id` redirect to `/garmin` for good), `/health/:date` renders `health/HealthView`,
 `/workout/:date` renders `workout/WorkoutView` and `/social/:date` renders `social/SocialView`;
 `/`, the legacy `/day/:date` and unknown paths redirect to today's agenda. On a fresh page
 load any `/<section>/:date` snaps back to today in that section (`BootRedirectToToday`). `src/index.js` turns
@@ -23,9 +23,13 @@ One folder per tab plus `shared/`:
   `nav.js`, `theme.js`, `format.js`, `api.js`, `GarminSettings.jsx`.
 - `workout/`: `WorkoutView.jsx`, `WorkoutCard`, `WorkoutTile`, `art.js`, `api.js`.
 - `social/`: `SocialView.jsx`, `ReviewSection`, `DataSection`, `SocialCard`, `SocialTable`, `format.js`, `api.js`.
+- `health/`: `HealthView.jsx`, `sections.jsx` (Today's Activity, In Focus, Glance, Last 7 Days), `HealthCard.jsx` (the card shell, the four shapes, the empty state), `cards.js` (the declared card array), `format.js`, `api.js`.
 - `shared/`: the axios client, `dayInfo`, `format`, `styles`, `AgendaRail`, `TopNav`,
   `NavLinks`, `RecapPanel`, `SettingsPanel`, `ConnectionRow`, `MiniCalendar`, `CheckMark`,
-  `CalendarToast`.
+  `CalendarToast`, `snapshotAge`, `Glyph` (glyph paths copied from the Garmin icon set) and
+  `charts/` (theme-agnostic SVG charts: copies of the Garmin tab's `RingGauge`, `ArcGauge` and
+  `Sparkline`, extended, plus `LetterStrip`, `DotStrip`, `SplitBar`, `RouteTrace`, `WeekBars`;
+  colors in `palette.js`, every mark at least 3:1 on white).
 
 A tab folder imports from `shared/` and from itself, never from another tab. `shared/`
 imports only `shared/`, with one exception: `SettingsPanel.jsx` renders
@@ -48,6 +52,10 @@ Settings is where the connections live. Relative imports only; there is no `jsco
 | `garmin/AutoData.jsx` | Renders any endpoint payload Garmin-style: `[[ts, v]]` -> sparkline, arrays of objects -> table, objects -> key / value grid with nested sections; ids hidden; raw JSON behind a toggle. |
 | `workout/WorkoutView.jsx` | The Workout tab: loads `GET /api/workout/status`, `recent` and `catalog`, renders `AgendaRail` plus one header card (date headline with the day controls inline, `MiniCalendar` with green circles top right from a 45-day `recent` fetch, six tiles Height / Weight with the change over the range / Workouts / Duration / Streak / Last workout next to the range select 1 / 7 / 30 / 90 / 180 / 365 days / Lifetime / Custom (opens on 30 days), `RangeBars` by day up to 31 days then week / month / quarter with the count over each bar, and a collapsed "N workouts <range>" log with one row per day: types joined, durations and counts summed, empty columns hidden, the shown day tinted) and the Templates card (app banners from `workoutArt`, detail panel below the grid). |
 | `social/SocialView.jsx` | The Social tab: `AgendaRail` plus four stacked cards. A reserved empty top card; `ReviewSection` (the card titled Summary; loads `GET /api/social/review`, polls every 3 s while `running`; a Refresh button posts `/api/social/review/generate` and shows "Next refresh in N min" on a 429: Top performers from `stats` with each opening line's hook type from `hook_types`, and Hooks to consider, ten numbered hook lines in the model's grouped order, each ending in its move in italics); `DataSection` (tiles from `summary`, every sheet column in sheet order, search over caption / hook / id / date, click a header to sort, click a row to expand it and fetch the transcript from `GET /api/social/videos/:id`, 100 rows at a time, Open in Google Sheets); an empty Competitors card. |
+| `health/HealthView.jsx` | The Health tab: `AgendaRail` plus a header card (date headline, Prev / Today / Next + date field within `/health/`, a Fetch now button that posts `/api/health/fetch`, and the store's status line: muted normally, amber when the 24-hour direct-call count exceeds the design budget, red after three failed runs, a needed sign-in code or a run that never finished), then the four sections. Reads `GET /api/health/day/:date` and `/status` only; never Garmin live. |
+| `health/sections.jsx` | `TodayActivity` (one card per activity: name, filled glyph, duration for strength or distance for a run, dot-separated facts, a `RouteTrace` for runs, link to the Garmin activity page), `InFocus` (this Mon-Sun week's active time, `WeekBars` with hollow bars for non-final days, a 28-dot `DotStrip` only once 28 days are stored, else a muted note), `Glance` (the grid: 4 across from 1100px of viewport, 2 below, via matchMedia) and `LastSeven` (literal counts, "Avg" spelled out, "of N days" when fewer than 7 have data). |
+| `health/cards.js` | The At a Glance cards as data: metric key, shape (`RING`, `GAUGE`, `SPLIT`, `STACK`), label, glyph, color, footer variant (`letters`, `spark`, `series`), a `build(value, ctx)` that turns the stored value into shape props, and a `caption` naming the Garmin call, field and reading date. Ten cards in the phone's order, then the stored metrics with no phone card (sleep, body battery, pulse ox, respiration, hydration, training readiness) as stack cards. Pruning the grid is an edit to this array. |
+| `health/HealthCard.jsx` | `CardShell` (glyph, title, body, caption), `EmptyCard` (full height and slot kept: muted glyph disc, the metric name, one sentence why) and the four shapes: ring with the goal under it and a Last 7d footer, three-quarter zone gauge with a knob, split bar with labelled ends, stacked numbers with an updated line. |
 | `social/SocialCard.jsx`, `SocialTable.jsx`, `format.js` | Card (dotted title, aside pill, `actions` slot) and tile plus the table styles, copies of the Workout tab's because tabs do not import each other; `shortDate`, `monthDay`, `dateTime`, `multipleText`, `count`. |
 | `workout/WorkoutCard.jsx`, `WorkoutTile.jsx` | Card in the Agenda look (dotted title via `dot`, aside as a pill, `actions` slot for controls) and label-over-number tile for the Workout App tab, plus the shared table styles (`tileGrid`, `table`, `th`, `td`, `tableLink`). |
 | `shared/TopNav.jsx` | Light header bar (tabs, Prev / Today / Next, date picker, `NavLinks`). No tab renders it any more: Agenda, Workout and Social use `AgendaRail`, Garmin uses `GarminShell`. Kept because it exports `TABS`. |
@@ -107,4 +115,23 @@ Settings is where the connections live. Relative imports only; there is no `jsco
   container. The reference screenshots of every Garmin page taken on 2026-09-26 are listed
   in the plan file for that day's session (`~/.claude/plans/lets-add-another-tab-crispy-book.md`). Sleep stages use Garmin's deep / light / REM / awake
   colors and are always labeled; text never takes a series color.
+- The Health tab is a standalone tab in the Agenda dialect. It keeps the four sections and
+  components of the dark mobile layout it was specified from (the Garmin phone app's home
+  screen, screenshots of 2026-09-27) but renders in the light theme: white cards, `RADIUS`,
+  DM Sans, chart colors from `shared/charts/palette.js`, goal met in `COLORS.done`. That is
+  intentional, not a regression. Every number on it comes from a `health_days` or
+  `health_activities` row; a metric with no row shows its reason in place of the number.
+
+## Known app-vs-API discrepancies (Garmin phone app vs what the API returns)
+
+Recorded so two of the user's screens never disagree silently. Every At a Glance card
+carries a caption naming its call, field and date.
+
+| Metric | Phone shows | API returns | Card shows | Checked |
+|---|---|---|---|---|
+| Weight | 175.0 lbs, 0.0 change, BMI 23.7 | `get_user_profile.userData.weight` 79378 g (the phone reads the profile weight); `get_weigh_ins` has one entry, 2025-10-02, `USER_SETTING` | profile weight, change against the last weigh-in, BMI from the profile height, "last weighed Oct 2, 2025 (entered by hand)"; a muted line when profile and weigh-in diverge | 2026-09-27 |
+| Fitness age target | 26.5 | `achievableFitnessAge` 26.967086641406862, stable across days and a forced refresh; no other endpoint carries a target | 27.0 (the API value, one decimal) with the caption noting the phone reading; the store keeps the raw value | 2026-09-27; re-check when the API value changes |
+| Fitness age | 31 | `fitnessAge` 30.6077 | 31 (`Math.round`) | 2026-09-27 |
+| VO2 max label | "Excellent" | no label from any endpoint (`maxMetCategory` is 0); computed from Garmin's manual table "VO2 Max. Standard Ratings" by sex and age | "Excellent" with the table named in the caption | 2026-09-27 |
+
 - No em dashes anywhere.

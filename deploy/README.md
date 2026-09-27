@@ -49,6 +49,26 @@ curl -s https://70-42-223-139.sslip.io/index.html | grep -o 'main\.[a-z0-9]*\.js
 
 Rollback = `git checkout <previous commit> -- <files>` on the Mac, then the same push.
 
+## Health store: attended history fetch
+
+The Health tab reads `health_days`; today is written by the Garmin warm every 30 minutes and
+yesterday is finalized at 03:30. Older days are never fetched on their own. To backfill,
+stage it, with the backend stopped so only one bridge process talks to Garmin:
+
+```bash
+ssh gamelkin@70.42.223.139
+cd ~/apps/planner/backend
+pm2 stop planner-backend
+node scripts/health-fetch.js --to 2026-09-26 --max-days 7 --dry-run   # what it would write, no Garmin calls
+node scripts/health-fetch.js --to 2026-09-26 --max-days 7             # 7 days, about 140 direct calls
+pm2 start planner-backend
+curl -s http://127.0.0.1:5002/api/health/status | python3 -m json.tool   # no rate_limited, level ok
+```
+
+Wait, check `/api/garmin/status` still says connected, then the next 7 days with an earlier
+`--to`. `--max-days` refuses more than 14 and the run stops itself before 100 calls
+(`budget_stop` in `health_runs.errors`). The measured safe rate is about 36 calls an hour.
+
 ## First-time install
 
 Steps 3 to 6 below were run once on 2026-06-20 and do not need repeating. They are kept

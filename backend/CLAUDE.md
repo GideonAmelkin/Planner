@@ -3,15 +3,26 @@
 Express 5 + `sqlite3`, port **5002**. Runs under pm2 as `planner-backend` on RT100
 (`deploy/ecosystem.config.js`). `npm start` is plain `node server.js`.
 
-One folder per tab: `agenda/`, `garmin/`, `workout/`, `social/`. Each exports an express `Router` from
-its `index.js` that `server.js` mounts at `/api`, and requires only `../db` and `../lib/*`,
-never another tab. `db.js`, `lib/` and `scripts/` are shared.
+One folder per tab: `agenda/`, `garmin/`, `workout/`, `social/`, `health/`. Each exports an express
+`Router` from its `index.js` that `app.js` mounts at `/api`, and requires only `../db` and
+`../lib/*`, never another tab. The one exception is `health/ingest.js`, which requires
+`garmin/service.js` (the bridge's `callMany`) and listens on `lib/bus.js` for the bundle the
+Garmin warm announces. `db.js`, `lib/`, `scripts/` and `test/` are shared. `node --test test/`
+runs the suites against a throwaway database (`PLANNER_DB_PATH`).
 
 ## Files
 
 | File | Role |
 |---|---|
-| `server.js` | Setup, mounts the four tab routers under `/api`, error middleware, `agenda.startScheduler()`, `startWarmCache()` and `startReviewScheduler()`. |
+| `server.js` | The listener: `createApp()` from `app.js`, then `agenda.startScheduler()`, `startHealthScheduler()` (before the first warm), `startWarmCache()`, `startReviewScheduler()`. |
+| `app.js` | `createApp()`: cors, json, the `GET /api/health` liveness probe (registered before the Health router so it keeps answering `{status:"ok"}`), the five tab routers under `/api`, the error middleware. Tests mount it on an ephemeral port. |
+| `lib/bus.js` | One process-wide `EventEmitter`; `bus.announce(event, ...)` is emit with a throwing listener logged, not propagated. The Garmin warm announces `garmin:day` `{kind, date, results, fetched_at}`. |
+| `health/metrics.js` | The Health store's declarations: one entry per metric naming the day-bundle calls it reads (plus the two static reads `get_heart_rate_zones` and `get_user_profile`), `derive(results, ctx)` for the small card value (goals from the same day's response, never constants), `takenAt`, and `absent()` for the card's reason. Every bundle call feeds at least one metric so its full response is kept. VO2 max label from Garmin's manual table (URL and read date in the file). |
+| `health/ingest.js` | `ingestDays(dates, {kind, refresh, dryRun, bundles, maxCalls})`: writes `health_days` and `health_activities` under the store rules (below), records every run in `health_runs` (row inserted with `started_at` before any work), counts cached vs direct calls, stops before exceeding `MAX_CALLS_PER_RUN` (100) with `budget_stop`. A dry run uses `callMany(cacheOnly)` (never spawns the bridge) and touches no table. Read helpers `metricsForDate`, `history`, `activitiesBetween`, `recentRuns`. |
+| `health/scheduler.js` | Listens for `garmin:day` and ingests the warm's own result objects (kind `today`, zero extra Garmin calls, detached so the warm never waits); 03:30 local refetches and finalizes yesterday; hourly catch-up of older days only when `HEALTH_CATCHUP_DAYS` is set (default off: history is fetched attended); scheduled runs pause after `mfa_required` / `auth` until a run succeeds again. |
+| `health/index.js` | `GET /api/health/day/:date`, `/status`, `/runs`, `/metrics`; `POST /api/health/fetch` (manual refresh of today, one per 30 minutes, 409 while paused). Reads only the store. |
+| `scripts/health-fetch.js` | Attended ingest: `--date D` or `--from A --to B` (at most `--max-days`, default 7, refused over 14), `--dry-run`, `--no-refresh`. Run it with the backend stopped so two bridge processes never refresh the token file at once. |
+| `test/health.test.js` | 12 node:test cases: the warm guard, today writes, idempotency, never backwards, finality, dry run, the call ceiling, the run rows, the probe and router, the helpers. |
 | `agenda/index.js` | The Agenda router: mounts every file in `agenda/routes/` and re-exports `startScheduler`. |
 | `agenda/routes/day.js` | `GET /api/day/:date` (the whole spread in one payload) and pull-forward. |
 | `agenda/routes/tasks.js`, `notes.js`, `ongoing.js`, `appointments.js`, `masterTasks.js` | CRUD per resource. Each declares its full `/api/...` paths. |
@@ -35,12 +46,12 @@ never another tab. `db.js`, `lib/` and `scripts/` are shared.
 | `social/review.js` | The Claude review: deterministic stats (rank by views, per-1k engagement, medians, `series` = where today sits in the current run of daily posts) + `claude-opus-5` with a JSON schema output, prompt v6, a writer's brief: `hook_types` (every window video's opening line named by its move, free text) and `hooks` (10 spoken opening lines grouped by move, 4 or 5 moves with at least 2 each, Relatable always one of them, at most 12 words, open loops, banned copywriter constructions); `trigger` carries the prompt version suffix; stored in `social_reviews` beside the numbers; em dashes stripped. Throttle: one run per 5 minutes, twelve per day. |
 | `social/index.js` | `GET /api/social/{status,videos,videos/:id,review}`, `POST /api/social/review/generate`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
-| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`, `ANTHROPIC_API_KEY` (the Social review), optional `TIKTOK_DB_PATH`. Gitignored; the server copy is the live one. |
+| `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`, `ANTHROPIC_API_KEY` (the Social review), optional `TIKTOK_DB_PATH`, optional `HEALTH_CATCHUP_DAYS` (0 / unset = the Health store never fetches history on its own). Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
 | `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. `media/thumbs/` holds the app's own thumbnails plus frames the Mac renders from the clips with `tools/homeworkouts/thumbs.swift`; the Templates card falls back to the clip's first frame for the few clips AVFoundation cannot decode. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
-## Schema (12 tables)
+## Schema (15 tables)
 
 ```
 tasks                Action Items: priority A/B/C + number, status in_process|completed|forwarded,
@@ -57,6 +68,14 @@ daily_tracker        Legacy; no route reads or writes it.
 garmin_cache         Garmin read results: (name, params JSON) -> payload, fetched_at epoch ms.
 social_reviews       One row per Claude review run (also failed ones, with error): generated_at, trigger,
                      window, video_count, newest_video_id, model, tokens, stats_json, result_json.
+health_days          The Health store: (date = Garmin calendarDate, metric) -> value JSON (the card value,
+                     goals inside it), payload JSON (the full response of every call the metric read,
+                     keyed by call), taken_at (Garmin's timestamp for the reading), fetched_at, final.
+health_activities    One row per Garmin activity: type, name, start, duration, distance, calories, HR,
+                     sets, reps, polyline [[lat, lon]], payload (activity + details_geo + exercise_sets).
+health_runs          One row per ingest run: started_at (written first), finished_at, kind
+                     (today|finalize|catchup|manual|dry), dates, ok, failed, written, unchanged, stale,
+                     errors JSON, calls_total / calls_cached / calls_garmin.
 ```
 
 ## API
@@ -101,6 +120,10 @@ social_reviews       One row per Claude review run (also failed ones, with error
 | GET | `/api/social/videos/:id` | one video with `script` and `script_summary`; 400 non-numeric id, 404 unknown |
 | GET | `/api/social/review` | the latest successful review: `{review, stats, window, generated_at, usage, running, stale:{new_videos}, throttle, last_error}`; 404 `{available:false, running, throttle}` before the first run |
 | POST | `/api/social/review/generate` | starts a run in the background: 202 `{running}`; 409 already running; 429 `{error, next_allowed_at, retry_after_seconds}`; 503 no `ANTHROPIC_API_KEY` |
+| GET | `/api/health/day/:date` | `{date, metrics: {key: {value, taken_at, fetched_at, final, absent}}, activities, history: {start, end, days, activities}}` (28 days, series stripped from history) |
+| GET | `/api/health/status` | `{level, paused, stuck, failed_streak, last_run, today, last_24h (calls and the direct-call budget), caps, next_finalize, catchup_days}` |
+| GET | `/api/health/runs` | the last 50 `health_runs` rows |
+| POST | `/api/health/fetch` | manual refresh of today: 202 started, 429 within 30 min of the last, 409 while a sign-in is needed |
 | GET | `/api/workout/media/{video\|thumb}/:id` | the app's own exercise clip / thumbnail for an action id, from `workout-state/media/` (shipped by `tools/homeworkouts/sync.py`: the app's cached clips plus the rest fetched from its CDN by `fetch_media.py`); Range supported; `catalog.media` lists what exists |
 
 Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}` or
@@ -109,6 +132,35 @@ Garmin endpoint responses are `{endpoint, params, ok, cached, fetched_at, data}`
 
 Errors are always `{error}` JSON. Anything thrown inside an `asyncHandler` becomes a 500 via
 the middleware in `server.js`.
+
+## Health store (`health/`)
+
+Rules the writer enforces, all covered by `test/health.test.js`:
+
+- **One source per metric.** `metrics.js` names the call and field; goals are stored in the
+  same row as the value from the same day's response.
+- **Never backwards.** A metric that reads the daily summary takes the summary's
+  `lastSyncTimestampGMT` as its `taken_at` (it moves forward with every watch sync); the
+  others use their own window timestamp. An incoming reading with an older `taken_at`, or a
+  null where a value exists, is counted `stale` and not written. Same day twice: every row
+  `unchanged`, nothing rewritten, counters show it.
+- **Finality.** A day is marked final only by a run that is not the 30-minute `today` pass,
+  for a date before today, when the summary's `lastSyncTimestampGMT` is at or after the end
+  of that local day (the watch synced after midnight). A final row is never replaced.
+- **Full payloads.** Every call in the 18-call day bundle plus the two static reads is kept
+  in `health_days.payload`, including sleep, body battery, pulse ox, respiration and
+  hydration, so a new card never needs a backfill.
+- **Caps.** `MAX_CALLS_PER_RUN = 100` for every kind including manual; the script's
+  `--max-days` defaults to 7 and refuses over 14; catch-up is off unless
+  `HEALTH_CATCHUP_DAYS` is set and then takes at most 2 days per hour. History is fetched
+  attended in weekly stages with the backend stopped (see deploy/README.md).
+- **Visibility.** Every run is a `health_runs` row inserted with `started_at` before any
+  work; `/api/health/status` turns amber when the last 24 hours exceed 60 direct calls, red
+  after three failed runs in a row, a run older than 10 minutes without `finished_at`, or an
+  `mfa_required` / `auth` error, which also pauses the scheduled runs.
+- **Zero extra calls for today.** The warm's own result objects are what the today ingest
+  writes, so the Health tab and the Garmin tab can never hold different bytes for the same
+  minute (checked side by side on 2026-09-27: 13 of 13 numbers equal).
 
 ## Pull-forward (`agenda/rollover.js`)
 

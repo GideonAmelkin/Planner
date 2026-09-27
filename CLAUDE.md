@@ -27,11 +27,12 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 
 ## What is on the page
 
-Four tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
-`/garmin/:date`, **Workout** at `/workout/:date` and **Social** at `/social/:date` (`/`,
+Five tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
+`/garmin/:date`, **Workout** at `/workout/:date`, **Social** at `/social/:date` and **Health**
+at `/health/:date` (`/`,
 `/day/:date` and anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab.
-The Agenda, Workout App and Social tabs share a fixed 240px left rail (`AgendaRail`: wordmark,
-the four tab links, Recap / Settings at the bottom) and the card look; each has its own header
+The Agenda, Workout App, Social and Health tabs share a fixed 240px left rail (`AgendaRail`: wordmark,
+the five tab links, Recap / Settings at the bottom) and the card look; each has its own header
 card. The Garmin tab has its own connect.garmin.com frame.
 
 The Agenda is white cards on a warm grey canvas, in three parts referred to by these names:
@@ -81,6 +82,18 @@ scheduler refreshes once a day when new videos arrived; needs `ANTHROPIC_API_KEY
 `.env`), **TikTok Data** (every sheet column, search, sort, click a row for the transcript, Open
 in Google Sheets) and an empty **Competitors** card.
 
+The Health tab (since 2026-09-27) is the dashboard the Garmin phone app shows on its home
+screen, rebuilt over a local store that the backend fills from Garmin: Today's Activity (one
+card per activity, runs with a route trace), In Focus (this week's active time, seven bars,
+a 28-day dot strip once history covers it), At a Glance (a card grid declared in
+`frontend/src/health/cards.js`: ring, gauge, split and stack cards, every card with a source
+caption and a full-height empty state that says why there is no value) and Last 7 Days.
+It never fetches Garmin on page load: `GET /api/health/day/:date` reads `health_days` and
+`health_activities`, which the ingest writes from the very result objects the Garmin warm
+fetched (see `backend/health/`). The dashboard keeps the four sections and components of the
+dark mobile layout it was specified from, but renders in the planner's light Agenda theme.
+That is intentional, not a regression. The Garmin tab is the raw mirror and stays as it is.
+
 ## Architecture
 
 ```
@@ -101,6 +114,9 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 |    workout/         index.js router, service.js       |
 |    social/          index.js router, service.js       |
 |                     (reads tiktok.db), review.js      |
+|    health/          metrics.js, ingest.js, index.js,  |
+|                     scheduler.js (store fed by the    |
+|                     Garmin warm through lib/bus.js)   |
 +----------------------------^--------------------------+
                              | axios, retry-once
 +----------------------------v--------------------------+
@@ -110,6 +126,7 @@ ZenQuotes (random)    Google Calendar    Microsoft Graph    Garmin Connect
 |    garmin/          GarminView, cards, pages, theme   |
 |    workout/         WorkoutView, card, tile, art      |
 |    social/          SocialView, review, data table    |
+|    health/          HealthView, cards, sections       |
 |    shared/          api client, dayInfo, styles, rail,|
 |                     modals, mini calendar             |
 +-------------------------------------------------------+
@@ -155,16 +172,21 @@ Planner/
     garmin/               the Garmin tab: router, service, bridge.py, registry.json (+ .venv on the server)
     workout/              the Workout tab: router, snapshot reader
     social/               the Social tab: router, read-only tiktok.db reader, Claude review
+    health/               the Health tab: metric declarations, the store writer, router, scheduler
+    test/                 node --test suites (health.test.js)
     lib/                  http + date helpers used by every tab
   frontend/src/           React app, see frontend/CLAUDE.md
-    agenda/ garmin/ workout/ social/   one folder per tab: its view, its components, its api.js
-    shared/               what every tab uses: api client, dayInfo, format, styles, rail, modals
+    agenda/ garmin/ workout/ social/ health/   one folder per tab: its view, its components, its api.js
+    shared/               what every tab uses: api client, dayInfo, format, styles, rail, modals, charts/, Glyph
   tools/homeworkouts/     Mac-side Home Workouts exporter, sync job, launchd plist, tests
 ```
 
 One folder per tab on both sides. A tab folder imports from `shared/` (frontend) or
-`../db` and `../lib` (backend), never from another tab. The one exception is
-`frontend/src/shared/SettingsPanel.jsx`, which renders `garmin/GarminSettings.jsx` and reads
-the snapshot status from `workout/api.js`, because Settings is where the connections live.
+`../db` and `../lib` (backend), never from another tab. The exceptions:
+`frontend/src/shared/SettingsPanel.jsx` renders `garmin/GarminSettings.jsx` and reads the
+snapshot status from `workout/api.js`, because Settings is where the connections live; and
+`backend/health/ingest.js` requires `garmin/service.js` (its `callMany`) and the Garmin warm
+announces its bundle on `lib/bus.js`, because the Health store is a consumer of the Garmin
+bridge by design (one bridge process, one set of result objects).
 The server-only data (`backend/planner.db`, `backend/garmin-state/`, `backend/workout-state/`,
 `backend/garmin/.venv`) stays where it is; the services reach it with `..`.
