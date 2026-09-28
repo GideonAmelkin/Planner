@@ -1,6 +1,6 @@
 // Run: cd frontend && CI=true npx react-scripts test --watchAll=false src/workout/strength.test.js
 // The fixture is today's real session (2026-09-27 Lower Body Workout) exactly as the snapshot carries it.
-import { compareToPrevious, displayWeight, epley, exerciseHistory, exerciseName, fmtWeight, records, setStats, toUnit, weeklyVolume } from './strength';
+import { compareToPrevious, compressSets, displayWeight, e10rm, epley, exerciseHistory, exerciseName, exerciseSessionRows, fmtWeight, newRecords, records, repMaxTable, setStats, toUnit, weeklyVolume } from './strength';
 
 const kg = (lb) => Math.round((lb / 2.20462) * 1000) / 1000; // what export.py stores: kg to 3 decimals
 const sets = (...pairs) => pairs.map(([lb, reps]) => ({ reps, weight_kg: kg(lb), finished: true }));
@@ -54,9 +54,9 @@ test('a single session is a baseline: every exercise is first, one point of hist
   expect(history[0].points).toHaveLength(1);
   expect(records(history[0].points).heaviest).toEqual({ kg: kg(95), date: '2026-09-27' });
   const weeks = weeklyVolume([TODAY], '2026-08-29', '2026-09-27');
-  expect(weeks.map((w) => w.sessions)).toEqual([0, 0, 0, 0, 0, 1]);
-  expect(weeks[5].start).toBe('2026-09-27'); // a Sunday, so the week starts on the session's day
-  expect(weeks[5].volume_kg).toBeCloseTo(5429.512, 3);
+  expect(weeks.map((w) => w.sessions)).toEqual([1]); // no empty leading weeks
+  expect(weeks[0].start).toBe('2026-09-27'); // a Sunday, so the week starts on the session's day
+  expect(weeks[0].volume_kg).toBeCloseTo(5429.512, 3);
 });
 
 test('a second session is compared to the previous time each exercise was done', () => {
@@ -72,4 +72,49 @@ test('a second session is compared to the previous time each exercise was done',
   expect(cmp[2].status).toBe('first');
   expect(exerciseName(next.exercises[2])).toBeNull();
   expect(exerciseHistory([TODAY, next]).find((h) => h.action_id === '1279').points).toHaveLength(2);
+});
+
+
+test('epley is capped at 12 reps and e10RM follows from e1RM', () => {
+  expect(epley(kg(25), 13)).toBeNull();
+  expect(setStats(sets([25, 15], [25, 15])).e1rm_kg).toBeNull();
+  expect(setStats(sets([25, 15])).best).toEqual({ weight_kg: kg(25), reps: 15 }); // still a best set for volume and reps
+  expect(toUnit(e10rm(epley(kg(95), 8)), 'lb')).toBeCloseTo(90.2, 1);
+});
+
+test('sets compress into groups and name a top set plus backoff', () => {
+  expect(compressSets(TODAY.exercises[0].sets, 'lb')).toBe('95 × 8 (×4)');
+  expect(compressSets(TODAY.exercises[1].sets, 'lb')).toBe('25 × 8 (×3), 25 × 10');
+  expect(compressSets(TODAY.exercises[2].sets, 'lb')).toBe('95 × 8 (×2), backoff 60 × 8 (×2)');
+  expect(compressSets([], 'lb')).toBe('');
+});
+
+test('rep-max table from one session: actual rows at 8 and 10 reps, estimates elsewhere, no PR highlight', () => {
+  const bb = exerciseHistory([TODAY]).find((h) => h.action_id === '753');
+  const rows = repMaxTable(bb.points);
+  expect(rows.map((r) => r.reps)).toEqual([1, 2, 3, 5, 8, 10, 12]);
+  const r8 = rows.find((r) => r.reps === 8);
+  expect(r8.actual).toEqual({ kg: kg(25), date: '2026-09-27', latest: true });
+  expect(r8.pr).toBe(false);
+  expect(toUnit(rows.find((r) => r.reps === 1).estimated_kg, 'lb')).toBeCloseTo(33.3, 1);
+  expect(rows.find((r) => r.reps === 3).actual).toBeNull();
+});
+
+test('records carry every face of progress with dates; new records need an earlier session', () => {
+  const dl = exerciseHistory([TODAY]).find((h) => h.action_id === '1083');
+  const rec = records(dl.points);
+  expect(rec.heaviest).toEqual({ kg: kg(95), date: '2026-09-27' });
+  expect(toUnit(rec.bestE1rm.kg, 'lb')).toBeCloseTo(120.3, 1);
+  expect(rec.bestSet.kg).toBeCloseTo(kg(95) * 8, 3);
+  expect(rec.mostReps.set).toEqual({ weight_kg: kg(95), reps: 8 });
+  expect(newRecords(dl.points)).toEqual([]);
+  const next = { ...TODAY, id: 'gym:2', date: '2026-10-04', started_at: '2026-10-04T15:00:00-04:00', exercises: [{ action_id: '1083', name: 'Barbell Stiff Leg Deadlift', order: 0, sets: sets([100, 8], [100, 9]) }] };
+  const h = exerciseHistory([TODAY, next]).find((x) => x.action_id === '1083');
+  expect(newRecords(h.points)).toEqual(['heaviest', 'e1RM', 'set volume', 'most reps']);
+  expect(repMaxTable(h.points).find((r) => r.reps === 8).pr).toBe(true);
+  expect(repMaxTable(h.points).find((r) => r.reps === 9).actual.kg).toBe(kg(100));
+  const rowsOut = exerciseSessionRows(h.points);
+  expect(rowsOut[0].date).toBe('2026-10-04');
+  expect(rowsOut[0].delta_e1rm_kg).toBeGreaterThan(0);
+  expect(rowsOut[1].delta_e1rm_kg).toBeNull();
 });
