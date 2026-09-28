@@ -282,7 +282,7 @@ export default function PersonalTrainer({ data, date }) {
             const many = c.points.length > 1;
             return (
               <div key={c.action_id} style={{ border: `1px solid ${COLORS.hairline}`, borderRadius: 12, padding: '12px 14px' }}>
-                <button type="button" onClick={() => toggle(c.action_id)} aria-expanded={open} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: COLORS.ink, font: 'inherit', textAlign: 'left' }}>
+                <button type="button" onClick={() => toggle(c.action_id)} aria-expanded={open} style={{ width: '100%', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: COLORS.ink, font: 'inherit', textAlign: 'left' }}>
                   <span style={{ minWidth: 0, flex: 1 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{nameOf(c)}</span>
@@ -292,7 +292,7 @@ export default function PersonalTrainer({ data, date }) {
                     </span>
                     <span style={{ display: 'block', marginTop: 4, fontSize: 13, color: COLORS.muted }}>{compressSets(c.last.set_list, unit)}</span>
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 14, marginLeft: 'auto', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {many ? <Sparkline points={c.points} valueOf={(p) => p.e1rm_kg || 0} /> : null}
                     <span style={{ textAlign: 'right' }}>
                       <span style={{ display: 'block', fontSize: 18, fontWeight: 600, lineHeight: 1.1 }}>{e1rmText(c.last.e1rm_kg, unit)} <span style={{ fontSize: 11, fontWeight: 500, color: COLORS.muted }}>{unit} est. 1RM</span></span>
