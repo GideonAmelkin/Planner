@@ -1,11 +1,11 @@
 import React from 'react';
 import { MUSCLE_GROUPS, groupOf } from './muscles';
-import { fmtVolume, muted, label } from './ptParts';
+import { fmtVolume, label } from './ptParts';
 import { COLORS } from '../shared/styles';
 
 // Front and back silhouettes, each muscle group shaded by its share of the range's volume
-// (darker = more), and the groups ranked under them with bars. Clicking a region or a row
-// selects that group (the radar and the ticker follow); clicking it again clears.
+// (darker = more). The numbers live in MuscleChart under both figures. Clicking a region selects
+// that group (the radar, the chart and the ticker follow); clicking it again clears.
 const REGIONS = {
   front: [
     ['shoulders', [['e', 58, 72, 14, 12], ['e', 142, 72, 14, 12]]],
@@ -28,7 +28,7 @@ function Figure({ side, volumes, max, selected, onSelect, unit }) {
   const shape = (s, i) => (s[0] === 'e' ? <ellipse key={i} cx={s[1]} cy={s[2]} rx={s[3]} ry={s[4]} />
     : s[0] === 'r' ? <rect key={i} x={s[1]} y={s[2]} width={s[3]} height={s[4]} rx={s[5]} /> : <path key={i} d={s[1]} />);
   return (
-    <svg viewBox="0 0 200 400" role="img" aria-label={`Muscles trained, ${side}`} style={{ width: '100%', maxWidth: 170, height: 'auto', display: 'block' }}>
+    <svg viewBox="0 0 200 400" role="img" aria-label={`Muscles trained, ${side}`} style={{ width: '100%', maxWidth: 170, maxHeight: 340, height: 'auto', display: 'block' }}>
       <g fill={COLORS.hairline}>
         <circle cx="100" cy="28" r="18" />
         <rect x="92" y="44" width="16" height="14" rx="4" />
@@ -59,31 +59,12 @@ function Figure({ side, volumes, max, selected, onSelect, unit }) {
 
 export default function BodyMap({ volumes, unit, selected, onSelect }) {
   const max = Math.max(1, ...MUSCLE_GROUPS.map((g) => volumes[g.key] || 0));
-  const ranked = [...MUSCLE_GROUPS].sort((a, b) => (volumes[b.key] || 0) - (volumes[a.key] || 0));
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ ...label, marginBottom: 8 }}>Muscles worked</div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
         <Figure side="front" volumes={volumes} max={max} selected={selected} onSelect={onSelect} unit={unit} />
         <Figure side="back" volumes={volumes} max={max} selected={selected} onSelect={onSelect} unit={unit} />
-      </div>
-      <div style={{ display: 'grid', gap: 2, marginTop: 10 }}>
-        {ranked.map((g) => {
-          const v = volumes[g.key] || 0;
-          const on = selected === g.key;
-          return (
-            <button key={g.key} type="button" onClick={() => onSelect(g.key)} aria-pressed={on}
-              style={{ display: 'grid', gridTemplateColumns: '92px minmax(0, 1fr) 76px', gap: 10, alignItems: 'center', padding: '4px 6px', borderRadius: 8, border: 'none', background: on ? COLORS.page : 'transparent', cursor: 'pointer', font: 'inherit', color: COLORS.ink, textAlign: 'left' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color, flex: 'none' }} />{g.label}
-              </span>
-              <span style={{ height: 6, borderRadius: 3, background: COLORS.hairline, overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: '100%', width: `${((100 * v) / max).toFixed(1)}%`, background: g.color, borderRadius: 3 }} />
-              </span>
-              <span style={{ ...muted, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: v ? COLORS.ink : COLORS.muted }}>{v ? `${fmtVolume(v, unit)} ${unit}` : 'none'}</span>
-            </button>
-          );
-        })}
       </div>
     </div>
   );

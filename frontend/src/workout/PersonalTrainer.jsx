@@ -6,13 +6,15 @@ import { Delta, fmtVolume, monthDay, muted, readOpen, writeOpen } from './ptPart
 import BodyMap from './BodyMap';
 import BalanceRadar from './BalanceRadar';
 import ExerciseTicker from './ExerciseTicker';
+import MuscleChart from './MuscleChart';
 import { shiftISO } from '../shared/dayInfo';
 import { RANGES, RangePicker } from './ranges';
 import { COLORS } from '../shared/styles';
 
 // Personal Trainer: the guided gym sessions the user logs in the app with reps and weight.
 //   top     one summary line, then the body map (left) and the balance radar (right): which
-//           muscles the range worked, and against the same-length range before it
+//           muscles the range worked, and against the same-length range before it; under both,
+//           one MuscleChart with the numbers for the two figures (this range vs before, change)
 //   bottom  the ticker board: one row per exercise (est. 1RM, change, trend, volume), sortable,
 //           a row click opens the exercise detail (rep-max table, records, sessions, chart)
 // Picking a muscle on the body map or the radar selects it on both and filters the ticker.
@@ -90,7 +92,10 @@ export default function PersonalTrainer({ data, date }) {
         <>
           <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 28, alignItems: 'start' }}>
             <BodyMap volumes={now} unit={unit} selected={muscle} onSelect={pick} />
-            <BalanceRadar now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
+            <BalanceRadar now={now} before={before} selected={muscle} onSelect={pick} />
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
           </div>
           <div style={{ marginTop: 22, borderTop: `1px solid ${COLORS.hairline}`, paddingTop: 16 }}>
             <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => setMuscle(null)}
