@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import NavLinks from './NavLinks';
 import { TABS } from './TopNav';
+import { todayISO } from './dayInfo';
 import { COLORS, navButton } from './styles';
 
 export const RAIL_WIDTH = 240;
@@ -15,7 +16,8 @@ const writeCollapsed = (v) => { try { localStorage.setItem(NAV_COLLAPSED_KEY, v 
 // The Agenda tab's fixed left rail: wordmark, the three section links stacked,
 // and Recap / Settings pinned to the bottom. Date controls live in DateCard.
 // The round button at the top hides the rail to a 44px strip (remembered).
-export default function AgendaRail({ dateISO, section = 'agenda' }) {
+// Tab links always open today; Prev / Next inside a tab browse other days.
+export default function AgendaRail({ section = 'agenda' }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const toggle = () => setCollapsed((c) => { writeCollapsed(!c); return !c; });
 
@@ -72,7 +74,7 @@ export default function AgendaRail({ dateISO, section = 'agenda' }) {
       </div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {TABS.map((t) => (
-          <Link key={t.section} to={`/${t.section}/${dateISO}`} style={tabStyle(t.section === section)}>
+          <Link key={t.section} to={`/${t.section}/${todayISO()}`} style={tabStyle(t.section === section)}>
             {t.label}
           </Link>
         ))}

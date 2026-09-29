@@ -46,7 +46,7 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
       <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3, marginRight: 8 }}>Planner</div>
       <div style={{ display: 'flex', gap: 2, marginRight: 12 }}>
         {TABS.map((t) => (
-          <Link key={t.section} to={`/${t.section}/${dateISO}`} style={tabStyle(t.section === section)}>
+          <Link key={t.section} to={`/${t.section}/${todayISO()}`} style={tabStyle(t.section === section)}>
             {t.label}
           </Link>
         ))}

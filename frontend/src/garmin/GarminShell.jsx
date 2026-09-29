@@ -51,16 +51,16 @@ function Sidebar({ dateISO, activeSlug, onNavigate }) {
     return next;
   });
   const hrefFor = (slug) => {
-    if (slug === '__agenda') return `/agenda/${dateISO}`;
-    if (slug === '__workout') return `/workout/${dateISO}`;
-    if (slug === '__social') return `/social/${dateISO}`;
-    if (slug === '__health') return `/health/${dateISO}`;
+    if (slug === '__agenda') return `/agenda/${todayISO()}`;
+    if (slug === '__workout') return `/workout/${todayISO()}`;
+    if (slug === '__social') return `/social/${todayISO()}`;
+    if (slug === '__health') return `/health/${todayISO()}`;
     return slug ? `/garmin/${dateISO}/${slug}` : `/garmin/${dateISO}`;
   };
 
   return (
     <>
-      <Link to={`/agenda/${dateISO}`} style={wordmark} onClick={onNavigate}>planner</Link>
+      <Link to={`/agenda/${todayISO()}`} style={wordmark} onClick={onNavigate}>planner</Link>
       {NAV.map((cluster, ci) => (
         <div key={cluster.cluster}>
           {ci > 0 ? <div style={sidebarDivider} /> : null}
@@ -130,7 +130,7 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
         <>
           <div style={{ background: G.nav, display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px' }}>
             <button type="button" onClick={() => setDrawer((d) => !d)} style={{ ...iconButton, color: 'white' }} aria-label="Menu"><GarminIcon name="menu" color="white" size={22} /></button>
-            <Link to={`/agenda/${dateISO}`} style={{ ...wordmark, fontSize: 22, padding: '4px 6px' }}>planner</Link>
+            <Link to={`/agenda/${todayISO()}`} style={{ ...wordmark, fontSize: 22, padding: '4px 6px' }}>planner</Link>
           </div>
           {drawer ? (
             <>
@@ -155,7 +155,7 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
             <button type="button" onClick={narrow ? () => setDrawer((d) => !d) : toggleCollapsed} style={circleButton} aria-label={collapsed ? 'Show menu' : 'Hide menu'} title={collapsed ? 'Show menu' : 'Hide menu'}>
               <GarminIcon name="back" color={G.muted} size={18} style={{ transform: collapsed && !narrow ? 'rotate(180deg)' : 'none' }} />
             </button>
-            {collapsed && !narrow ? <Link to={`/agenda/${dateISO}`} style={{ fontSize: 20, fontWeight: 300, color: G.text, textDecoration: 'none' }}>planner</Link> : null}
+            {collapsed && !narrow ? <Link to={`/agenda/${todayISO()}`} style={{ fontSize: 20, fontWeight: 300, color: G.text, textDecoration: 'none' }}>planner</Link> : null}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <button type="button" onClick={onRefresh} disabled={loading || !connected} style={{ ...iconButton, opacity: loading || !connected ? 0.4 : 1 }} title="Sync from Garmin" aria-label="Refresh">

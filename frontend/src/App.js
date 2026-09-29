@@ -47,26 +47,71 @@ function HealthToGarmin() {
   return <Navigate to={id ? `/garmin/${d}/activity/${id}` : `/garmin/${d}/${page}`} replace />;
 }
 
-// On fresh page load (reload, new tab, bookmark), snap any /<section>/:date URL
-// back to today in that section. SPA navigation within the session is unaffected.
-function BootRedirectToToday() {
+// A dated tab URL: section, date, optional sub-page (/garmin/:date/sleep, /garmin/:date/activity/:id).
+const DATED_PATH = /^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/;
+// How long the tab must sit in the background before coming back lands on today.
+const AWAY_MS = 10 * 60 * 1000;
+const HIDDEN_AT_KEY = 'planner.hiddenAt';
+
+// Opening or returning to the app lands on today in the current section, keeping the
+// sub-page: on page load, on a back-forward cache restore, when the tab comes back after
+// AWAY_MS in the background, and at midnight when the tab was showing the old today.
+// Prev / Next and the date field inside a tab are unaffected, so other days stay browsable.
+function SnapToToday() {
   const navigate = useNavigate();
-  const ran = React.useRef(false);
+  const navigateRef = React.useRef(navigate);
+  navigateRef.current = navigate;
   React.useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
-    const m = window.location.pathname.match(/^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/);
-    if (m && m[2] !== todayISO()) {
-      navigate(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
-    }
-  }, [navigate]);
+    const snap = () => {
+      const m = window.location.pathname.match(DATED_PATH);
+      if (m && m[2] !== todayISO()) {
+        navigateRef.current(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
+      }
+    };
+    const readHiddenAt = () => {
+      try { return Number(sessionStorage.getItem(HIDDEN_AT_KEY)) || 0; } catch (_) { return 0; }
+    };
+    const writeHiddenAt = (v) => {
+      try {
+        if (v) sessionStorage.setItem(HIDDEN_AT_KEY, String(v));
+        else sessionStorage.removeItem(HIDDEN_AT_KEY);
+      } catch (_) { /* ignore */ }
+    };
+
+    snap();
+    writeHiddenAt(document.hidden ? Date.now() : 0);
+
+    const onVisibility = () => {
+      if (document.hidden) { writeHiddenAt(Date.now()); return; }
+      const hiddenAt = readHiddenAt();
+      writeHiddenAt(0);
+      if (hiddenAt && Date.now() - hiddenAt >= AWAY_MS) snap();
+    };
+    const onPageShow = (e) => { if (e.persisted) snap(); };
+    let lastToday = todayISO();
+    const tick = setInterval(() => {
+      const today = todayISO();
+      if (today === lastToday) return;
+      const m = window.location.pathname.match(DATED_PATH);
+      if (m && m[2] === lastToday) snap();
+      lastToday = today;
+    }, 60 * 1000);
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pageshow', onPageShow);
+      clearInterval(tick);
+    };
+  }, []);
   return null;
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <BootRedirectToToday />
+      <SnapToToday />
       <CalendarToast />
       <Routes>
         <Route path="/" element={<TodayRedirect />} />
