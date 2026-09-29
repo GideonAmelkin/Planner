@@ -3,6 +3,7 @@ import WorkoutCard from './WorkoutCard';
 import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { compressSets, exerciseHistory, exerciseSessionRows, fmtWeight, inRange, newRecords, records, repMaxTable, toUnit, weeklyVolume, EPLEY_MAX_REPS } from './strength';
 import { shiftISO } from '../shared/dayInfo';
+import { RANGES, RangePicker } from './ranges';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS, pill, navButton } from '../shared/styles';
 
@@ -15,12 +16,6 @@ import { COLORS, pill, navButton } from '../shared/styles';
 // Rule: never render a comparison that has nothing to compare. Anything needing two sessions
 // (deltas, PR badges, sparklines, the chart) is absent until it can say something, and one muted
 // line per block says what unlocks it. All math is in strength.js.
-const RANGES = [
-  { key: 'd30', label: '30 days', days: 30 },
-  { key: 'd90', label: '90 days', days: 90 },
-  { key: 'y365', label: '365 days', days: 365 },
-  { key: 'all', label: 'All time', days: null },
-];
 const METRICS = [
   { key: 'e1rm_kg', label: 'Est. 1RM', weight: true },
   { key: 'heaviest_kg', label: 'Heaviest', weight: true },
@@ -200,28 +195,33 @@ function ExerciseDetail({ h, unit, sessionsById, metric, setMetric }) {
 
 export default function PersonalTrainer({ data, date }) {
   const [rangeKey, setRangeKey] = useState('d30');
+  const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
+  const [customTo, setCustomTo] = useState(date);
   const [openIds, setOpenIds] = useState(readOpen);
   const [metric, setMetric] = useState('e1rm_kg');
   const all = (data && data.sessions) || [];
   const unit = (data && data.weight_unit) || 'lb';
-  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[0];
-  const rangeStart = range.days ? shiftISO(date, -(range.days - 1)) : (all.length ? all[0].date : date);
-  const sessions = inRange(all, rangeStart, date);
+  // Same choices as the top card. Lifetime starts at the first gym session so weekly volume
+  // does not draw empty years; Custom runs From..To (nothing when From is after To).
+  const range = RANGES.find((r) => r.key === rangeKey) || RANGES[2];
+  const rangeEnd = rangeKey === 'custom' ? customTo : date;
+  const rangeStart = rangeKey === 'custom' ? customFrom
+    : rangeKey === 'lifetime' ? (all.length ? all[0].date : date)
+      : shiftISO(date, -(range.days - 1));
+  const sessions = rangeStart <= rangeEnd ? inRange(all, rangeStart, rangeEnd) : [];
   const history = exerciseHistory(sessions);
   const latest = sessions.length ? sessions[sessions.length - 1] : null;
   const previous = sessions.length > 1 ? sessions[sessions.length - 2] : null;
   const volumeKg = sessions.reduce((t, s) => t + (s.total_weight_kg || 0), 0);
   const unnamed = history.filter((h) => !h.name);
-  const weeks = latest ? weeklyVolume(sessions, rangeStart, date) : [];
+  const weeks = latest ? weeklyVolume(sessions, rangeStart, rangeEnd) : [];
   const sessionsById = new Map(sessions.map((s) => [s.id, s]));
   const cards = history.map((h) => ({ ...h, last: h.points[h.points.length - 1], rec: records(h.points), prs: newRecords(h.points) }))
     .sort((a, b) => (a.last.date === b.last.date ? nameOf(a).localeCompare(nameOf(b)) : (a.last.date < b.last.date ? 1 : -1)));
   const toggle = (id) => setOpenIds((ids) => { const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]; writeOpen(next); return next; });
   const aside = data === null ? 'Loading...' : `${all.length} gym session${all.length === 1 ? '' : 's'}`;
   const actions = (
-    <select value={rangeKey} onChange={(e) => setRangeKey(e.target.value)} style={{ ...navButton, fontSize: 12, padding: '4px 8px', cursor: 'pointer' }} title="Range">
-      {RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
-    </select>
+    <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
   );
 
   if (data && !all.length) {

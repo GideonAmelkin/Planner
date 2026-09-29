@@ -8,23 +8,13 @@ import WorkoutTile, { tableWrap, table, th, headRow, td, tdNum, tableLink } from
 import { API_BASE } from '../shared/api';
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
 import PersonalTrainer from './PersonalTrainer';
+import { RANGES, MAX_RANGE_DAYS, RangePicker } from './ranges';
 import { dateToISO, headlineLong, isoToDate, shiftISO, todayISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
 import { snapshotAge } from '../shared/snapshotAge';
 import { templateBanner, titleLines, APP_BLUE, POPPINS } from './art';
 
-const RANGES = [
-  { key: 'd1', label: '1 day', days: 1, sub: 'this day' },
-  { key: 'd7', label: '7 days', days: 7, sub: 'last 7 days' },
-  { key: 'd30', label: '30 days', days: 30, sub: 'last 30 days' },
-  { key: 'd90', label: '90 days', days: 90, sub: 'last 90 days' },
-  { key: 'd180', label: '180 days', days: 180, sub: 'last 180 days' },
-  { key: 'y365', label: '365 days', days: 365, sub: 'last 365 days' },
-  { key: 'lifetime', label: 'Lifetime', days: 3660, sub: 'lifetime' },
-  { key: 'custom', label: 'Custom', days: null, sub: 'custom range' },
-];
-const MAX_RANGE_DAYS = 3660;
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 // Longest run of consecutive calendar days that each have at least one workout.
 const longestStreak = (dates) => {
@@ -247,22 +237,10 @@ export default function WorkoutView() {
   const templatesList = (catalog && catalog.templates) || [];
 
   const arrowStyle = { ...navButton, width: 32, padding: '5px 0', textAlign: 'center', fontSize: 16, lineHeight: 1.2 };
-  const controlStyle = { ...navButton, fontSize: 12, padding: '4px 8px', cursor: 'pointer' };
   const dateInputStyle = { background: COLORS.paper, color: COLORS.ink, border: `1px solid ${COLORS.hairline}`, padding: '4px 8px', borderRadius: 8, fontSize: 13, colorScheme: 'light' };
 
   const rangeControls = (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      <select value={rangeKey} onChange={(e) => setRangeKey(e.target.value)} style={controlStyle} title="Range">
-        {RANGES.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
-      </select>
-      {rangeKey === 'custom' ? (
-        <>
-          <input type="date" value={customFrom} max={customTo} onChange={(e) => e.target.value && setCustomFrom(e.target.value)} style={{ ...dateInputStyle, fontSize: 12, padding: '3px 6px' }} title="From" />
-          <span style={{ fontSize: 12, color: COLORS.muted }}>to</span>
-          <input type="date" value={customTo} min={customFrom} onChange={(e) => e.target.value && setCustomTo(e.target.value)} style={{ ...dateInputStyle, fontSize: 12, padding: '3px 6px' }} title="To" />
-        </>
-      ) : null}
-    </span>
+    <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
   );
 
   const indicator = weightDelta
