@@ -15,20 +15,26 @@ static text "Sync Data" with its "Synced just now" subtitle, and so on.
 Permission (once): System Settings > Privacy & Security > Accessibility > "+" > Cmd+Shift+G >
 /Library/Developer/CommandLineTools/usr/bin/python3 (the launchd job's program).
 
-Outcomes returned by trigger(): synced, skipped_active, app_missing, no_permission, timeout.
-A skip while the user is active is deliberate (the window may have to be raised for a
-coordinate click); the next hourly run tries again. APP_SYNC_FORCE=1 ignores the idle rule
-for attended runs. Afterwards the app is hidden again unless it was the frontmost app.
+Outcomes returned by trigger(): synced, skipped_active, skipped_locked, app_missing,
+no_permission, timeout. The sync runs while the user is at the keyboard as long as it can stay
+invisible (AXPress does not raise the window). It is skipped only when it would have to take the
+screen: activating a sleeping app, or a coordinate click. (Until 2026-09-28 any activity skipped
+it, and a day at the Mac meant no sync at all.) A locked screen is skipped too: the app does not
+answer accessibility then, and every overnight run used to end in a timeout. When the app stops
+answering with the screen unlocked, it is quit and relaunched hidden, once. APP_SYNC_FORCE=1
+ignores the activity rule for attended runs. Afterwards the app is hidden again unless it was
+the frontmost app.
 """
 import ctypes
 import os
+import signal
 import subprocess
 import sys
 import time
 
 BUNDLE_ID = 'com.abishkking.maleworkout'
 PROCESS_MATCH = 'Wrapper/homeworkout.app/homeworkout'
-IDLE_MIN_S = 120         # do nothing if the user touched the keyboard or mouse more recently
+IDLE_MIN_S = 120         # never take the screen if the user touched the keyboard or mouse more recently
 WINDOW_WAIT_S = 30
 SYNC_WAIT_S = 60
 MAX_BACK = 4             # sub-pages to leave before the tab bar shows
@@ -68,6 +74,8 @@ for fn, res, args in (
     (AX.AXValueGetValue, ctypes.c_bool, [c_void_p, ctypes.c_uint32, c_void_p]),
     (AX.CGEventCreateMouseEvent, c_void_p, [c_void_p, ctypes.c_uint32, CGPoint, ctypes.c_uint32]),
     (AX.CGEventPost, None, [ctypes.c_uint32, c_void_p]),
+    (AX.CGSessionCopyCurrentDictionary, c_void_p, []),
+    (CF.CFDictionaryGetValue, c_void_p, [c_void_p, c_void_p]),
 ):
     fn.restype = res
     fn.argtypes = args
@@ -218,6 +226,28 @@ def hid_idle_seconds():
     return None
 
 
+def screen_locked():
+    """True when the login session's screen is locked (CGSSessionScreenIsLocked)."""
+    d = AX.CGSessionCopyCurrentDictionary()
+    if not d:
+        return False
+    key = cfs('CGSSessionScreenIsLocked')
+    v = CF.CFDictionaryGetValue(d, key)
+    CF.CFRelease(key)
+    locked = bool(v) and CF.CFGetTypeID(v) == CF.CFBooleanGetTypeID() and bool(CF.CFBooleanGetValue(v))
+    CF.CFRelease(d)
+    return locked
+
+
+def front_bundle_id():
+    """Bundle id of the frontmost app, from lsappinfo (works when the app's AX tree does not)."""
+    asn = subprocess.run(['/usr/bin/lsappinfo', 'front'], capture_output=True, text=True).stdout.strip()
+    if not asn:
+        return None
+    out = subprocess.run(['/usr/bin/lsappinfo', 'info', '-only', 'bundleid', asn], capture_output=True, text=True).stdout
+    return out.split('=')[-1].strip().strip('"') or None
+
+
 def app_pid():
     p = subprocess.run(['/usr/bin/pgrep', '-f', PROCESS_MATCH], capture_output=True, text=True)
     return int(p.stdout.split()[0]) if p.returncode == 0 and p.stdout.split() else None
@@ -235,46 +265,98 @@ def wait_window(app, seconds):
 
 def trigger(log=print):
     idle = hid_idle_seconds()
-    # APP_SYNC_FORCE=1 is for attended runs: click even though someone is at the keyboard.
-    if idle is not None and idle < IDLE_MIN_S and not os.environ.get('APP_SYNC_FORCE'):
-        log('app sync: skipped, user active (%d s idle)' % idle)
-        return 'skipped_active'
+    # APP_SYNC_FORCE=1 is for attended runs: take the screen even though someone is at the keyboard.
+    active = idle is not None and idle < IDLE_MIN_S and not os.environ.get('APP_SYNC_FORCE')
     if not AX.AXIsProcessTrusted():
         log('app sync: no permission: grant Accessibility to %s (System Settings > Privacy & Security > Accessibility)' % sys.executable)
         return 'no_permission'
+    if screen_locked():
+        log('app sync: skipped, screen locked (the app does not answer accessibility then)')
+        return 'skipped_locked'
     pid = app_pid()
     launched = False
     if pid is None:
-        if subprocess.run(['/usr/bin/open', '-g', '-b', BUNDLE_ID], capture_output=True).returncode != 0:
-            log('app sync: app missing (open -b %s failed)' % BUNDLE_ID)
-            return 'app_missing'
+        pid = _launch(log)
+        if pid in ('app_missing', 'timeout'):
+            return pid
         launched = True
-        deadline = time.time() + WINDOW_WAIT_S
-        while pid is None and time.time() < deadline:
-            time.sleep(1)
-            pid = app_pid()
-        if pid is None:
-            log('app sync: timeout waiting for the app to start')
-            return 'timeout'
+    outcome = _attempt(pid, active, launched, idle, log)
+    if outcome != 'unresponsive':
+        return outcome
+    # Unlocked and still silent: the app is wedged. Relaunch it hidden, once, unless the user
+    # is looking at it.
+    if front_bundle_id() == BUNDLE_ID:
+        log('app sync: timeout: the app is frontmost but does not answer; left alone')
+        return 'timeout'
+    log('app sync: relaunching the app hidden (pid %d does not answer)' % pid)
+    _quit(pid)
+    pid = _launch(log)
+    if pid in ('app_missing', 'timeout'):
+        return pid
+    outcome = _attempt(pid, active, True, idle, log)
+    return 'timeout' if outcome == 'unresponsive' else outcome
+
+
+def _launch(log):
+    """Start the app in the background; its pid, or 'app_missing' / 'timeout'."""
+    if subprocess.run(['/usr/bin/open', '-g', '-b', BUNDLE_ID], capture_output=True).returncode != 0:
+        log('app sync: app missing (open -b %s failed)' % BUNDLE_ID)
+        return 'app_missing'
+    deadline = time.time() + WINDOW_WAIT_S
+    pid = None
+    while pid is None and time.time() < deadline:
+        time.sleep(1)
+        pid = app_pid()
+    if pid is None:
+        log('app sync: timeout waiting for the app to start')
+        return 'timeout'
+    return pid
+
+
+def _quit(pid):
+    os.kill(pid, signal.SIGTERM)
+    deadline = time.time() + 15
+    while app_pid() == pid and time.time() < deadline:
+        time.sleep(0.5)
+    if app_pid() == pid:
+        os.kill(pid, signal.SIGKILL)
+        time.sleep(1)
+
+
+def _answers(app, seconds):
+    deadline = time.time() + seconds
+    while attr_str(app, 'AXRole') is None and time.time() < deadline:
+        time.sleep(1)
+    return attr_str(app, 'AXRole') is not None
+
+
+def _attempt(pid, active, launched, idle, log):
+    """One pass at Me > Sync Data. Returns an outcome, or 'unresponsive' when the app's
+    accessibility tree is missing or broken (the caller may relaunch and try once more)."""
     app = AX.AXUIElementCreateApplication(pid)
     # A hidden iOS-on-Mac app stops answering accessibility after a few minutes in the background
-    # (kAXErrorCannotComplete, -25204); activating it wakes it. That raise is why the idle rule exists.
-    if attr_str(app, 'AXRole') is None:
+    # (kAXErrorCannotComplete, -25204); activating it wakes it, but activating raises it.
+    if not _answers(app, WINDOW_WAIT_S if launched else 0):
+        if active:
+            log('app sync: skipped, user active (%d s idle) and the app is asleep (waking it would raise it)' % idle)
+            return 'skipped_active'
         subprocess.run(['/usr/bin/open', '-b', BUNDLE_ID], capture_output=True)
-        deadline = time.time() + WINDOW_WAIT_S
-        while attr_str(app, 'AXRole') is None and time.time() < deadline:
-            time.sleep(1)
-        if attr_str(app, 'AXRole') is None:
-            log('app sync: timeout: the app does not answer accessibility even after activation')
-            return 'timeout'
+        if not _answers(app, WINDOW_WAIT_S):
+            log('app sync: the app does not answer accessibility even after activation')
+            return 'unresponsive'
         log('app sync: woke the app (it had gone to sleep in the background)')
     was_front = attr_bool(app, 'AXFrontmost') is True
     if attr_bool(app, 'AXHidden'):
         set_bool(app, 'AXHidden', False)
     win = wait_window(app, WINDOW_WAIT_S)
     if not win:
-        log('app sync: timeout waiting for the window (pid %d%s)' % (pid, ', just launched' if launched else ''))
-        return 'timeout'
+        log('app sync: no window (pid %d%s)' % (pid, ', just launched' if launched else ''))
+        return 'unresponsive'
+    # Right after a launch the window holds only its title bar for a few seconds.
+    has_content = lambda: find(win, lambda r, t: r == 'AXButton' and t in ('Me', 'BackNew')) or find_back(win)
+    deadline = time.time() + WINDOW_WAIT_S
+    while not has_content() and time.time() < deadline:
+        time.sleep(1)
     # Leave any sub-page (History, a session's detail, Settings) so the tab bar is reachable.
     for _ in range(MAX_BACK):
         back = find_back(win)
@@ -284,9 +366,10 @@ def trigger(log=print):
         time.sleep(1.2)
     me = find(win, lambda r, t: r == 'AXButton' and t == 'Me')
     if not me:
-        log('app sync: no Me tab; elements: ' + ' | '.join(dump(win)))
+        # Seen 2026-09-28 15:20: the window answered with a tree of nested AXApplication nodes.
+        log('app sync: no Me tab; elements: ' + ' | '.join(dump(win, limit=12)))
         _finish(app, was_front)
-        return 'timeout'
+        return 'unresponsive'
     log('app sync: Me: %s' % press(me))
     time.sleep(1.5)
     row = find(win, lambda r, t: t.startswith('Sync Data'))
@@ -294,9 +377,18 @@ def trigger(log=print):
         log('app sync: no Sync Data row; elements: ' + ' | '.join(dump(win)))
         _finish(app, was_front)
         return 'timeout'
-    how = press(row)
-    if how.startswith('clicked'):
-        # A coordinate click needs the window on screen: raise, click again, hide later.
+    action = cfs('AXPress')
+    pressed = AX.AXUIElementPerformAction(row, action) == 0
+    CF.CFRelease(action)
+    if pressed:
+        how = 'pressed'
+    elif active:
+        # A coordinate click needs the window on screen; not while the user is working.
+        log('app sync: skipped, user active (%d s idle) and Sync Data needs a click' % idle)
+        _finish(app, was_front)
+        return 'skipped_active'
+    else:
+        # A coordinate click needs the window on screen: raise, click, hide later.
         set_bool(app, 'AXFrontmost', True)
         time.sleep(0.8)
         how = press(row)

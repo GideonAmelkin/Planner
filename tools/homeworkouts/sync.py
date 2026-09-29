@@ -120,11 +120,30 @@ def snapshot_action_ids(path):
     return {i for i in ids if i.isdigit()}
 
 
-def stamp_app_sync(path, outcome, at):
+APP_SYNC_STATE = os.path.join(STATE_DIR, 'app_sync_state.json')
+
+
+def last_app_sync(outcome, at, state_path=APP_SYNC_STATE):
+    """When the app last synced successfully, kept across runs so a string of skips or
+    timeouts still says how old the app's data is."""
+    last = None
+    try:
+        with open(state_path) as f:
+            last = json.load(f).get('last_synced_at')
+    except (OSError, ValueError):
+        pass
+    if outcome == 'synced':
+        last = at
+        with open(state_path, 'w') as f:
+            json.dump({'last_synced_at': at}, f)
+    return last
+
+
+def stamp_app_sync(path, outcome, at, last_synced_at=None):
     """Record the app-sync outcome in the snapshot's source block (the tab's status line shows it)."""
     with open(path) as f:
         snap = json.load(f)
-    snap.setdefault('source', {})['app_sync'] = {'at': at, 'outcome': outcome}
+    snap.setdefault('source', {})['app_sync'] = {'at': at, 'outcome': outcome, 'last_synced_at': last_synced_at}
     tmp = path + '.tmp'
     with open(tmp, 'w') as f:
         json.dump(snap, f, indent=1)
@@ -156,7 +175,7 @@ def main(argv=None):
         print('== %s sync failed: export exit %d' % (stamp(), rc))
         return rc
     if app_outcome is not None:
-        stamp_app_sync(SNAPSHOT, app_outcome, app_at)
+        stamp_app_sync(SNAPSHOT, app_outcome, app_at, last_app_sync(app_outcome, app_at))
     sys.stderr.flush()
     try:
         new_clips, new_thumbs = stage_media()

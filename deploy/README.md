@@ -241,12 +241,18 @@ export (`sync.py --app-sync`, the launchd job's argument). The app exposes its w
 does: it downloads the account's cloud backup (one JSON on Firebase Storage: `allWorkOut`,
 `gymData`, weights, profile; left on disk as `Documents/remote_backup.json`) with the app's
 own login and rebuilds its databases. The login token lives in the app's private keychain,
-so nothing outside the app can fetch that file; the button is the only lever. Rules: skipped
-when the keyboard or mouse was used in the last 2 minutes (the app has to come to the front
-to be clicked; the next hourly run tries again); the previous app is put back and the window
-hidden afterwards; the outcome (`synced`, `skipped_active`, `no_permission`, `timeout`,
-`app_missing`) goes to `sync.log` and into the snapshot's `source.app_sync`, and the tab's
-status line shows "app synced <time>". Attended run that ignores the idle rule:
+so nothing outside the app can fetch that file; the button is the only lever. Rules: the
+press runs while the user is at the Mac as long as it stays invisible (AXPress does not raise
+the window); it is skipped (`skipped_active`) only when it would take the screen, i.e. waking
+an app that went to sleep in the background or a coordinate click, while the keyboard or
+mouse was used in the last 2 minutes. A locked screen is `skipped_locked` (the app does not
+answer then). An app that does not answer with the screen unlocked is quit and relaunched
+hidden, once, then `timeout`. The window is hidden again afterwards unless it was in front.
+The outcome goes to `sync.log` and into the snapshot's `source.app_sync` as `{at, outcome,
+last_synced_at}` (the last success is kept in `app_sync_state.json` next to the log); the
+tab's status line says "app synced <time>", or "app sync stalled since <time>" in amber once
+the last success is over 6 hours old. (Until 2026-09-28 any activity skipped the press and a
+locked screen timed out, so from Sep 27 19:20 to Sep 28 20:48 nothing synced.) Attended run that ignores the idle rule:
 `APP_SYNC_FORCE=1 python3 tools/homeworkouts/sync.py --app-sync`.
 
 One more grant for the same python3, once: System Settings > Privacy & Security >

@@ -11,6 +11,7 @@ import { COLORS } from './styles';
 
 export const STALE_AFTER_DAYS = 3;   // amber past this
 export const DEAD_AFTER_DAYS = 7;    // red past this
+export const APP_SYNC_STALE_HOURS = 6;   // amber when the Mac's press on the app's Sync button has not worked for this long
 
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 const localDay = (iso) => {
@@ -36,15 +37,23 @@ const ageSuffix = (days) => (days > STALE_AFTER_DAYS ? ` (${days} days)` : '');
 // newest session Sep 9 (18 days)". Null when there is no snapshot.
 function snapshotPart(status, asOfISO) {
   if (!status || !status.exported_at) return null;
-  // The Mac presses the app's own Sync button before each export; say when that last worked.
-  const synced = status.app_sync && status.app_sync.outcome === 'synced' ? ` (app synced ${stamp(status.app_sync.at)})` : '';
+  // The Mac presses the app's own Sync button before each hourly export; say when that last
+  // worked, and flag it once it has not worked for APP_SYNC_STALE_HOURS (the export keeps
+  // shipping the same old data on time, so the export time alone hides a stalled sync).
+  const a = status.app_sync;
+  const lastSync = a ? a.last_synced_at || (a.outcome === 'synced' ? a.at : null) : null;
+  const syncStalled = Boolean(a) && (!lastSync || Date.now() - Date.parse(lastSync) > APP_SYNC_STALE_HOURS * 3600000);
+  const synced = !a ? '' : syncStalled
+    ? ` (app sync stalled${lastSync ? ` since ${stamp(lastSync)}` : ''}: ${a.outcome.replace('_', ' ')})`
+    : ` (app synced ${stamp(lastSync)})`;
   const exported = `${stamp(status.exported_at)}${synced}`;
   const last = status.snapshot_last_session || status.last_session;
   const newest = last && last.date;
   if (!newest) return { level: 'danger', days: null, text: `snapshot exported ${exported}, no sessions in it` };
   // Looking at a day before the newest session is not staleness.
   const days = Math.max(0, daysBetween(newest, asOfISO));
-  return { level: levelOf(days), days, text: `snapshot exported ${exported}, newest session ${day(newest, asOfISO)}${ageSuffix(days)}` };
+  const level = syncStalled && levelOf(days) === 'ok' ? 'warn' : levelOf(days);
+  return { level, days, text: `snapshot exported ${exported}, newest session ${day(newest, asOfISO)}${ageSuffix(days)}` };
 }
 
 // The phone half: { level, days, reported, text }. Age is days since the phone last reported,
