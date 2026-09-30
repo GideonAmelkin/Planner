@@ -3,7 +3,9 @@ import WorkoutCard from './WorkoutCard';
 import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { shiftISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
-import { COLORS, pill } from '../shared/styles';
+import { COLORS } from '../shared/styles';
+import { W, hatch } from './theme';
+import { Chip } from './ui';
 import { toUnit } from './strength';
 
 // The Log view: workouts per bucket over the range, then one row per day (types joined,
@@ -51,33 +53,46 @@ function RangeBars({ sessions, startISO, endISO }) {
   }
   const values = keys.map((k) => counts.get(k));
   const max = Math.max(1, ...values);
-  const H = 40;
+  const peak = values.indexOf(Math.max(...values));
+  const H = 110;
   const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  const edgeLabel = (k, iso) => {
-    if (unit === 'day' || unit === 'week') return shortDate(iso);
+  const labelOf = (k, i) => {
+    if (unit === 'day') return new Date(`${k}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    if (unit === 'week') return new Date(`${shiftISO(endISO, -7 * Number(k))}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     if (unit === 'month') return monthLabel(k);
     return monthLabel(`${k.slice(0, 4)}-${String((Number(k.slice(6)) - 1) * 3 + 1).padStart(2, '0')}`);
   };
+  // At most five labels, evenly, always including the last bucket.
+  const every = Math.max(1, Math.ceil(keys.length / 5));
+  const gap = keys.length > 40 ? 2 : keys.length > 20 ? 3 : 6;
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${keys.length}, 1fr)`, gap: keys.length > 40 ? 4 : 6, alignItems: 'end', height: H, marginTop: 24 }}>
-        {values.map((c, i) => (
-          <div key={keys[i]} title={`${c} session${c === 1 ? '' : 's'}`} style={{
-            position: 'relative',
-            height: c ? Math.max(6, Math.round((c / max) * H)) : 4,
-            background: c ? COLORS.accent : COLORS.faint,
-            borderRadius: 3,
-            opacity: c ? 1 : 0.5,
-          }}>
-            {c ? <span style={{ position: 'absolute', top: -15, left: '50%', transform: 'translateX(-50%)', fontSize: 10, fontWeight: 600, color: COLORS.accent }}>{c}</span> : null}
-          </div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: H, marginTop: 34 }}>
+        {values.map((c, i) => {
+          const isPeak = c > 0 && i === peak;
+          return (
+            <div key={keys[i]} title={`${labelOf(keys[i], i)}: ${c} workout${c === 1 ? '' : 's'}`} style={{
+              flex: 1, minWidth: 0, position: 'relative', height: c ? `${Math.max(8, (c / max) * 100)}%` : 4,
+              borderRadius: c ? '8px 8px 4px 4px' : 999, background: isPeak ? hatch('#6D93FA') : c ? W.blueSoft : '#EEF2FA',
+            }}>
+              {isPeak ? (
+                <>
+                  <span style={{ position: 'absolute', top: -4, left: '50%', width: 8, height: 8, marginLeft: -4, borderRadius: '50%', background: W.blue, border: '2px solid #FFFFFF' }} />
+                  <span style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: COLORS.ink, color: '#FFFFFF', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{c} workout{c === 1 ? '' : 's'}</span>
+                </>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap, marginTop: 6 }}>
+        {keys.map((k, i) => (
+          <span key={k} style={{ flex: 1, minWidth: 0, fontSize: 10, color: COLORS.muted, textAlign: 'center', whiteSpace: 'nowrap', overflow: 'visible' }}>
+            {(keys.length - 1 - i) % every === 0 ? labelOf(k, i) : ''}
+          </span>
         ))}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.muted, marginTop: 6 }}>
-        <span>{edgeLabel(keys[0], startISO)}</span>
-        <span>workouts per {unit}</span>
-        <span>{edgeLabel(keys[keys.length - 1], endISO)}</span>
-      </div>
+      <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 8 }}>Workouts per {unit}</div>
     </div>
   );
 }
@@ -116,12 +131,12 @@ export default function LogView({ date, sessions, unit, rangeSub, chartStart, ra
             <tbody>
               {dayRows.map((r) => {
                 const mine = r.date === date;
-                const cell = (extra) => ({ ...extra, background: mine ? COLORS.calloutBg : undefined });
+                const cell = (extra) => ({ ...extra, background: mine ? W.blueWash : undefined });
                 return (
                   <tr key={r.date}>
                     <td style={cell(td)}>{shortDate(r.date)}</td>
                     <td style={cell(td)}>{r.focus.join(', ')}{r.n > 1 ? <span style={{ color: COLORS.muted, fontSize: 11, marginLeft: 6 }}>{r.n} workouts</span> : null}</td>
-                    <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{r.kinds.join(', ')}</span></td>
+                    <td style={cell(td)}>{r.kinds.map((k) => <Chip key={k} color={k === 'Gym' ? COLORS.workout : W.blue} style={{ marginRight: 4 }}>{k}</Chip>)}</td>
                     <td style={cell(tdNum)}>{secondsToHm(r.duration_s) || '-'}</td>
                     {hasCalories ? <td style={cell(tdNum)}>{r.calories ? num(r.calories) : '-'}</td> : null}
                     {hasLifted ? <td style={cell(tdNum)}>{r.lifted_kg ? num(toUnit(r.lifted_kg, unit)) : '-'}</td> : null}
