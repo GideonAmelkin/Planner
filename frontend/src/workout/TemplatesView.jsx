@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import WorkoutCard from './WorkoutCard';
 import { tableWrap, table, th, headRow, td, tdNum, tableLink } from './WorkoutTile';
 import { API_BASE } from '../shared/api';
-import { COLORS, pill } from '../shared/styles';
-import { templateBanner, titleLines, APP_BLUE, POPPINS } from './art';
+import { COLORS } from '../shared/styles';
+import { POPPINS } from './art';
+import TemplateBanner from './TemplateBanner';
+import { Chip } from './ui';
+import { W } from './theme';
 
 // The Workouts view: the app's gym templates as its own banners; a click opens the exercise list
 // with sets, reps and the app's clip. Moved out of WorkoutView unchanged except that the card is
@@ -32,26 +35,9 @@ export default function TemplatesView({ catalog }) {
     <WorkoutCard title="Workouts" icon="list" sub="The gym workouts saved in the app" aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
         {templatesList.map((t) => {
-          const [a, b] = titleLines(t.name);
           const open = openTemplate === t.id;
-          const strong = /StrongLifts/.test(t.name);
           return (
-              <div
-                key={t.id}
-                onClick={() => { setOpenTemplate(open ? null : t.id); setPlayingExercise(null); }}
-                title={t.name}
-                style={{
-                  position: 'relative', aspectRatio: '690 / 240', borderRadius: 12, overflow: 'hidden', cursor: 'pointer',
-                  background: `url(${templateBanner(t.name) || ''}) center / cover, ${COLORS.ink}`,
-                  outline: open ? `3px solid ${APP_BLUE}` : 'none', outlineOffset: 2,
-                  alignSelf: 'start',
-                }}
-              >
-                <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#FFFFFF', fontFamily: POPPINS, fontWeight: 800, fontSize: 14, lineHeight: 1.05, textTransform: 'uppercase', textShadow: '0 1px 2px rgba(0,0,0,.3)' }}>
-                  {a}<br />{b}
-                  {strong ? null : <div style={{ fontWeight: 500, fontSize: 11, marginTop: 4, textTransform: 'none' }}>Classic Gym Workout</div>}
-                </div>
-              </div>
+            <TemplateBanner key={t.id} name={t.name} selected={open} onClick={() => { setOpenTemplate(open ? null : t.id); setPlayingExercise(null); }} />
           );
         })}
       </div>
@@ -62,11 +48,11 @@ export default function TemplatesView({ catalog }) {
         const numCell = { ...tdNum, textAlign: 'right', padding: '8px 12px 8px 0' };
         const numHead = { ...th, textAlign: 'right', padding: '4px 12px 8px 0' };
         return (
-                <div style={{ marginTop: 12, background: COLORS.page, borderRadius: 12, padding: '14px 18px', minWidth: 0 }}>
+                <div style={{ marginTop: 14, background: W.blueWash, borderRadius: 18, padding: '16px 18px', minWidth: 0 }}>
                   <div style={{ fontFamily: POPPINS, fontWeight: 800, fontSize: 16, textTransform: 'uppercase' }}>{t.name}</div>
                   <div style={{ display: 'flex', gap: 6, margin: '6px 0 10px' }}>
-                    <span style={pill}>{t.exercises.length} exercises</span>
-                    <span style={pill}>{maxSets(t)} sets</span>
+                    <Chip>{t.exercises.length} exercises</Chip>
+                    <Chip>{maxSets(t)} sets</Chip>
                   </div>
                   <div style={tableWrap}>
                     <table style={{ ...table, tableLayout: 'fixed' }}>

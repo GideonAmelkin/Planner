@@ -7,7 +7,8 @@ import { longestStreak, muscleShares, recordsInRange, sessionLengths, shiftDay, 
 import { inRange, toUnit } from '../strength';
 import { muscleVolume } from '../muscles';
 import { monthDay } from '../ptParts';
-import { templateHeader } from '../art';
+import { templateForSession } from '../art';
+import TemplateBanner from '../TemplateBanner';
 import { num } from '../../shared/format';
 import { COLORS } from '../../shared/styles';
 import { W, glassCard, hatch, iconDisc, statPill } from '../theme';
@@ -22,7 +23,6 @@ import { W, glassCard, hatch, iconDisc, statPill } from '../theme';
 // Three columns from 1060px of content width, two from 660px (the right column wraps under),
 // one below that. Every number comes from the range's sessions or the gym sessions with sets.
 const MAX_BARS = 40;
-const shortName = (s) => s.title || s.focus || 'Workout';
 
 function useWidth(ref) {
   const [w, setW] = useState(1200);
@@ -38,7 +38,8 @@ function useWidth(ref) {
   return w;
 }
 
-function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, art, sessions, gymCount, streak, rangeSub }) {
+function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, latest, sessions, gymCount, streak, rangeSub }) {
+  const banner = templateForSession(latest);
   const d = new Date(`${date}T12:00:00`);
   const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
   const monthDayLong = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -54,10 +55,11 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, art, sessio
   );
   return (
     <div style={{ ...glassCard, padding: 0, overflow: 'hidden' }}>
-      <div style={{ height: 150, position: 'relative', background: art ? `url(${art}) 70% 30% / cover` : `linear-gradient(135deg, ${W.blueSoft}, ${W.blueWash})` }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(255,255,255,0) 40%, rgba(255,255,255,.95) 100%)' }} />
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 16px', marginTop: -20, position: 'relative' }}>
+      {banner ? (
+        // The latest workout's own banner from the app (the Workouts grid art).
+        <TemplateBanner name={banner} sub={latest.kind === 'gym' ? undefined : 'Home workout'} radius={0} size={17} />
+      ) : <div style={{ height: 104, background: `linear-gradient(135deg, ${W.blueSoft}, ${W.blueWash})` }} />}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 16px', marginTop: 14 }}>
         {sex ? <span style={statPill} title={sex}>{sex === 'Male' ? '♂' : '♀'}</span> : null}
         {weightKg ? (
           <span style={statPill} title={delta ? `${delta > 0 ? '+' : ''}${num(delta, 1)} ${unit} ${rangeSub}` : 'Latest weigh-in'}>
@@ -165,8 +167,6 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const inRangeW = known.filter((w) => w.date >= rangeStart);
   const weightDeltaKg = inRangeW.length >= 2 ? inRangeW[inRangeW.length - 1].kg - inRangeW[0].kg : 0;
 
-  const lastGym = [...gymInRange].reverse()[0] || [...allGym].reverse().find((s) => s.date <= rangeEnd);
-  const art = lastGym ? templateHeader(shortName(lastGym)) : null;
   const last = sessions.length ? sessions[0] : null; // the API lists newest first
   const gymOldestFirst = [...sessions].filter((s) => s.kind === 'gym' && s.total_weight_kg).reverse();
   const bandStart = [shiftDay(rangeEnd, -6), rangeStart].sort()[1];
@@ -174,7 +174,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const left = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
       <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit}
-        art={art} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
+        latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
       <SessionLengthCard sessions={sessions} compact={cols === 1} />
     </div>
   );

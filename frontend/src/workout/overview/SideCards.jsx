@@ -2,7 +2,8 @@ import React from 'react';
 import Icon from '../icons';
 import { groupOf } from '../muscles';
 import { e1rmText, fmtVolume, monthDay, nameOf } from '../ptParts';
-import { templateHeader } from '../art';
+import { templateForSession } from '../art';
+import TemplateBanner from '../TemplateBanner';
 import { COLORS } from '../../shared/styles';
 import { W, glassCard, iconDisc } from '../theme';
 
@@ -25,7 +26,7 @@ export function LastSessionCard({ session, unit }) {
       </div>
     );
   }
-  const art = session.kind === 'gym' ? templateHeader(session.title) : null;
+  const banner = templateForSession(session);
   const name = session.title || session.focus || 'Workout';
   return (
     <div style={glassCard}>
@@ -36,8 +37,8 @@ export function LastSessionCard({ session, unit }) {
           <div style={title}>{name}</div>
         </div>
       </div>
-      {art ? (
-        <div role="img" aria-label={`${name} art from the Home Workouts app`} style={{ height: 112, borderRadius: 16, background: `url(${art}) center / cover`, marginTop: 12 }} />
+      {banner ? (
+        <div style={{ marginTop: 12 }}><TemplateBanner name={banner} sub={session.kind === 'gym' ? undefined : 'Home workout'} radius={16} /></div>
       ) : (
         <div style={{ height: 112, borderRadius: 16, marginTop: 12, background: W.blueWash, color: W.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontWeight: 600 }}>
           <Icon name={session.kind === 'gym' ? 'dumbbell' : 'home'} size={26} />{session.kind === 'gym' ? 'Gym' : 'Home'} workout

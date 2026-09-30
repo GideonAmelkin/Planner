@@ -32,3 +32,26 @@ export function titleLines(name) {
 
 export const APP_BLUE = '#0055FF';
 export const POPPINS = "'Poppins', 'DM Sans', sans-serif";
+
+// Which app template's banner stands for a session. A gym session is named after its template;
+// a home session is matched by its focus or title ("Chest · Intermediate" -> Chest Workout).
+// Null when nothing matches (the caller shows a plain wash).
+const HOME_ART = [
+  [/chest/i, 'Chest Workout'],
+  [/abs|core|belly/i, 'Abs Workout'],
+  [/arm|bicep|tricep/i, 'Arm Workout'],
+  [/shoulder/i, 'Shoulders Workout'],
+  [/butt|glute/i, 'Butt Workout'],
+  [/leg|lower/i, 'Lower Body Workout'],
+  [/back/i, 'Back Workout'],
+  [/upper/i, 'Upper Body Workout'],
+  [/full/i, 'Full Body Workout'],
+];
+export function templateForSession(session) {
+  if (!session) return null;
+  const title = session.title || '';
+  if (TEMPLATE_ART[title]) return title;
+  const text = `${session.focus || ''} ${title}`;
+  const hit = HOME_ART.find(([re]) => re.test(text));
+  return hit ? hit[1] : null;
+}
