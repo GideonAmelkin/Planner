@@ -1,0 +1,4 @@
+body.glb
+  Generated 2026-09-29 from the owner's reference render (a front view of a satin grey male figure):
+  Higgsfield background removal, then Meta SAM 3D (image to mesh), then gltf-transform optimize
+  (weld, simplify to 87k triangles, meshopt). The raw output and the cut-out are in assets-src/ (not in git).

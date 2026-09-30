@@ -8,7 +8,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "three": "^0.186.1"
   },
   "scripts": {
     "start": "PORT=3001 BROWSER=none react-scripts start",

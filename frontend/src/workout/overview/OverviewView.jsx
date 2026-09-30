@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../icons';
-import BodyFigure from './BodyFigure';
+import BodyViewer from './BodyViewer';
 import DayStrip from './DayStrip';
 import { Highlights, LastSessionCard, MiniCards, RadarCard } from './SideCards';
 import { longestStreak, muscleShares, recordsInRange, sessionLengths, shiftDay, stripDays, topExercises } from './select';
@@ -179,7 +179,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
     </div>
   );
   const figure = (
-    <BodyFigure now={now} before={before} beforeCount={beforeGym.length} beforeLabel={beforeLabel} unit={unit}
+    <BodyViewer now={now} before={before} beforeCount={beforeGym.length} beforeLabel={beforeLabel} unit={unit}
       top={topExercises(gymInRange)} onOpenTrainer={onOpenTrainer} compact={cols === 1} />
   );
   const right = (

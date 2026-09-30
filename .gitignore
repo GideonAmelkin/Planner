@@ -32,3 +32,6 @@ logs/
 
 # Home Workouts snapshot on the server (rsynced from the Mac)
 backend/workout-state/
+
+# Source art for generated assets (raw 3D output, reference cut-outs); only the optimised files ship.
+assets-src/

@@ -4,7 +4,7 @@ import { MUSCLE_GROUPS, groupOf } from '../muscles';
 import { fmtVolume } from '../ptParts';
 import MusclePopover, { POP_W } from './MusclePopover';
 import { COLORS } from '../../shared/styles';
-import { W, roundButton } from '../theme';
+import { roundButton } from '../theme';
 import { BODY_HALF, CORE, FOOT, HAND, HEAD, HOTSPOTS, LINES, MUSCLE_HALF, NECK, VIEW_H, VIEW_W } from './figure';
 
 // The Overview's centre piece: a shaded figure, front or back (the < > under it), each muscle group
