@@ -3,7 +3,9 @@ import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { compressSets, toUnit } from './strength';
 import { groupOf, muscleOf } from './muscles';
 import { ExerciseDetail, Sparkline, e1rmText, fmtVolume, missingMark, monthDay, muted, nameOf, setText } from './ptParts';
-import { COLORS, pill } from '../shared/styles';
+import { COLORS } from '../shared/styles';
+import { W } from './theme';
+import { Chip, figureLabel } from './ui';
 
 // The ticker board: one row per exercise in the range, like a market board. Change is the est. 1RM
 // against the first time in the range; with one session in the range, against the previous time
@@ -56,10 +58,10 @@ export default function ExerciseTicker({ history, allHistory, unit, muscle, onCl
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', color: COLORS.muted }}>Exercises</span>
+        <span style={figureLabel}>Exercises</span>
         {g ? (
-          <button type="button" onClick={onClearMuscle} style={{ ...pill, border: 'none', cursor: 'pointer', color: COLORS.ink, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: g.color }} />Showing {g.label} · show all ✕
+          <button type="button" onClick={onClearMuscle} style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', font: 'inherit' }}>
+            <Chip color={g.color} style={{ fontSize: 12, padding: '4px 11px' }}>Showing {g.label} · show all ✕</Chip>
           </button>
         ) : <span style={muted}>Click a row for its rep-max table, records and history. Click a header to sort.</span>}
       </div>
@@ -79,22 +81,20 @@ export default function ExerciseTicker({ history, allHistory, unit, muscle, onCl
               const up = r.ch !== null && r.ch > 0.02; const down = r.ch !== null && r.ch < -0.02;
               return (
                 <React.Fragment key={r.action_id}>
-                  <tr onClick={() => onToggle(r.action_id)} style={{ cursor: 'pointer', background: open ? COLORS.page : undefined }} aria-expanded={open}>
+                  <tr onClick={() => onToggle(r.action_id)} style={{ cursor: 'pointer', background: open ? 'rgba(255,255,255,.85)' : undefined }} aria-expanded={open}>
                     <td style={{ ...td, minWidth: 220 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{nameOf(r)}{r.name ? null : missingMark}
-                        {r.prs.map((p) => <span key={p} style={{ ...pill, color: COLORS.accent, fontSize: 10, marginLeft: 6, padding: '2px 7px' }}>PR {p}</span>)}
+                        {r.prs.map((p) => <Chip key={p} color={W.blue} style={{ fontSize: 10, marginLeft: 6, padding: '2px 8px' }}>PR {p}</Chip>)}
                       </div>
                       <div style={{ ...muted, marginTop: 2 }}>{compressSets(r.last.set_list, unit)}</div>
                     </td>
                     <td style={td}>
-                      <span style={{ ...pill, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '2px 8px' }}>
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: mg.color }} />{mg.label}
-                      </span>
+                      <Chip color={mg.color}>{mg.label}</Chip>
                     </td>
                     <td style={{ ...tdNum, textAlign: 'right' }}>{monthDay(r.last.date)}</td>
                     <td style={{ ...tdNum, textAlign: 'right' }}>{r.points.length}</td>
                     <td style={{ ...tdNum, textAlign: 'right' }}>{setText(r.last.best, unit)}</td>
-                    <td style={{ ...tdNum, textAlign: 'right' }}><strong style={{ fontSize: 15 }}>{e1rmText(r.last.e1rm_kg, unit)}</strong> <span style={muted}>{unit}</span></td>
+                    <td style={{ ...tdNum, textAlign: 'right' }}><span style={{ fontSize: 18, fontWeight: 500, letterSpacing: -0.5 }}>{e1rmText(r.last.e1rm_kg, unit)}</span> <span style={muted}>{unit}</span></td>
                     <td style={{ ...tdNum, textAlign: 'right' }}>
                       {r.ch === null ? <span style={muted}>new</span> : (
                         <>
@@ -107,11 +107,11 @@ export default function ExerciseTicker({ history, allHistory, unit, muscle, onCl
                     </td>
                     <td style={td}>{r.points.length > 1 ? <Sparkline points={r.points} valueOf={(p) => p.e1rm_kg || 0} /> : <span style={muted}>-</span>}</td>
                     <td style={{ ...tdNum, textAlign: 'right' }}>{fmtVolume(r.volume_kg, unit)} {unit}</td>
-                    <td style={{ ...td, color: COLORS.accent, fontSize: 12 }} aria-hidden="true">{open ? '▾' : '▸'}</td>
+                    <td style={{ ...td, color: W.blue, fontSize: 12 }} aria-hidden="true">{open ? '▾' : '▸'}</td>
                   </tr>
                   {open ? (
                     <tr>
-                      <td colSpan={10} style={{ ...td, background: COLORS.page, padding: '4px 14px 16px' }}>
+                      <td colSpan={10} style={{ ...td, background: 'rgba(255,255,255,.85)', padding: '4px 14px 18px' }}>
                         <ExerciseDetail h={r} unit={unit} sessionsById={sessionsById} metric={metric} setMetric={setMetric} />
                       </td>
                     </tr>

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import WorkoutCard from './WorkoutCard';
 import { exerciseHistory, inRange, newRecords, records } from './strength';
 import { muscleVolume } from './muscles';
-import { Delta, fmtVolume, monthDay, muted, readOpen, writeOpen } from './ptParts';
-import BodyMap from './BodyMap';
-import BalanceRadar from './BalanceRadar';
+import { Delta, fmtVolume, monthDay, readOpen, writeOpen } from './ptParts';
+import { Figure } from './ui';
 import ExerciseTicker from './ExerciseTicker';
 import MuscleChart from './MuscleChart';
 import { shiftISO } from '../shared/dayInfo';
@@ -12,12 +11,12 @@ import { RANGES } from './ranges';
 import { COLORS } from '../shared/styles';
 
 // Personal Trainer: the guided gym sessions the user logs in the app with reps and weight.
-//   top     one summary line, then the body map (left) and the balance radar (right): which
-//           muscles the range worked, and against the same-length range before it; under both,
-//           one MuscleChart with the numbers for the two figures (this range vs before, change)
+//   top     big-number figures (sessions, exercises, volume, vs the previous session), then the
+//           MuscleChart: volume per group this range against the same-length range before it
 //   bottom  the ticker board: one row per exercise (est. 1RM, change, trend, volume), sortable,
 //           a row click opens the exercise detail (rep-max table, records, sessions, chart)
-// Picking a muscle on the body map or the radar selects it on both and filters the ticker.
+// The body figure and the balance radar live in the Overview since 2026-09-29; picking a muscle
+// there, or on the MuscleChart here, filters the ticker.
 // The range and the muscle filter belong to the page (WorkoutView): one range picker in the top bar
 // drives every section, and the Overview's "Open in Trainer" sets the muscle.
 // Rule: never render a comparison that has nothing to compare (trend lines, PR pills and the
@@ -72,27 +71,22 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
         </div>
       ) : null}
 
-      {/* Level 1: one line, no number twice. */}
+      {/* Level 1: the figures, no number twice. */}
       {latest ? (
-        <div style={{ fontSize: 14, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'baseline' }}>
-          <strong>{sessions.length} session{sessions.length === 1 ? '' : 's'}</strong>
-          <span style={muted}>·</span><strong>{history.length} exercise{history.length === 1 ? '' : 's'}</strong>
-          <span style={muted}>·</span><strong>{fmtVolume(volumeKg, unit)} {unit} lifted</strong>
-          {previous ? <Delta kg={(latest.total_weight_kg || 0) - (previous.total_weight_kg || 0)} unit={unit} suffix=" vs previous session" /> : null}
-          <span style={muted}>·</span><span style={muted}>{sessions.length === 1 ? monthDay(latest.date) : `${monthDay(sessions[0].date)} to ${monthDay(latest.date)}`}</span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 18 }}>
+          <Figure label="Sessions" value={sessions.length} sub={sessions.length === 1 ? monthDay(latest.date) : `${monthDay(sessions[0].date)} to ${monthDay(latest.date)}`} />
+          <Figure label="Exercises" value={history.length} sub="different lifts" />
+          <Figure label="Volume lifted" value={fmtVolume(volumeKg, unit)} unit={unit} sub="weight x reps, every set" />
+          {previous ? <Figure label="Last session" value={fmtVolume(latest.total_weight_kg || 0, unit)} unit={unit} sub={<Delta kg={(latest.total_weight_kg || 0) - (previous.total_weight_kg || 0)} unit={unit} suffix=" vs the one before" />} /> : null}
         </div>
       ) : <div style={{ marginTop: 4, fontSize: 13, color: COLORS.muted }}>No gym sessions in this range. Pick a longer range at the top.</div>}
 
       {latest ? (
         <>
-          <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 28, alignItems: 'start' }}>
-            <BodyMap volumes={now} unit={unit} selected={muscle} onSelect={pick} />
-            <BalanceRadar now={now} before={before} selected={muscle} onSelect={pick} />
-          </div>
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 22 }}>
             <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
           </div>
-          <div style={{ marginTop: 22, borderTop: `1px solid ${COLORS.hairline}`, paddingTop: 16 }}>
+          <div style={{ marginTop: 26 }}>
             <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => onMuscle(null)}
               openIds={openIds} onToggle={toggle} sessionsById={sessionsById} metric={metric} setMetric={setMetric} />
           </div>

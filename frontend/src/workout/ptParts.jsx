@@ -2,7 +2,9 @@ import React from 'react';
 import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { compressSets, exerciseSessionRows, fmtWeight, records, repMaxTable, toUnit, EPLEY_MAX_REPS } from './strength';
 import { num } from '../shared/format';
-import { COLORS, pill, navButton } from '../shared/styles';
+import { COLORS } from '../shared/styles';
+import { W } from './theme';
+import { Chip, PastelTile, PASTELS } from './ui';
 
 // The Personal Trainer card's shared pieces: formatters, the open-row store, the small charts and
 // the expanded exercise detail (rep-max table, records, sessions, metric chart). Used by
@@ -26,7 +28,7 @@ export const setText = (set, unit) => (set ? `${fmtWeight(set.weight_kg, unit)} 
 export const nameOf = (h) => h.name || `Exercise ${h.action_id}`;
 export const missingMark = <span style={{ color: COLORS.warn, fontSize: 11, marginLeft: 6 }} title="The app has not downloaded this exercise's text yet">(name missing)</span>;
 export const muted = { fontSize: 12, color: COLORS.muted };
-export const label = { fontSize: 11, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', color: COLORS.muted };
+export const label = { fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: COLORS.muted };
 
 export function Delta({ kg, unit, suffix = '' }) {
   if (kg === null || kg === undefined) return null;
@@ -47,9 +49,9 @@ export function LineChart({ points, valueOf, format, width = 560, height = 120 }
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none" role="img" aria-label="Metric over sessions" style={{ display: 'block', maxWidth: width }}>
       <line x1={padL} x2={width - padR} y1={height - padB} y2={height - padB} stroke={COLORS.hairline} strokeWidth={1} />
-      <path d={d} fill="none" stroke={COLORS.accent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+      <path d={d} fill="none" stroke={W.blue} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       {points.map((p, i) => (
-        <circle key={p.session_id} cx={sx(i)} cy={sy(valueOf(p))} r={4} fill={COLORS.accent} stroke={COLORS.paper} strokeWidth={2}>
+        <circle key={p.session_id} cx={sx(i)} cy={sy(valueOf(p))} r={4} fill={W.blue} stroke={COLORS.paper} strokeWidth={2}>
           <title>{`${monthDay(p.date)}: ${format(valueOf(p))}`}</title>
         </circle>
       ))}
@@ -68,8 +70,8 @@ export function Sparkline({ points, valueOf }) {
   const d = points.map((p, i) => `${i ? 'L' : 'M'}${sx(i).toFixed(1)},${sy(valueOf(p)).toFixed(1)}`).join(' ');
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Estimated 1RM over ${points.length} sessions`} style={{ display: 'block' }}>
-      <path d={d} fill="none" stroke={COLORS.accent} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={sx(points.length - 1)} cy={sy(valueOf(points[points.length - 1]))} r={4} fill={COLORS.accent} stroke={COLORS.paper} strokeWidth={2} />
+      <path d={d} fill="none" stroke={W.blue} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={sx(points.length - 1)} cy={sy(valueOf(points[points.length - 1]))} r={4} fill={W.blue} stroke={COLORS.paper} strokeWidth={2} />
     </svg>
   );
 }
@@ -82,13 +84,11 @@ export function ExerciseDetail({ h, unit, sessionsById, metric, setMetric }) {
   const history = exerciseSessionRows(h.points);
   const m = METRICS.find((x) => x.key === metric) || METRICS[0];
   const fmt = (v) => (m.weight ? `${m.key === 'volume_kg' ? fmtVolume(v, unit) : e1rmText(v, unit)} ${unit}` : `${num(v)} reps`);
-  const recTile = (title, value, date) => (
-    <div style={{ minWidth: 120 }}>
-      <div style={label}>{title}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, marginTop: 2 }}>{value}</div>
-      <div style={muted}>{monthDay(date)}</div>
-    </div>
-  );
+  let tileIx = 0;
+  const recTile = (title, value, date) => {
+    const [bg, fg] = PASTELS[tileIx++ % PASTELS.length];
+    return <PastelTile key={title} icon="trophy" label={title} value={value} sub={monthDay(date)} bg={bg} fg={fg} valueSize={15} />;
+  };
   return (
     <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
@@ -98,9 +98,9 @@ export function ExerciseDetail({ h, unit, sessionsById, metric, setMetric }) {
             <thead><tr style={headRow}><th style={th}>Reps</th><th style={th}>Best actual ({unit})</th><th style={th}>Estimated ({unit})</th></tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.reps} style={r.pr ? { background: COLORS.calloutBg } : undefined}>
+                <tr key={r.reps} style={r.pr ? { background: W.blueWash } : undefined}>
                   <td style={tdNum}>{r.reps}</td>
-                  <td style={td}>{r.actual ? <>{fmtWeight(r.actual.kg, unit)} <span style={muted}>{monthDay(r.actual.date)}</span>{r.pr ? <span style={{ ...pill, color: COLORS.accent, marginLeft: 6, fontSize: 10 }}>PR</span> : null}</> : <span style={{ color: COLORS.faint }}>-</span>}</td>
+                  <td style={td}>{r.actual ? <>{fmtWeight(r.actual.kg, unit)} <span style={muted}>{monthDay(r.actual.date)}</span>{r.pr ? <Chip color={W.blue} style={{ marginLeft: 6, fontSize: 10 }}>PR</Chip> : null}</> : <span style={{ color: COLORS.faint }}>-</span>}</td>
                   <td style={tdNum}>{r.estimated_kg === null ? 'NA' : fmtWeight(r.estimated_kg, unit)}</td>
                 </tr>
               ))}
@@ -111,7 +111,7 @@ export function ExerciseDetail({ h, unit, sessionsById, metric, setMetric }) {
       </div>
       <div>
         <div style={{ ...label, marginBottom: 6 }}>Records</div>
-        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
           {rec.heaviest ? recTile('Heaviest weight', `${fmtWeight(rec.heaviest.kg, unit)} ${unit}`, rec.heaviest.date) : null}
           {rec.bestE1rm ? recTile('Best est. 1RM', `${e1rmText(rec.bestE1rm.kg, unit)} ${unit}`, rec.bestE1rm.date) : null}
           {rec.bestE1rm ? recTile('Est. 10RM', `${e1rmText(rec.bestE1rm.e10rm_kg, unit)} ${unit}`, rec.bestE1rm.date) : null}
@@ -145,7 +145,7 @@ export function ExerciseDetail({ h, unit, sessionsById, metric, setMetric }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
               <span style={label}>Chart</span>
               {METRICS.map((x) => (
-                <button key={x.key} type="button" onClick={() => setMetric(x.key)} style={{ ...navButton, fontSize: 12, padding: '3px 8px', cursor: 'pointer', fontWeight: x.key === metric ? 700 : 500, color: x.key === metric ? COLORS.accent : COLORS.ink }}>{x.label}</button>
+                <button key={x.key} type="button" onClick={() => setMetric(x.key)} style={{ border: 'none', borderRadius: 999, fontSize: 12, padding: '5px 11px', cursor: 'pointer', font: 'inherit', fontWeight: x.key === metric ? 600 : 500, background: x.key === metric ? W.blue : W.chip, color: x.key === metric ? '#FFFFFF' : COLORS.ink }}>{x.label}</button>
               ))}
             </div>
             <LineChart points={h.points} valueOf={(p) => p[m.key] || 0} format={fmt} />
