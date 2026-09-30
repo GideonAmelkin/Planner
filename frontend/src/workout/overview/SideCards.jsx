@@ -6,6 +6,8 @@ import { templateForSession } from '../art';
 import TemplateBanner from '../TemplateBanner';
 import { COLORS } from '../../shared/styles';
 import { W, glassCard, iconDisc } from '../theme';
+import BalanceRadar from '../BalanceRadar';
+import { CardHeader } from '../ui';
 
 // The Overview's right column: Last session (with the app's art), Highlights (new records in the
 // range, else the streak and the count), and two small cards, Volume (area over the gym sessions)
@@ -154,6 +156,20 @@ export function MiniCards({ gymSessions, shares, unit }) {
           </>
         ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
       </div>
+    </div>
+  );
+}
+
+// The balance radar as an Overview widget: this range filled, the same-length window before dashed
+// (none for Lifetime). A group's label selects it for the page (the Trainer's chart and ticker follow).
+export function RadarCard({ now, before, beforeLabel, selected, onSelect }) {
+  const trained = Object.values(now).some((v) => v > 0);
+  return (
+    <div style={glassCard}>
+      <CardHeader icon="radar" title="Muscle balance" sub={before ? `Filled: this range · dashed: ${beforeLabel.replace(/^(in|on) /, '')}` : 'This range'} />
+      {trained ? (
+        <div style={{ marginTop: 8 }}><BalanceRadar now={now} before={before} selected={selected} onSelect={onSelect} /></div>
+      ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
     </div>
   );
 }

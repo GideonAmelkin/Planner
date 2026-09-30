@@ -152,7 +152,7 @@ export default function WorkoutView() {
           date={date} profile={profile} weights={(rangeRecent && rangeRecent.weights) || []}
           sessions={customValid ? rangeSessions : []} rangeStart={rangeStart} rangeEnd={rangeEnd} rangeSub={range.sub} lifetime={rangeKey === 'lifetime'}
           strength={strength} stripSessions={(stripRecent && stripRecent.sessions) || []} stripStart={stripStart} stripEnd={stripEnd}
-          onOpenTrainer={openTrainer}
+          onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle}
         />
       ))}
       {section('trainer', <PersonalTrainer data={strength} date={date} rangeKey={rangeKey} customFrom={customFrom} customTo={customTo} muscle={muscle} onMuscle={setMuscle} />)}
