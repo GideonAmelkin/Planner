@@ -19,7 +19,7 @@ export default function BalanceRadar({ now, before, selected, onSelect }) {
   const poly = (v) => MUSCLE_GROUPS.map((g, i) => pt(i, Math.sqrt((v[g.key] || 0) / max)).map((x) => x.toFixed(1)).join(',')).join(' ');
   return (
     <div style={{ minWidth: 0 }}>
-      <svg viewBox={`-34 -6 ${S + 68} ${S + 12}`} role="img" aria-label="Volume per muscle group" style={{ width: '100%', maxWidth: 360, height: 'auto', display: 'block', margin: '0 auto' }}>
+      <svg viewBox={`-52 -14 ${S + 104} ${S + 28}`} role="img" aria-label="Volume per muscle group" style={{ width: '100%', maxWidth: 360, height: 'auto', display: 'block', margin: '0 auto' }}>
         {[0.25, 0.5, 0.75, 1].map((f) => (
           <polygon key={f} points={MUSCLE_GROUPS.map((_, i) => pt(i, f).join(',')).join(' ')} fill="none" stroke="rgba(30,50,110,.1)" />
         ))}
@@ -30,7 +30,7 @@ export default function BalanceRadar({ now, before, selected, onSelect }) {
           return (
             <g key={g.key} onClick={() => onSelect(g.key)} style={{ cursor: 'pointer' }}>
               <line x1={C} y1={C} x2={x} y2={y} stroke="rgba(30,50,110,.1)" />
-              <text x={lx} y={ly + 4} fontSize={on ? 13 : 11} fontWeight={on ? 700 : 600} textAnchor="middle" fill={g.color} textDecoration={on ? 'underline' : 'none'}>{g.label}</text>
+              <text x={lx} y={ly + 4} fontSize={on ? 19 : 17} fontWeight={on ? 700 : 600} textAnchor="middle" fill={g.color} textDecoration={on ? 'underline' : 'none'}>{g.label}</text>
             </g>
           );
         })}
