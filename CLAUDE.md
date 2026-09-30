@@ -67,7 +67,7 @@ The Workout App tab shows the Home Workouts app (Leap Health, bundle
 server `.env`; this is what makes a session appear within seconds), and the Mac, where the
 app also runs as an iPhone app, presses the app's own Sync button, exports its SQLite files
 to one JSON snapshot and rsyncs it to `backend/workout-state/` every hour
-(`tools/homeworkouts/`, launchd; the exercise detail, only what the app's cloud backup holds). The header's status line says when the phone
+(`tools/homeworkouts/`, launchd; the exercise detail, only what the app's cloud backup holds). Since 2026-09-29 the tab has its own look (soft blue page, frosted cards) and a pill nav over four views: Overview (a body figure with a dot per trained muscle group, profile and session-length cards on the left, last session / highlights / volume / balance on the right, a seven-week day strip), Trainer, Workouts and Log. The status line under the nav says when the phone
 last reported and how old the snapshot's newest session is. Runs and walks are not exported.
 
 The Social tab shows the user's TikTok account from TikTokAnalyzer's database

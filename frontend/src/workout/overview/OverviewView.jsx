@@ -105,7 +105,7 @@ function SessionLengthCard({ sessions, compact }) {
             {figure('Avg', Math.round(avg))}
             {figure('Range', min === max ? Math.round(min) : `${Math.round(min)}-${Math.round(max)}`)}
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: rows.length > 20 ? 3 : 6, height: 132, marginTop: 30 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: rows.length > 20 ? 3 : 6, height: 132, marginTop: 38 }}>
             {rows.map((r, i) => {
               const isPeak = r === peak;
               return (
