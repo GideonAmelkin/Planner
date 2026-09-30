@@ -1,24 +1,14 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { useState } from 'react';
 import BodyFigure from './BodyFigure';
-import { COLORS } from '../../shared/styles';
+import BodyImage from './BodyImage';
 
-// The Overview's figure: the 3D body (Body3D, three.js in its own chunk) where WebGL works and the
-// model loads; the SVG figure otherwise, with the same dots, popover and buttons.
-const Body3D = lazy(() => import('./Body3D'));
-
-const webglWorks = () => {
-  try {
-    const c = document.createElement('canvas');
-    return !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
-  } catch (_) { return false; }
-};
-
+// The Overview's figure: the user's own body render with the heat painted on (BodyImage); the SVG figure
+// if that image cannot load.
+// On the shelf, not imported (so not bundled): Body3D.jsx, heatMaterial.js and anchors.js, a three.js
+// body with the heat in the shader. The mesh generated for it from the user's image was rejected on
+// 2026-09-29, so it waits for a proper model before the animated version the user wants later.
 export default function BodyViewer(props) {
-  const [mode, setMode] = useState(() => (webglWorks() ? '3d' : 'svg'));
-  if (mode === 'svg') return <BodyFigure {...props} />;
-  return (
-    <Suspense fallback={<div style={{ height: 620, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: COLORS.muted }}>Loading the 3D body...</div>}>
-      <Body3D {...props} onFail={() => setMode('svg')} />
-    </Suspense>
-  );
+  const [failed, setFailed] = useState(false);
+  if (failed) return <BodyFigure {...props} />;
+  return <BodyImage {...props} onFail={() => setFailed(true)} />;
 }
