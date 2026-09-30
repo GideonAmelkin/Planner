@@ -8,7 +8,7 @@ import BalanceRadar from './BalanceRadar';
 import ExerciseTicker from './ExerciseTicker';
 import MuscleChart from './MuscleChart';
 import { shiftISO } from '../shared/dayInfo';
-import { RANGES, RangePicker } from './ranges';
+import { RANGES } from './ranges';
 import { COLORS } from '../shared/styles';
 
 // Personal Trainer: the guided gym sessions the user logs in the app with reps and weight.
@@ -18,16 +18,14 @@ import { COLORS } from '../shared/styles';
 //   bottom  the ticker board: one row per exercise (est. 1RM, change, trend, volume), sortable,
 //           a row click opens the exercise detail (rep-max table, records, sessions, chart)
 // Picking a muscle on the body map or the radar selects it on both and filters the ticker.
+// The range and the muscle filter belong to the page (WorkoutView): one range picker in the top bar
+// drives every section, and the Overview's "Open in Trainer" sets the muscle.
 // Rule: never render a comparison that has nothing to compare (trend lines, PR pills and the
 // chart need two sessions). Math in strength.js and muscles.js; shared pieces in ptParts.jsx.
 
-export default function PersonalTrainer({ data, date, initialMuscle = null }) {
-  const [rangeKey, setRangeKey] = useState('d30');
-  const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
-  const [customTo, setCustomTo] = useState(date);
+export default function PersonalTrainer({ data, date, rangeKey, customFrom, customTo, muscle, onMuscle }) {
   const [openIds, setOpenIds] = useState(readOpen);
   const [metric, setMetric] = useState('e1rm_kg');
-  const [muscle, setMuscle] = useState(initialMuscle); // the Overview's "Open in Trainer" preselects one
   const all = (data && data.sessions) || [];
   const unit = (data && data.weight_unit) || 'lb';
   // Same choices as the top card. Lifetime starts at the first gym session; Custom runs From..To
@@ -52,12 +50,9 @@ export default function PersonalTrainer({ data, date, initialMuscle = null }) {
   const before = rangeKey === 'lifetime' ? null : muscleVolume(inRange(all, beforeStart, beforeEnd));
   const beforeLabel = spanDays === 1 ? monthDay(beforeEnd) : `${monthDay(beforeStart)} to ${monthDay(beforeEnd)}`;
   const now = muscleVolume(sessions);
-  const pick = (m) => setMuscle((cur) => (cur === m ? null : m));
+  const pick = (m) => onMuscle(muscle === m ? null : m);
   const toggle = (id) => setOpenIds((ids) => { const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]; writeOpen(next); return next; });
   const aside = data === null ? 'Loading...' : `${all.length} gym session${all.length === 1 ? '' : 's'}`;
-  const actions = (
-    <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
-  );
 
   if (data && !all.length) {
     return (
@@ -70,7 +65,7 @@ export default function PersonalTrainer({ data, date, initialMuscle = null }) {
   }
 
   return (
-    <WorkoutCard title="Personal Trainer" dot={COLORS.workout} aside={aside} actions={actions}>
+    <WorkoutCard title="Personal Trainer" dot={COLORS.workout} aside={aside}>
       {unnamed.length ? (
         <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 10 }}>
           {unnamed.length} exercise{unnamed.length === 1 ? '' : 's'} without a name yet (id{unnamed.length === 1 ? '' : 's'} {unnamed.map((h) => h.action_id).join(', ')}): the app has not downloaded their text, so they show as "Exercise &lt;id&gt;".
@@ -86,7 +81,7 @@ export default function PersonalTrainer({ data, date, initialMuscle = null }) {
           {previous ? <Delta kg={(latest.total_weight_kg || 0) - (previous.total_weight_kg || 0)} unit={unit} suffix=" vs previous session" /> : null}
           <span style={muted}>·</span><span style={muted}>{sessions.length === 1 ? monthDay(latest.date) : `${monthDay(sessions[0].date)} to ${monthDay(latest.date)}`}</span>
         </div>
-      ) : <div style={{ marginTop: 4, fontSize: 13, color: COLORS.muted }}>No gym sessions in this range. Pick a longer range above.</div>}
+      ) : <div style={{ marginTop: 4, fontSize: 13, color: COLORS.muted }}>No gym sessions in this range. Pick a longer range at the top.</div>}
 
       {latest ? (
         <>
@@ -98,7 +93,7 @@ export default function PersonalTrainer({ data, date, initialMuscle = null }) {
             <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
           </div>
           <div style={{ marginTop: 22, borderTop: `1px solid ${COLORS.hairline}`, paddingTop: 16 }}>
-            <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => setMuscle(null)}
+            <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => onMuscle(null)}
               openIds={openIds} onToggle={toggle} sessionsById={sessionsById} metric={metric} setMetric={setMetric} />
           </div>
         </>

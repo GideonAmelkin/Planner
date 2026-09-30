@@ -1,43 +1,45 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
 import PersonalTrainer from './PersonalTrainer';
 import TemplatesView from './TemplatesView';
 import LogView from './LogView';
 import OverviewView from './overview/OverviewView';
-import WorkoutTopNav, { VIEWS } from './WorkoutTopNav';
+import WorkoutTopNav, { scrollToSection, sectionId } from './WorkoutTopNav';
 import { RANGES, MAX_RANGE_DAYS, RangePicker } from './ranges';
 import { shiftISO } from '../shared/dayInfo';
 import { COLORS, card } from '../shared/styles';
 import { snapshotAge } from '../shared/snapshotAge';
-import { glassCard, pageBackground } from './theme';
+import { W, glassCard, pageBackground } from './theme';
 
-// The Workout tab: a top bar (the four views as a pill nav, the day controls) over one view:
+// The Workout tab: one scrolling dashboard (the user's call, 2026-09-29: "I don't want to toggle, I
+// want to scroll") under a top bar that sticks on wide screens (a pill per section, the day controls,
+// the one range picker that drives every section). Sections, top to bottom:
 //   Overview  the body-figure dashboard (overview/), picked by the user 2026-09-29
 //   Trainer   Personal Trainer (muscles, ticker, exercise detail)
 //   Workouts  the app's gym templates
 //   Log       workouts per bucket and the per-day table
-// The view is in ?view= (Overview has none) and remembered for the next visit, because the
-// app's snap-to-today keeps only the path.
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 const MAX_WIDTH = 1500;
 const STRIP_WEEKS = 7; // the Overview's day strip: seven Sunday-start weeks ending with the shown day's week
-const VIEW_KEY = 'plannerWorkoutView';
-const readView = () => { try { return localStorage.getItem(VIEW_KEY) || 'overview'; } catch (_) { return 'overview'; } };
-const writeView = (v) => { try { localStorage.setItem(VIEW_KEY, v); } catch (_) { /* ignore */ } };
-const isView = (v) => VIEWS.some((x) => x.key === v);
+// The top bar sticks only where it fits on one or two rows; on a phone it wraps to four and scrolls away.
+const STICKY_QUERY = '(min-width: 900px)';
 
 // The app stores kilograms; the user's app setting says whether to show kg or lb.
 const weightUnit = (profile) => (profile && profile.shows_kg ? 'kg' : 'lb');
 
 export default function WorkoutView() {
   const { date } = useParams();
-  const [params, setParams] = useSearchParams();
-  const fromUrl = params.get('view');
-  const view = isView(fromUrl) ? fromUrl : (fromUrl === null && isView(readView()) ? readView() : 'overview');
-  const muscleParam = params.get('muscle');
-  const setView = (v, extra = {}) => { writeView(v); setParams(v === 'overview' ? {} : { view: v, ...extra }); };
+  const [sticky, setSticky] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(STICKY_QUERY).matches : true));
+  useEffect(() => {
+    if (!window.matchMedia) return undefined;
+    const mq = window.matchMedia(STICKY_QUERY);
+    const on = () => setSticky(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  const [muscle, setMuscle] = useState(null); // the Trainer's muscle filter; the Overview's popover sets it too
 
   const [status, setStatus] = useState(null);
   const [rangeRecent, setRangeRecent] = useState(null);
@@ -96,9 +98,9 @@ export default function WorkoutView() {
   // Lifetime starts the Log's chart at the first workout instead of ten empty years back.
   const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
 
-  const rangePicker = (view === 'overview' || view === 'log') ? (
+  const rangePicker = (
     <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
-  ) : null;
+  );
   const age = status ? snapshotAge(status, date) : null;
 
   const shell = (inner) => (
@@ -106,8 +108,8 @@ export default function WorkoutView() {
       <AgendaRail dateISO={date} section="workout" />
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '20px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <WorkoutTopNav date={date} view={view} onView={(v) => setView(v)} extra={rangePicker} />
+          <div style={sticky ? { position: 'sticky', top: 0, zIndex: 5, margin: '-20px -24px 0', padding: '14px 24px 10px', background: 'rgba(236,241,255,.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: `1px solid ${W.glassBorder}` } : undefined}>
+            <WorkoutTopNav date={date} extra={rangePicker} />
             {age ? (
               // How old the data on this page really is: the snapshot only moves when the
               // Mac app has pulled new history from the phone. Same rule as Settings.
@@ -138,26 +140,24 @@ export default function WorkoutView() {
     </div>
   ) : null;
 
-  let body;
-  if (view === 'trainer') body = <PersonalTrainer key={muscleParam || 'all'} data={strength} date={date} initialMuscle={muscleParam} />;
-  else if (view === 'workouts') body = <TemplatesView catalog={catalog} />;
-  else if (view === 'log') {
-    body = <LogView date={date} sessions={rangeSessions} unit={weightUnit(profile)} rangeSub={range.sub} chartStart={chartStart} rangeEnd={rangeEnd} customValid={customValid} />;
-  } else {
-    body = (
-      <OverviewView
-        date={date} profile={profile} weights={(rangeRecent && rangeRecent.weights) || []}
-        sessions={customValid ? rangeSessions : []} rangeStart={rangeStart} rangeEnd={rangeEnd} rangeSub={range.sub} lifetime={rangeKey === 'lifetime'}
-        strength={strength} stripSessions={(stripRecent && stripRecent.sessions) || []} stripStart={stripStart} stripEnd={stripEnd}
-        onOpenTrainer={(m) => setView('trainer', m ? { muscle: m } : {})}
-      />
-    );
-  }
+  // Each section is a landing spot for its pill; the margin keeps it clear of the sticky bar.
+  const section = (key, children) => <section id={sectionId(key)} style={{ scrollMarginTop: sticky ? 150 : 16, minWidth: 0 }}>{children}</section>;
+  const openTrainer = (m) => { setMuscle(m || null); requestAnimationFrame(() => scrollToSection('trainer')); };
 
   return shell(
     <>
       {empty}
-      {body}
+      {section('overview', (
+        <OverviewView
+          date={date} profile={profile} weights={(rangeRecent && rangeRecent.weights) || []}
+          sessions={customValid ? rangeSessions : []} rangeStart={rangeStart} rangeEnd={rangeEnd} rangeSub={range.sub} lifetime={rangeKey === 'lifetime'}
+          strength={strength} stripSessions={(stripRecent && stripRecent.sessions) || []} stripStart={stripStart} stripEnd={stripEnd}
+          onOpenTrainer={openTrainer}
+        />
+      ))}
+      {section('trainer', <PersonalTrainer data={strength} date={date} rangeKey={rangeKey} customFrom={customFrom} customTo={customTo} muscle={muscle} onMuscle={setMuscle} />)}
+      {section('workouts', <TemplatesView catalog={catalog} />)}
+      {section('log', <LogView date={date} sessions={rangeSessions} unit={weightUnit(profile)} rangeSub={range.sub} chartStart={chartStart} rangeEnd={rangeEnd} customValid={customValid} />)}
       <div style={{ fontSize: 11, color: COLORS.faint }}>
         Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac presses the app's own Sync and exports it every hour (per-exercise detail, only what the app's cloud backup holds). Both live in <code>backend/workout-state</code>.
       </div>
