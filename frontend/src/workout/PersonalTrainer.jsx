@@ -21,13 +21,13 @@ import { COLORS } from '../shared/styles';
 // Rule: never render a comparison that has nothing to compare (trend lines, PR pills and the
 // chart need two sessions). Math in strength.js and muscles.js; shared pieces in ptParts.jsx.
 
-export default function PersonalTrainer({ data, date }) {
+export default function PersonalTrainer({ data, date, initialMuscle = null }) {
   const [rangeKey, setRangeKey] = useState('d30');
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
   const [openIds, setOpenIds] = useState(readOpen);
   const [metric, setMetric] = useState('e1rm_kg');
-  const [muscle, setMuscle] = useState(null);
+  const [muscle, setMuscle] = useState(initialMuscle); // the Overview's "Open in Trainer" preselects one
   const all = (data && data.sessions) || [];
   const unit = (data && data.weight_unit) || 'lb';
   // Same choices as the top card. Lifetime starts at the first gym session; Custom runs From..To
