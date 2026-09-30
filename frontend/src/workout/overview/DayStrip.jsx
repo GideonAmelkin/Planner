@@ -16,11 +16,11 @@ const longDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US',
 export default function DayStrip({ days, date, bandStart, bandEnd }) {
   const navigate = useNavigate();
   const scrollRef = useRef(null);
-  // Open scrolled so the shown day sits near the right edge with a few days after it.
+  // Open scrolled so the shown day sits near the right edge with a few days after it (fewer on a phone).
   useLayoutEffect(() => {
     const el = scrollRef.current;
     const i = days.findIndex((d) => d.date === date);
-    if (el && i >= 0) el.scrollLeft = Math.max(0, (i + 1) * SLOT - el.clientWidth + 4 * SLOT);
+    if (el && i >= 0) el.scrollLeft = Math.max(0, (i + 1) * SLOT - el.clientWidth + Math.min(4 * SLOT, Math.floor(el.clientWidth / 3)));
   }, [days, date]);
   const page = (dir) => { const el = scrollRef.current; if (el) el.scrollBy({ left: dir * 7 * SLOT, behavior: 'smooth' }); };
 

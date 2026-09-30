@@ -72,7 +72,7 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, art, sessio
         <div style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.12, letterSpacing: -0.3 }}>{weekday},<br />{monthDayLong}</div>
         {sex ? <span style={{ fontSize: 12, color: COLORS.muted }}>{sex}</span> : null}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: '14px 20px 18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(84px, 1fr))', gap: '12px 8px', padding: '14px 20px 18px' }}>
         {stat('Workouts', sessions.length, `${gymCount} gym · ${sessions.length - gymCount} home`)}
         {stat('Hours', sessions.length ? num(hours, 1) : '-', rangeSub)}
         {stat('Streak', streak.days || '-', streak.days ? `day${streak.days === 1 ? '' : 's'}, longest` : 'no workouts')}
@@ -81,12 +81,12 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, art, sessio
   );
 }
 
-function SessionLengthCard({ sessions }) {
+function SessionLengthCard({ sessions, compact }) {
   const { rows: all, avg, min, max } = sessionLengths(sessions);
   const rows = all.slice(-MAX_BARS);
   const peak = rows.length ? rows.reduce((b, r) => (r.min > b.min ? r : b), rows[0]) : null;
-  // Label at most eight bars, evenly, always including the last.
-  const every = Math.max(1, Math.ceil(rows.length / 8));
+  // Label at most five bars (three on a phone), evenly, always including the last.
+  const every = Math.max(1, Math.ceil(rows.length / (compact ? 3 : 5)));
   const figure = (label, value) => (
     <div>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: COLORS.muted }}>{label}</div>
@@ -175,7 +175,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
       <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit}
         art={art} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
-      <SessionLengthCard sessions={sessions} />
+      <SessionLengthCard sessions={sessions} compact={cols === 1} />
     </div>
   );
   const figure = (
