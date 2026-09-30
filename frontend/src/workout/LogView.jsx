@@ -123,7 +123,7 @@ export default function LogView({ date, sessions, unit, rangeSub, chartStart, ra
                     <td style={cell(td)}>{r.focus.join(', ')}{r.n > 1 ? <span style={{ color: COLORS.muted, fontSize: 11, marginLeft: 6 }}>{r.n} workouts</span> : null}</td>
                     <td style={cell(td)}><span style={{ ...pill, color: COLORS.workout, fontSize: 11 }}>{r.kinds.join(', ')}</span></td>
                     <td style={cell(tdNum)}>{secondsToHm(r.duration_s) || '-'}</td>
-                    {hasCalories ? <td style={cell(tdNum)}>{num(r.calories) || '-'}</td> : null}
+                    {hasCalories ? <td style={cell(tdNum)}>{r.calories ? num(r.calories) : '-'}</td> : null}
                     {hasLifted ? <td style={cell(tdNum)}>{r.lifted_kg ? num(toUnit(r.lifted_kg, unit)) : '-'}</td> : null}
                     {hasExercises ? <td style={cell(tdNum)}>{r.exercise_count || '-'}</td> : null}
                   </tr>
