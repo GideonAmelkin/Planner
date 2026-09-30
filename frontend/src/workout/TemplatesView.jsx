@@ -30,7 +30,7 @@ export default function TemplatesView({ catalog }) {
   const templatesList = (catalog && catalog.templates) || [];
   return (
     <WorkoutCard title="Workouts" dot={SECTION_DOTS.notes} aside={catalog ? `${templatesList.length} gym workouts` : 'Loading...'} empty={!!catalog && templatesList.length === 0} emptyText="No templates in the snapshot.">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
         {templatesList.map((t) => {
           const [a, b] = titleLines(t.name);
           const open = openTemplate === t.id;
