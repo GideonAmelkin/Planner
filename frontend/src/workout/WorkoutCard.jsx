@@ -1,7 +1,8 @@
 import React from 'react';
-import { COLORS, card, pill, sectionDot, sectionHeader } from '../shared/styles';
+import { COLORS, pill, sectionDot, sectionHeader } from '../shared/styles';
+import { glassCard, W } from './theme';
 
-// One card in the Workout App grid, in the Agenda's card look: dotted title,
+// One card in the Workout App grid, in the tab's frosted look (theme.js): dotted title,
 // optional aside as a pill. `span` lets a card take the full row.
 // `aside` is a pill on the right; `actions` are controls rendered next to it.
 // `collapsible` turns the title into a toggle with the tab's ▾ / ▸ chevron and hides the body
@@ -17,7 +18,7 @@ export default function WorkoutCard({ title, dot = COLORS.workout, children, spa
   );
   return (
     <div style={{
-      ...card,
+      ...glassCard,
       gridColumn: span > 1 ? '1 / -1' : 'auto',
       minWidth: 0,
     }}>
@@ -28,7 +29,7 @@ export default function WorkoutCard({ title, dot = COLORS.workout, children, spa
           </button>
         ) : titleRow}
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end', minWidth: 0 }}>
-          {aside ? <span style={pill}>{aside}</span> : null}
+          {aside ? <span style={{ ...pill, background: W.chip }}>{aside}</span> : null}
           {actions}
         </span>
       </div>

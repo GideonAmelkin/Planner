@@ -14,6 +14,7 @@ import { num, secondsToHm } from '../shared/format';
 import { COLORS, SECTION_DOTS, card, navButton, pill } from '../shared/styles';
 import { snapshotAge } from '../shared/snapshotAge';
 import { templateBanner, titleLines, APP_BLUE, POPPINS } from './art';
+import { glassCard, pageBackground } from './theme';
 
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 // Longest run of consecutive calendar days that each have at least one workout.
@@ -250,7 +251,7 @@ export default function WorkoutView() {
   // One header card: date and controls, six tiles with the range picker, the bars and
   // the per-day log on the left; the month calendar (green checks) top right.
   const header = (
-    <div style={card}>
+    <div style={glassCard}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
@@ -338,7 +339,7 @@ export default function WorkoutView() {
   );
 
   const shell = (inner) => (
-    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh', background: pageBackground }}>
       <AgendaRail dateISO={date} section="workout" />
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
