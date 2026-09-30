@@ -1,7 +1,8 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../icons';
 import { MUSCLE_GROUPS, groupOf } from '../muscles';
-import { fmtVolume, Delta } from '../ptParts';
+import { fmtVolume } from '../ptParts';
+import MusclePopover, { POP_W } from './MusclePopover';
 import { COLORS } from '../../shared/styles';
 import { W, roundButton } from '../theme';
 import { BODY_HALF, CORE, FOOT, HAND, HEAD, HOTSPOTS, LINES, MUSCLE_HALF, NECK, VIEW_H, VIEW_W } from './figure';
@@ -12,8 +13,6 @@ import { BODY_HALF, CORE, FOOT, HAND, HEAD, HOTSPOTS, LINES, MUSCLE_HALF, NECK, 
 // when that window has gym sessions to compare with), the top exercise, and Open in Trainer.
 // + and - zoom the figure; the popover follows the dot.
 const ZOOMS = [1, 1.25, 1.5, 1.75];
-const POP_W = 220;
-const pct = (x) => `${Math.round(x * 100)}%`;
 
 export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact }) {
   const [side, setSide] = useState('front');
@@ -57,30 +56,9 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
   const skin = 'url(#wkSkin)';
   const regions = MUSCLE_HALF[side];
 
-  const g = picked ? groupOf(picked) : null;
-  const beforeKg = before ? before[picked] || 0 : 0;
-  const popover = g ? (
-    <div role="dialog" aria-label={`${g.label} details`} style={{
-      ...(popPos ? { position: 'absolute', left: popPos.left, top: popPos.top } : { position: 'relative', margin: '8px auto 0' }),
-      width: POP_W, maxWidth: '100%', background: 'rgba(255,255,255,.96)', border: `1px solid ${COLORS.hairline}`, borderRadius: 16,
-      boxShadow: '0 12px 30px rgba(30,50,110,.14)', padding: '12px 14px', fontSize: 12, zIndex: 2,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontWeight: 600, fontSize: 14 }}>
-          <span style={{ width: 9, height: 9, borderRadius: '50%', background: g.color }} />{g.label}
-        </span>
-        <button type="button" onClick={() => setPicked(null)} aria-label="Close" style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: COLORS.muted, fontSize: 16, lineHeight: 1, padding: 2 }}>×</button>
-      </div>
-      <div style={{ color: COLORS.muted, marginTop: 4 }}>{fmtVolume(now[picked], unit)} {unit} lifted, {pct(now[picked] / total)} of the range</div>
-      {top[picked] ? <div style={{ marginTop: 4 }}>Top: {top[picked].name}, {fmtVolume(top[picked].kg, unit)} {unit}</div> : null}
-      <div style={{ marginTop: 4 }}>
-        {!before ? null
-          : !beforeCount ? <span style={{ color: COLORS.muted }}>No change shown: no gym sessions {beforeLabel}.</span>
-            : beforeKg > 0 ? <Delta kg={now[picked] - beforeKg} unit={unit} suffix={` vs ${beforeLabel}`} />
-              : <span style={{ color: COLORS.muted }}>Not trained {beforeLabel}.</span>}
-      </div>
-      <button type="button" onClick={() => onOpenTrainer(picked)} style={{ marginTop: 8, border: 'none', background: 'transparent', padding: 0, color: W.blue, fontWeight: 600, cursor: 'pointer', font: 'inherit', fontSize: 12 }}>Open in Trainer →</button>
-    </div>
+  const popover = picked ? (
+    <MusclePopover muscle={picked} now={now} total={total} before={before} beforeCount={beforeCount} beforeLabel={beforeLabel} unit={unit} top={top}
+      onClose={() => setPicked(null)} onOpenTrainer={onOpenTrainer} pos={popPos} />
   ) : null;
 
   return (
@@ -140,7 +118,7 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
           })}
         </svg>
       </div>
-      <div style={{ position: 'absolute', left: 0, top: popPos || !g ? undefined : 36, bottom: popPos || !g ? 72 : undefined, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ position: 'absolute', left: 0, top: popPos || !picked ? undefined : 36, bottom: popPos || !picked ? 72 : undefined, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <button type="button" style={roundButton()} aria-label="Zoom in" disabled={zoomIx === ZOOMS.length - 1} onClick={() => setZoomIx((i) => Math.min(ZOOMS.length - 1, i + 1))}><Icon name="plus" /></button>
         <button type="button" style={roundButton()} aria-label="Zoom out" disabled={zoomIx === 0} onClick={() => setZoomIx((i) => Math.max(0, i - 1))}><Icon name="minus" /></button>
       </div>
