@@ -1,13 +1,12 @@
 import React from 'react';
 import Icon from '../icons';
-import { groupOf } from '../muscles';
+import { MUSCLE_GROUPS, groupOf } from '../muscles';
 import { e1rmText, fmtVolume, monthDay, nameOf } from '../ptParts';
 import { templateForSession } from '../art';
 import TemplateBanner from '../TemplateBanner';
 import { COLORS } from '../../shared/styles';
 import { W, glassCard, iconDisc } from '../theme';
 import BalanceRadar from '../BalanceRadar';
-import { CardHeader } from '../ui';
 
 // The Overview's right column: Last session (with the app's art), Highlights (new records in the
 // range, else the streak and the count), and two small cards, Volume (area over the gym sessions)
@@ -110,7 +109,7 @@ const miniHead = (icon, text) => (
   </div>
 );
 
-export function MiniCards({ gymSessions, shares, unit }) {
+export function MiniCards({ gymSessions, shares, unit, radar }) {
   // Volume: one point per gym session, oldest first (the export's total_weight_kg).
   const pts = gymSessions.map((s) => s.total_weight_kg || 0);
   let chart = null;
@@ -130,7 +129,8 @@ export function MiniCards({ gymSessions, shares, unit }) {
   }
   const top3 = shares.slice(0, 3);
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }}>
+    // One grid for the three small tiles; equal row heights keep the radar tile the size of the other two.
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gridAutoRows: '1fr', gap: 10 }}>
       <div style={{ ...glassCard, padding: 14 }}>
         {miniHead('dumbbell', 'Volume')}
         {pts.length ? (
@@ -156,19 +156,24 @@ export function MiniCards({ gymSessions, shares, unit }) {
           </>
         ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
       </div>
+      <RadarTile {...radar} />
     </div>
   );
 }
 
-// The balance radar as an Overview widget: this range filled, the same-length window before dashed
-// (none for Lifetime). A group's label selects it for the page (the Trainer's chart and ticker follow).
-export function RadarCard({ now, before, beforeLabel, selected, onSelect }) {
-  const trained = Object.values(now).some((v) => v > 0);
+// The balance radar as a small tile beside Volume and Balance: how many of the nine groups the range
+// trained, and the radar (this range filled, the same-length window before dashed, none for Lifetime).
+// A spoke's dot selects that group for the page (the Trainer's chart and ticker follow).
+function RadarTile({ now, before, beforeLabel, selected, onSelect }) {
+  const count = MUSCLE_GROUPS.filter((g) => (now[g.key] || 0) > 0).length;
   return (
-    <div style={glassCard}>
-      <CardHeader icon="radar" title="Muscle balance" sub={before ? `Filled: this range · dashed: ${beforeLabel.replace(/^(in|on) /, '')}` : 'This range'} />
-      {trained ? (
-        <div style={{ marginTop: 8 }}><BalanceRadar now={now} before={before} selected={selected} onSelect={onSelect} /></div>
+    <div style={{ ...glassCard, padding: 14 }} title={before ? `Filled: this range. Dashed: ${beforeLabel.replace(/^(in|on) /, '')}.` : 'This range'}>
+      {miniHead('radar', 'Muscles')}
+      {count ? (
+        <>
+          <div style={big}>{count}<span style={unitStyle}>of {MUSCLE_GROUPS.length} groups</span></div>
+          <div style={{ marginTop: 6 }}><BalanceRadar now={now} before={before} selected={selected} onSelect={onSelect} mini /></div>
+        </>
       ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
     </div>
   );

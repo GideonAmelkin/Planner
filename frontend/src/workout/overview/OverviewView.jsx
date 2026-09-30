@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../icons';
 import BodyViewer from './BodyViewer';
 import DayStrip from './DayStrip';
-import { Highlights, LastSessionCard, MiniCards, RadarCard } from './SideCards';
+import { Highlights, LastSessionCard, MiniCards } from './SideCards';
 import { longestStreak, muscleShares, recordsInRange, sessionLengths, shiftDay, stripDays, topExercises } from './select';
 import { inRange, toUnit } from '../strength';
 import { muscleVolume } from '../muscles';
@@ -188,8 +188,8 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
       : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
       <LastSessionCard session={last} unit={unit} />
       <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} />
-      <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit} />
-      <RadarCard now={now} before={before} beforeLabel={beforeLabel} selected={muscle} onSelect={(m) => onMuscle(muscle === m ? null : m)} />
+      <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit}
+        radar={{ now, before, beforeLabel, selected: muscle, onSelect: (m) => onMuscle(muscle === m ? null : m) }} />
     </div>
   );
 
