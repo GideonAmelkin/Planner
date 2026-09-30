@@ -30,7 +30,7 @@ Use Node 20 on both machines; `react-scripts 5.0.1` hangs silently on Node 24.
 Five tabs, each with its own route: **Agenda** at `/agenda/:date`, **Garmin** at
 `/garmin/:date`, **Workout** at `/workout/:date`, **Social** at `/social/:date` and **Health**
 at `/health/:date` (`/`,
-`/day/:date` and anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab. The tab links always open today, and opening or returning to the app (reload, back-forward restore, 10+ minutes in the background, midnight) lands on today in the current tab (`SnapToToday` in `App.js`).
+`/day/:date` and anything else redirect to today's agenda). Prev / Today / Next and the date picker stay inside the current tab. The tab links always open today, and opening or returning to the app lands on today in the current tab (`SnapToToday` in `App.js`): on load, and on the first look (focus, click, key, visible again, or the minute tick) after 10+ minutes unseen or on a new calendar day. It is judged by a `planner.lastSeen` timestamp, not by events, because a sleeping Mac or a window left on screen never fires `visibilitychange`. That same look also compares the served `index.html` bundle hash with the loaded one and reloads onto today after a deploy, so open tabs never keep old code.
 The Agenda, Workout App, Social and Health tabs share a fixed 240px left rail (`AgendaRail`: wordmark,
 the five tab links, Recap / Settings at the bottom) and the card look; each has its own header
 card. The Garmin tab has its own connect.garmin.com frame.

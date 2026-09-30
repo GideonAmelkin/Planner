@@ -49,59 +49,93 @@ function HealthToGarmin() {
 
 // A dated tab URL: section, date, optional sub-page (/garmin/:date/sleep, /garmin/:date/activity/:id).
 const DATED_PATH = /^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/;
-// How long the tab must sit in the background before coming back lands on today.
+// How long the app must go unseen (tab hidden, window idle, machine asleep) before
+// coming back lands on today.
 const AWAY_MS = 10 * 60 * 1000;
-const HIDDEN_AT_KEY = 'planner.hiddenAt';
+const LAST_SEEN_KEY = 'planner.lastSeen';
+const RELOADED_FOR_KEY = 'planner.reloadedFor';
+const BUNDLE_PATH = /\/static\/js\/main\.\w+\.js/;
+
+// The current URL moved to today in the same section, keeping the sub-page.
+function todayPath() {
+  const m = window.location.pathname.match(DATED_PATH);
+  return m ? `/${m[1]}/${todayISO()}${m[3] || ''}` : window.location.pathname;
+}
+
+// After a deploy, a tab left open keeps running the old bundle. Compare the served
+// index.html with the loaded script and reload onto today when they differ (once per hash).
+function reloadIfNewBundle() {
+  const loaded = Array.from(document.scripts).map((s) => s.src).find((src) => BUNDLE_PATH.test(src));
+  if (!loaded) return;
+  fetch('/index.html', { cache: 'no-store' })
+    .then((r) => (r.ok ? r.text() : ''))
+    .then((html) => {
+      const served = (html.match(BUNDLE_PATH) || [])[0];
+      if (!served || loaded.endsWith(served)) return;
+      try {
+        if (sessionStorage.getItem(RELOADED_FOR_KEY) === served) return;
+        sessionStorage.setItem(RELOADED_FOR_KEY, served);
+      } catch (_) { /* ignore */ }
+      window.location.replace(todayPath());
+    })
+    .catch(() => { /* offline: try again next time */ });
+}
 
 // Opening or returning to the app lands on today in the current section, keeping the
-// sub-page: on page load, on a back-forward cache restore, when the tab comes back after
-// AWAY_MS in the background, and at midnight when the tab was showing the old today.
-// Prev / Next and the date field inside a tab are unaffected, so other days stay browsable.
+// sub-page. "Returning" is judged by time, not by events, because a sleeping Mac or a
+// window left on screen never fires visibilitychange: the tab remembers when it was last
+// seen (every minute while visible, on any click or key, when hidden), and the next look
+// snaps when that was AWAY_MS or more ago or on an earlier calendar day. Browsing other
+// days with Prev / Next keeps the tab "seen", so it is never yanked away mid-use.
 function SnapToToday() {
   const navigate = useNavigate();
   const navigateRef = React.useRef(navigate);
   navigateRef.current = navigate;
   React.useEffect(() => {
     const snap = () => {
-      const m = window.location.pathname.match(DATED_PATH);
-      if (m && m[2] !== todayISO()) {
-        navigateRef.current(`/${m[1]}/${todayISO()}${m[3] || ''}`, { replace: true });
+      const path = todayPath();
+      if (path !== window.location.pathname) navigateRef.current(path, { replace: true });
+    };
+    const readLastSeen = () => {
+      try { return Number(sessionStorage.getItem(LAST_SEEN_KEY)) || 0; } catch (_) { return 0; }
+    };
+    const writeLastSeen = (v) => {
+      try { sessionStorage.setItem(LAST_SEEN_KEY, String(v)); } catch (_) { /* ignore */ }
+    };
+    // A look at the app: snap (and pick up a new deploy) if it has been away, then mark it seen.
+    const look = () => {
+      const now = Date.now();
+      const last = readLastSeen();
+      writeLastSeen(now);
+      if (last && (now - last >= AWAY_MS || dateToISO(new Date(last)) !== todayISO())) {
+        snap();
+        reloadIfNewBundle();
       }
-    };
-    const readHiddenAt = () => {
-      try { return Number(sessionStorage.getItem(HIDDEN_AT_KEY)) || 0; } catch (_) { return 0; }
-    };
-    const writeHiddenAt = (v) => {
-      try {
-        if (v) sessionStorage.setItem(HIDDEN_AT_KEY, String(v));
-        else sessionStorage.removeItem(HIDDEN_AT_KEY);
-      } catch (_) { /* ignore */ }
     };
 
     snap();
-    writeHiddenAt(document.hidden ? Date.now() : 0);
+    writeLastSeen(Date.now());
 
     const onVisibility = () => {
-      if (document.hidden) { writeHiddenAt(Date.now()); return; }
-      const hiddenAt = readHiddenAt();
-      writeHiddenAt(0);
-      if (hiddenAt && Date.now() - hiddenAt >= AWAY_MS) snap();
+      if (document.hidden) writeLastSeen(Date.now());
+      else look();
     };
-    const onPageShow = (e) => { if (e.persisted) snap(); };
-    let lastToday = todayISO();
-    const tick = setInterval(() => {
-      const today = todayISO();
-      if (today === lastToday) return;
-      const m = window.location.pathname.match(DATED_PATH);
-      if (m && m[2] === lastToday) snap();
-      lastToday = today;
-    }, 60 * 1000);
+    const onPageShow = (e) => { if (e.persisted) look(); };
+    // Runs every minute while visible; a gap of AWAY_MS since the last tick means the
+    // machine slept or the tab was frozen, and midnight counts as a new day.
+    const tick = setInterval(() => { if (!document.hidden) look(); }, 60 * 1000);
 
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pageshow', onPageShow);
+    window.addEventListener('focus', look);
+    window.addEventListener('pointerdown', look, true);
+    window.addEventListener('keydown', look, true);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pageshow', onPageShow);
+      window.removeEventListener('focus', look);
+      window.removeEventListener('pointerdown', look, true);
+      window.removeEventListener('keydown', look, true);
       clearInterval(tick);
     };
   }, []);
