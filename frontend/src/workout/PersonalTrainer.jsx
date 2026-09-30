@@ -56,7 +56,7 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
 
   if (data && !all.length) {
     return (
-      <WorkoutCard title="Personal Trainer" dot={COLORS.workout} aside={aside}>
+      <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your gym lifts: volume per muscle and every exercise" aside={aside}>
         <div style={{ fontSize: 13, color: COLORS.muted, lineHeight: 1.6, maxWidth: 640 }}>
           No gym sessions here yet. A session shows up after four steps: you finish it in the phone app, the phone app backs it up (Me &gt; Sync Data), the Mac's hourly sync pulls that backup, and the export ships it here. The status line at the top says where that chain stands.
         </div>
@@ -65,7 +65,7 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   }
 
   return (
-    <WorkoutCard title="Personal Trainer" dot={COLORS.workout} aside={aside}>
+    <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your gym lifts: volume per muscle and every exercise" aside={aside}>
       {unnamed.length ? (
         <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 10 }}>
           {unnamed.length} exercise{unnamed.length === 1 ? '' : 's'} without a name yet (id{unnamed.length === 1 ? '' : 's'} {unnamed.map((h) => h.action_id).join(', ')}): the app has not downloaded their text, so they show as "Exercise &lt;id&gt;".

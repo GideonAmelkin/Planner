@@ -103,7 +103,7 @@ export default function LogView({ date, sessions, unit, rangeSub, chartStart, ra
   }
   const aside = `${sessions.length} workout${sessions.length === 1 ? '' : 's'} ${rangeSub}`;
   return (
-    <WorkoutCard title="Log" dot={COLORS.workout} aside={aside}>
+    <WorkoutCard title="Log" icon="log" sub="Every workout in the range, one row per day" aside={aside}>
       {customValid ? <RangeBars sessions={sessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
       {dayRows.length ? (
         <div style={{ ...tableWrap, marginTop: 18 }}>

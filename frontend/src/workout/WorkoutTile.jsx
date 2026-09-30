@@ -21,11 +21,12 @@ export const tileGrid = (min = 110) => ({
   gap: '12px 16px',
 });
 
-// Table styles shared by the session and history cards.
-export const tableWrap = { overflowX: 'auto' };
+// Table styles shared by every table on the tab, in the Overview's look: a frosted rounded panel,
+// small uppercase muted heads, airy rows on faint dividers, tabular numbers.
+export const tableWrap = { overflowX: 'auto', background: 'rgba(255,255,255,.55)', border: '1px solid rgba(255,255,255,.9)', borderRadius: 16, padding: '6px 14px' };
 export const table = { width: '100%', borderCollapse: 'collapse', fontSize: 13 };
-export const th = { padding: '4px 8px 8px 0', borderBottom: `1px solid ${COLORS.hairline}`, fontWeight: 600, textAlign: 'left' };
-export const headRow = { color: COLORS.faint, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.6 };
-export const td = { padding: '8px 8px 8px 0', borderBottom: `1px solid ${COLORS.hairline}`, verticalAlign: 'top' };
+export const th = { padding: '8px 10px 10px 0', borderBottom: '1px solid rgba(30,50,110,.08)', fontWeight: 600, textAlign: 'left' };
+export const headRow = { color: COLORS.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 };
+export const td = { padding: '11px 10px 11px 0', borderBottom: '1px solid rgba(30,50,110,.06)', verticalAlign: 'top' };
 export const tdNum = { ...td, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' };
-export const tableLink = { color: COLORS.accent, fontWeight: 600, textDecoration: 'none' };
+export const tableLink = { color: '#4F7BF7', fontWeight: 600, textDecoration: 'none' };
