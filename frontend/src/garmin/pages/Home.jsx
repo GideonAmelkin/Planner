@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ok, Para } from './common';
 import { PageContainer, EmptyState, BlueButton, OutlinedButton, HexBadge, Avatar, RangeControl, SectionHeading } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, sectionLabel, pillButton, chevronButton, roundNav } from '../theme';
+import { G, sectionLabel, chevronButton, roundNav } from '../theme';
 import { metersToMiles } from '../format';
 import { num } from '../../shared/format';
 import { shiftISO } from '../../shared/dayInfo';
@@ -55,9 +55,9 @@ export function Calendar({ dateISO, results }) {
     <PageContainer style={{ padding: 'clamp(12px, 2vw, 20px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to={`/garmin/today/calendar`} style={pillButton()}>Today</Link>
-          <Link to={monthTo(-1)} style={chevronButton}>‹</Link><Link to={monthTo(1)} style={chevronButton}>›</Link>
+          <Link to={monthTo(-1)} style={chevronButton}>‹</Link>
           <span style={{ fontSize: 14 }}>{new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+          <Link to={monthTo(1)} style={chevronButton}>›</Link>
         </div>
         <RangeControl options={[{ key: 'week', label: 'Week' }, { key: 'month', label: 'Month' }, { key: 'year', label: 'Year' }]} value={view} onChange={setView} />
       </div>

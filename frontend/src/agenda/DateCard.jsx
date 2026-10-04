@@ -29,8 +29,6 @@ export default function DateCard({ dateISO, quote }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link to={`/agenda/${shiftISO(dateISO, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-          <Link to={`/agenda/today`} style={navButton}>Today</Link>
-          <Link to={`/agenda/${shiftISO(dateISO, 1)}`} style={arrowStyle} title="Next day">›</Link>
           <input
             type="date"
             value={dateISO}
@@ -45,6 +43,7 @@ export default function DateCard({ dateISO, quote }) {
               colorScheme: 'light',
             }}
           />
+          <Link to={`/agenda/${shiftISO(dateISO, 1)}`} style={arrowStyle} title="Next day">›</Link>
         </div>
         <DayInfoBadge dateISO={dateISO} />
       </div>

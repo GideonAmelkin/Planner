@@ -7,7 +7,7 @@ import { shiftISO, longDate } from '../shared/dayInfo';
 import { NAV, groupOf } from './nav';
 import {
   G, page, sidebar, wordmark, sidebarItem, sidebarDivider, topBar, circleButton, iconButton,
-  summaryHeader, sectionLabel, dateTitle, syncedText, pillButton, chevronButton, contentArea,
+  summaryHeader, sectionLabel, dateTitle, syncedText, chevronButton, contentArea,
 } from './theme';
 
 const OPEN_KEY = 'garminNavOpen';
@@ -107,18 +107,17 @@ export default function GarminShell({ dateISO, activeSlug = '', syncedAt, loadin
     <div style={{ ...summaryHeader, padding: narrow ? '14px 16px 12px' : summaryHeader.padding }}>
       <div>
         <div style={sectionLabel}>Daily Summary</div>
-        <label style={{ ...dateTitle, marginTop: 10, position: 'relative', cursor: 'pointer' }} title="Pick a date">
-          <GarminIcon name="calendar" color={G.blue} size={20} />
-          <span>{longDate(dateISO).replace(/(\d+)(st|nd|rd|th)/, '$1,')}</span>
-          <input type="date" value={dateISO} onChange={onPickDate} aria-label="Date" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
-        </label>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Link to={`/garmin/today`} style={pillButton()}>Today</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
           <Link to={`/garmin/${shiftISO(dateISO, -1)}`} style={chevronButton} aria-label="Previous day">‹</Link>
+          <label style={{ ...dateTitle, position: 'relative', cursor: 'pointer' }} title="Pick a date">
+            <GarminIcon name="calendar" color={G.blue} size={20} />
+            <span>{longDate(dateISO).replace(/(\d+)(st|nd|rd|th)/, '$1,')}</span>
+            <input type="date" value={dateISO} onChange={onPickDate} aria-label="Date" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
+          </label>
           <Link to={`/garmin/${shiftISO(dateISO, 1)}`} style={chevronButton} aria-label="Next day">›</Link>
         </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
         <span style={syncedText}>{syncedAt ? `Synced ${syncedAt}` : (loading ? 'Syncing...' : 'Not synced')}</span>
       </div>
     </div>

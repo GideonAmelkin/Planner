@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { MetricFrame, DailyTimeline, DailyBars, ok, first, Center, Para, pageTo } from './common';
 import { PageContainer, PageTitle, TwoCol, SectionHeading, EmptyState, RingGauge, StatPair, StatRow, BlueButton, GrayButton, OutlinedButton, LinkButton, Notice, DateControls, InfoDot } from '../primitives';
 import GarminIcon from '../GarminIcon';
-import { G, sectionLabel, dateTitle, pillButton, chevronButton, syncedText } from '../theme';
+import { G, sectionLabel, dateTitle, chevronButton, syncedText } from '../theme';
 import { metersToMiles, gramsToLbs, clock } from '../format';
 import { num, secondsToHm, titleCase } from '../../shared/format';
 import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
@@ -199,20 +199,19 @@ export function BloodPressure({ dateISO, range, setRange, results, slug }) {
   );
 }
 
-// Daily-summary style header (label, blue date, Today / chevrons, Synced) used by Pulse Ox.
+// Daily-summary style header (label, ‹ blue date ›, Synced) used by Pulse Ox.
 function SummaryHeader({ label, dateISO, slug, synced }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 24 }}>
       <div>
         <div style={{ ...sectionLabel, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{label} <InfoDot /></div>
-        <div style={{ ...dateTitle, marginTop: 8 }}><GarminIcon name="calendar" color={G.blue} size={18} /><span>{longDate(dateISO).replace(/(\d+)(st|nd|rd|th)/, '$1,')}</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+          <Link to={pageTo(slug)(shiftISO(dateISO, -1))} style={chevronButton} aria-label="Previous day">‹</Link>
+          <div style={dateTitle}><GarminIcon name="calendar" color={G.blue} size={18} /><span>{longDate(dateISO).replace(/(\d+)(st|nd|rd|th)/, '$1,')}</span></div>
+          <Link to={pageTo(slug)(shiftISO(dateISO, 1))} style={chevronButton} aria-label="Next day">›</Link>
+        </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Link to={pageTo(slug)(todayISO())} style={pillButton()}>Today</Link>
-          <Link to={pageTo(slug)(shiftISO(dateISO, -1))} style={chevronButton}>‹</Link>
-          <Link to={pageTo(slug)(shiftISO(dateISO, 1))} style={chevronButton}>›</Link>
-        </div>
         {synced ? <span style={syncedText}>{synced}</span> : null}
       </div>
     </div>

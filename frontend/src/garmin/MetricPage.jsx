@@ -4,7 +4,7 @@ import GarminCard from './GarminCard';
 import GarminIcon from './GarminIcon';
 import AutoData from './AutoData';
 import { garminBatch, callGarmin } from './api';
-import { shiftISO, todayISO, longDate } from '../shared/dayInfo';
+import { shiftISO, longDate } from '../shared/dayInfo';
 import { RANGES, rangeDays, garminUrl } from './nav';
 import { G, card, cardBody, column, chevronButton, footerLink, summaryHeader } from './theme';
 import PAGE_COMPONENTS from './pages';
@@ -34,12 +34,11 @@ export function MetricHeader({ page, slug, dateISO, range, setRange, narrow }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link to={to(shiftISO(dateISO, -1))} style={{ ...chevronButton, border: `1px solid ${G.faint}`, borderRadius: '50%', width: 30, height: 30, justifyContent: 'center', padding: 0 }} aria-label="Previous">‹</Link>
-          <Link to={to(shiftISO(dateISO, 1))} style={{ ...chevronButton, border: `1px solid ${G.faint}`, borderRadius: '50%', width: 30, height: 30, justifyContent: 'center', padding: 0 }} aria-label="Next">›</Link>
           <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, background: G.border, borderRadius: 4, padding: '5px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }} title={longDate(dateISO)}>
             <GarminIcon name="calendar" color={G.text} size={14} /> {shortDate(dateISO)}
             <input type="date" value={dateISO} onChange={(e) => { if (e.target.value) window.location.assign(to(e.target.value)); }} aria-label="Date" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
           </label>
-          {dateISO !== todayISO() ? <Link to={to(todayISO())} style={{ fontSize: 12, color: G.blue, marginLeft: 6 }}>Today</Link> : null}
+          <Link to={to(shiftISO(dateISO, 1))} style={{ ...chevronButton, border: `1px solid ${G.faint}`, borderRadius: '50%', width: 30, height: 30, justifyContent: 'center', padding: 0 }} aria-label="Next">›</Link>
         </div>
         {ranges.length ? (
           <div style={{ display: 'flex', background: G.border, borderRadius: 4, padding: 2 }}>

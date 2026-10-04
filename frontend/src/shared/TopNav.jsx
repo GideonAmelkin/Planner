@@ -22,7 +22,6 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
     if (e.target.value) navigate(`/${section}/${e.target.value}`);
   };
 
-  const linkStyle = navButton;
   const arrowStyle = { ...navButton, padding: '5px 10px' };
   const tabStyle = (active) => ({
     ...navButton,
@@ -51,9 +50,7 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
           </Link>
         ))}
       </div>
-      <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle}>‹ Prev</Link>
-      <Link to={`/${section}/today`} style={linkStyle}>Today</Link>
-      <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle}>Next ›</Link>
+      <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle}>‹</Link>
       <input
         type="date"
         value={dateISO}
@@ -68,6 +65,7 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
           colorScheme: 'light',
         }}
       />
+      <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle}>›</Link>
       <div style={{ flex: 1 }} />
       <NavLinks />
     </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import GarminIcon from '../GarminIcon';
-import { shiftISO, todayISO, longDate } from '../../shared/dayInfo';
+import { shiftISO, longDate } from '../../shared/dayInfo';
 import {
   G, container, title44, title22, infoDot, sectionHeading, segmentTrack, segment, datePill, roundNav,
   tabRow, tab, yellowBanner, kebab,
@@ -29,18 +29,17 @@ export function PageTitle({ children, info = false, small = false, right = null,
 
 export const shortDate = (iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-// ‹ › circles + gray date pill (native picker under it) + Today link.
-export function DateControls({ dateISO, to, label = null, showToday = true, step = 1 }) {
+// ‹ circle, gray date pill (native picker under it), › circle.
+export function DateControls({ dateISO, to, label = null, step = 1 }) {
   const navigate = useNavigate();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <Link to={to(shiftISO(dateISO, -step))} style={roundNav} aria-label="Previous">‹</Link>
-      <Link to={to(shiftISO(dateISO, step))} style={roundNav} aria-label="Next">›</Link>
       <label style={datePill} title={longDate(dateISO)}>
         <GarminIcon name="calendar" color={G.text} size={14} /> {label || shortDate(dateISO)}
         <input type="date" value={dateISO} onChange={(e) => { if (e.target.value) navigate(to(e.target.value)); }} aria-label="Date" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} />
       </label>
-      {showToday && dateISO !== todayISO() ? <Link to={to(todayISO())} style={{ fontSize: 12, color: G.blue }}>Today</Link> : null}
+      <Link to={to(shiftISO(dateISO, step))} style={roundNav} aria-label="Next">›</Link>
     </div>
   );
 }

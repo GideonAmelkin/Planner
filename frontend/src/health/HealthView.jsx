@@ -72,9 +72,8 @@ export default function HealthView() {
             <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1 }}>{headlineLong(date)}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Link to={`/health/${shiftISO(date, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-              <Link to={`/health/today`} style={navButton}>Today</Link>
-              <Link to={`/health/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
               <input type="date" value={date} onChange={(e) => { if (e.target.value) navigate(`/health/${e.target.value}`); }} style={dateInputStyle} />
+              <Link to={`/health/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
               <button type="button" onClick={onFetch} style={{ ...navButton, cursor: 'pointer' }} title="Refetch today from Garmin (at most once per 30 minutes)">Fetch now</button>
             </div>
           </div>

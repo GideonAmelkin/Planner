@@ -71,9 +71,8 @@ export default function WorkoutTopNav({ date, extra = null }) {
       </nav>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <Link to={`/workout/${shiftISO(date, -1)}`} style={roundButton()} title="Previous day" aria-label="Previous day"><Icon name="left" /></Link>
-        <Link to={`/workout/today`} style={chip}>Today</Link>
-        <Link to={`/workout/${shiftISO(date, 1)}`} style={roundButton()} title="Next day" aria-label="Next day"><Icon name="right" /></Link>
         <input type="date" value={date} aria-label="Date" onChange={(e) => { if (e.target.value) navigate(`/workout/${e.target.value}`); }} style={dateInput} />
+        <Link to={`/workout/${shiftISO(date, 1)}`} style={roundButton()} title="Next day" aria-label="Next day"><Icon name="right" /></Link>
         {extra}
       </div>
     </div>

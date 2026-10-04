@@ -101,7 +101,7 @@ export function TrainingEffect({ dateISO, results, slug }) {
   return (
     <ReportsFrame dateISO={dateISO} active="training-effect" title="Training Effect" ranges={false}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${G.border}`, paddingBottom: 12, marginBottom: 24 }}>
-        <DateControls dateISO={dateISO} to={pageTo(slug)} step={7} showToday={false} />
+        <DateControls dateISO={dateISO} to={pageTo(slug)} step={7} />
         <RangeControl options={[{ key: '7d', label: '7 Days' }, { key: '4w', label: '4 Weeks' }]} value="7d" onChange={() => {}} />
       </div>
       <Center>
@@ -129,7 +129,7 @@ export function Reports({ dateISO, results, slug }) {
   return (
     <ReportsFrame dateISO={dateISO} active="all:Activities" title="Activities" ranges={false}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: `1px solid ${G.border}`, paddingBottom: 12, marginBottom: 24 }}>
-        <DateControls dateISO={dateISO} to={pageTo(slug)} step={7} showToday={false} />
+        <DateControls dateISO={dateISO} to={pageTo(slug)} step={7} />
         <RangeControl options={[{ key: '7d', label: '7 Days' }, { key: '4w', label: '4 Weeks' }, { key: '6m', label: '6 Months' }, { key: '1y', label: '1 Year' }]} value="7d" onChange={() => {}} />
       </div>
       {stats.length ? (
