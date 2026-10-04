@@ -47,7 +47,7 @@ test('status, recent and day merge the phone report with the snapshot', () => {
     sessions: [
       { id: 'home:1', kind: 'home', title: 'Chest', focus: 'Chest', started_at: '2026-09-09T20:42:04-04:00', date: '2026-09-09', duration_s: 781, calories: null, exercises: [{}, {}] },
       // same start as the pushed 18:02 workout, within the window: it is the same session
-      { id: 'home:2', kind: 'home', title: 'Abs', focus: 'Abs', started_at: '2026-09-27T18:05:00-04:00', date: '2026-09-27', duration_s: 900, calories: null, exercises: [{}] },
+      { id: 'home:2', kind: 'home', title: 'Abs', focus: 'Abs', started_at: '2026-09-27T18:05:00-04:00', date: '2026-09-27', duration_s: 900, calories: null, exercises: [{ name: 'Flutter Kicks' }, { name: null }] },
     ],
   };
   const health = workout.loadHealth();
@@ -63,7 +63,9 @@ test('status, recent and day merge the phone report with the snapshot', () => {
   assert.deepEqual(recent.map((s) => s.id), ['home:2', 'home:1']);
   assert.equal(recent[0].calories, 130, 'the snapshot session borrows the phone calories');
   assert.equal(recent[0].via, 'both');
-  assert.equal(recent[0].exercise_count, 1);
+  assert.equal(recent[0].exercise_count, 2);
+  assert.deepEqual(recent[0].exercise_names, ['Flutter Kicks'], 'named exercises only, sets left out');
+  assert.equal(recent[0].exercises, undefined);
 
   push([home('2026-09-26T07:30:00-04:00', { type: 'Core Training' })]);
   const withNew = workout.recent(snap, '2026-09-27', 30, workout.loadHealth());

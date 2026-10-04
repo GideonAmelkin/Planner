@@ -427,11 +427,52 @@ def read_gym_sessions(lk, names, sets, counts):
 
 # The app's classic home workouts by sportType: three levels per body area. Inferred from
 # the exercises the app logged under each id (action_record) and the app's own banner per
-# id (v32_classic_banner_<id>_m.webp); 21, 22, 78 and 10000 have no evidence and stay "Workout".
+# id (v32_classic_banner_<id>_m.webp). 21 and 22 carry dayIndex 1..28: days of an old 28-day
+# plan (PLAN_SPORT_TYPES). 78, 81 (a catalog workout whose name only the phone has) and 10000
+# have no evidence and stay "Workout"; their exercises can still be named (home_action_records).
 HOME_SPORT_TYPES = {}
 for _base, _area in ((11, 'Chest'), (14, 'Abs'), (17, 'Arm'), (31, 'Leg'), (34, 'Shoulder & Back')):
     for _i, _level in enumerate(('Beginner', 'Intermediate', 'Advanced')):
         HOME_SPORT_TYPES[_base + _i] = (_area, _level)
+
+
+PLAN_SPORT_TYPES = {21, 22}
+
+
+ACTION_MATCH_MS = 3000
+
+
+def home_action_records(lk):
+    """action_record: one row per exercise of a home session, filed under the session's date,
+    updateTime = the moment that exercise finished. temp1 gives each completed position its
+    start:end, so an exercise is named by the record of the same date whose updateTime sits
+    within ACTION_MATCH_MS of its end (checked on the 2026-10-04 database: 44 sessions,
+    nearly every end within 1.1 s). Matching by time, not by sportType or row order, also
+    covers a catalog workout filed under another sportType (2026-10-01: 81 vs 10000) and
+    two sessions on one day. Returns {date: [record, ...]}."""
+    if not lk.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='action_record'").fetchone():
+        return {}
+    out = {}
+    for r in rows(lk, 'SELECT date, actionId, updateTime FROM action_record ORDER BY ID'):
+        if r.get('actionId') and r.get('updateTime'):
+            out.setdefault(r.get('date'), []).append({'action_id': str(r['actionId']), 'ms': float(r['updateTime'])})
+    return out
+
+
+def match_actions(timings, records):
+    """[(position, start_ms, end_ms)] -> {position: action_id}, nearest unclaimed record by end."""
+    claimed = set()
+    out = {}
+    for pos, _start, end in timings:
+        best = None
+        for i, rec in enumerate(records):
+            d = abs(rec['ms'] - end)
+            if i not in claimed and d <= ACTION_MATCH_MS and (best is None or d < best[0]):
+                best = (d, i)
+        if best is not None:
+            claimed.add(best[1])
+            out[pos] = records[best[1]]['action_id']
+    return out
 
 
 def gym_focus(title):
@@ -474,6 +515,8 @@ def read_home_sessions(lk, names, counts):
     before local midnight are filed on the next day), so the date comes from utc_date."""
     sessions = []
     from_temp1 = 0
+    named = 0
+    action_records = home_action_records(lk)
     for r in rows(lk, 'SELECT * FROM workout ORDER BY date'):
         day = utc_date(r.get('date'), 'workout.date')
         timings = home_timings(r.get('temp1'))
@@ -488,10 +531,19 @@ def read_home_sessions(lk, names, counts):
                 exercises.append({'action_id': str(k), 'name': names.get(k), 'order': i, 'seconds': to_int(v), 'sets': []})
         if not exercises and timings:
             from_temp1 += 1
-            exercises = [{'action_id': None, 'name': None, 'order': pos, 'seconds': int(round((end - start) / 1000.0)), 'sets': []}
+            ids = match_actions(timings, action_records.get(r.get('date')) or [])
+            if ids:
+                named += 1
+            exercises = [{'action_id': ids.get(pos), 'name': names.get(ids[pos]) if pos in ids else None,
+                          'order': pos, 'seconds': int(round((end - start) / 1000.0)), 'sets': []}
                          for pos, start, end in timings]
-        area, level = HOME_SPORT_TYPES.get(to_int(r.get('sportType')), (None, None))
-        title = r.get('name') or r.get('localizedKey') or ('%s · %s' % (area, level) if area else 'Workout')
+        sport = to_int(r.get('sportType'))
+        area, level = HOME_SPORT_TYPES.get(sport, (None, None))
+        day_index = to_int(r.get('dayIndex'))
+        fallback = ('%s · %s' % (area, level) if area
+                    else '28-day plan · Day %d' % day_index if sport in PLAN_SPORT_TYPES and day_index
+                    else 'Workout')
+        title = r.get('name') or r.get('localizedKey') or fallback
         sessions.append({
             'id': 'home:%s:%s' % (r['ID'], r.get('date')),
             'kind': 'home',
@@ -512,6 +564,7 @@ def read_home_sessions(lk, names, counts):
     counts['workout'] = len(sessions)
     counts['home_sessions'] = len(sessions)
     counts['home_sessions_from_temp1'] = from_temp1
+    counts['home_sessions_named_from_action_record'] = named
     return sessions
 
 

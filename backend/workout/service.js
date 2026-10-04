@@ -215,7 +215,12 @@ function mediaPath(kind, id) {
   return fs.existsSync(p) ? p : null;
 }
 
-const withoutSets = (s) => ({ ...s, exercises: undefined, exercise_count: (s.exercises || []).length });
+// exercise_names: the named exercises, in order, so the browser can tell which muscle group a
+// home session worked (muscles.js homeGroups); the sets stay out of this list.
+const withoutSets = (s) => ({
+  ...s, exercises: undefined, exercise_count: (s.exercises || []).length,
+  exercise_names: (s.exercises || []).map((e) => e && e.name).filter(Boolean),
+});
 
 // The newest Health workout the phone reported, any source (for the status line).
 function healthStatus(health) {

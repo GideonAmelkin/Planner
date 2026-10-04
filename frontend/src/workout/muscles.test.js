@@ -1,5 +1,5 @@
 // Run: cd frontend && CI=true npx react-scripts test --watchAll=false src/workout/muscles.test.js
-import { muscleOf, muscleVolume, MUSCLE_GROUPS } from './muscles';
+import { homeGroups, homeLabel, muscleOf, muscleVolume, MUSCLE_GROUPS } from './muscles';
 import { toUnit } from './strength';
 
 // The 2026-09-27 Lower Body session as the snapshot carries it (same fixture as strength.test.js).
@@ -55,4 +55,30 @@ test('the per-group volumes add up to the session total the export computed (dri
   expect(Math.round(toUnit(v.calves, 'lb'))).toBe(2880);
   expect(v.chest).toBe(0);
   expect(MUSCLE_GROUPS.map((g) => g.key)).toEqual(['chest', 'back', 'shoulders', 'arms', 'core', 'quads', 'hamstrings', 'glutes', 'calves']);
+});
+
+// 2026-10-01: "Ripped V-Cut Abs Sculpting", a catalog workout the export cannot name (sportType 81),
+// with its exercises named from action_record. Unnamed ids ('234') and stretches fall in no group.
+const OCT_1 = ['High Stepping', 'Reverse Crunches With Leg Raised', 'Flutter Kicks', 'Heel Touch', 'Bicycle Crunches', 'V-hold',
+  '234', 'Windshield Wipers', 'Cross Knee Plank', 'Heel Touch', 'Oblique V-Ups Left', 'Bicycle Crunches', 'Cross Knee Plank',
+  'Windshield Wipers', 'V-hold', '234', 'Oblique V-Ups Left', 'Cobra Stretch', 'High Stepping', "Child's Pose",
+  'Lying Twist Stretch Left', 'Reverse Crunches With Leg Raised', 'Flutter Kicks', '240'];
+
+test('a home session without an area is judged by its named exercises', () => {
+  const s = { kind: 'home', title: 'Workout', focus: null, exercise_names: OCT_1 };
+  expect(homeGroups(s)).toEqual(['core']);
+  expect(homeLabel(s)).toBe('Core');
+});
+
+test('the app area wins for classic home workouts; Abs reads Core', () => {
+  expect(homeGroups({ kind: 'home', focus: 'Abs', exercise_names: ['Squats'] })).toEqual(['core']);
+  expect(homeLabel({ kind: 'home', focus: 'Abs' })).toBe('Core');
+  expect(homeLabel({ kind: 'home', focus: 'Chest' })).toBe('Chest');
+  expect(homeGroups({ kind: 'home', focus: 'Shoulder & Back' })).toEqual(['shoulders', 'back']);
+});
+
+test('no area and no named exercises: no group, the caller keeps the title', () => {
+  expect(homeGroups({ kind: 'home', title: '28-day plan · Day 23', focus: null, exercise_names: [] })).toEqual([]);
+  expect(homeLabel({ kind: 'home', title: 'Workout', focus: null })).toBe(null);
+  expect(homeGroups({ kind: 'gym', focus: 'Abs' })).toEqual([]);
 });

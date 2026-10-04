@@ -6,6 +6,7 @@ import { COLORS } from '../shared/styles';
 import { W, hatch } from './theme';
 import { Chip, figureLabel } from './ui';
 import { toUnit } from './strength';
+import { homeLabel } from './muscles';
 
 // The workout log's pieces (the Log section until 2026-10-03, now inside the Personal Trainer card, the
 // user's pick of five layouts): RangeBars, workouts per bucket over the range, and DayTable, one row per
@@ -152,7 +153,7 @@ export function DayTable({ date, sessions, unit, selFrom = null, selTo = null })
   for (const s of sessions) {
     let r = byDate.get(s.date);
     if (!r) { r = { date: s.date, focus: [], kinds: [], duration_s: 0, calories: 0, exercise_count: 0, lifted_kg: 0, n: 0 }; byDate.set(s.date, r); dayRows.push(r); }
-    const f = s.focus || s.title || 'Workout';
+    const f = homeLabel(s) || s.focus || s.title || 'Workout';
     if (!r.focus.includes(f)) r.focus.push(f);
     const k = kindLabel(s);
     if (!r.kinds.includes(k)) r.kinds.push(k);

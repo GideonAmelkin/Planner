@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import WorkoutCard from './WorkoutCard';
 import { exerciseHistory, inRange, newRecords, records } from './strength';
-import { muscleVolume } from './muscles';
+import { homeGroups, muscleVolume } from './muscles';
 import { Delta, fmtVolume, monthDay, readOpen, writeOpen } from './ptParts';
 import { Chip, Figure, figureLabel } from './ui';
 import Icon from './icons';
@@ -93,6 +93,8 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const before = rangeKey === 'lifetime' ? null : muscleVolume(inRange(all, beforeStart, beforeEnd));
   const beforeLabel = spanDays === 1 ? monthDay(beforeEnd) : `${monthDay(beforeStart)} to ${monthDay(beforeEnd)}`;
   const now = muscleVolume(sessions);
+  // Home workouts lift no weight; the groups they worked still count as trained (0 lb).
+  const homeTrained = new Set((workouts || []).filter((w) => w.date >= rangeStart && w.date <= rangeEnd).flatMap(homeGroups));
   const pick = (m) => onMuscle(muscle === m ? null : m);
   const toggle = (id) => setOpenIds((ids) => { const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]; writeOpen(next); return next; });
   const list = workouts || [];
@@ -146,7 +148,7 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 16, alignItems: 'stretch' }}>
         {latest ? (
           <div className="pt-panel" style={panel}>
-            <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
+            <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} homeTrained={homeTrained} />
           </div>
         ) : null}
         {activity}

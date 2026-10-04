@@ -68,7 +68,7 @@ server `.env`; this is what makes a session appear within seconds), and the Mac,
 app also runs as an iPhone app, presses the app's own Sync button, exports its SQLite files
 to one JSON snapshot and rsyncs it to `backend/workout-state/` every hour
 (`tools/homeworkouts/`, launchd; the exercise detail, only what the app's cloud backup holds). Since 2026-09-29 the tab has its own look (soft blue page, frosted cards) and is one scrolling dashboard of four sections under a top bar whose pills jump to them: Overview (the user's body render with a heat map on the trained muscles and a dot per group, profile and session-length cards on the left, last session / highlights / volume / balance on the right, a seven-week day strip), Trainer, Workouts and Log; one range select drives them all. The status line under the bar says when the phone
-last reported and how old the snapshot's newest session is. Runs and walks are not exported.
+last reported and how old the snapshot's newest session is. Runs and walks are not exported. Home (bodyweight) sessions are named by the app's area for its classic workouts (Abs, which the tab calls Core, Chest, Arm, Leg, Shoulder & Back), as `28-day plan · Day N` for the old plan types 21 and 22, and otherwise by the muscle group of their exercises, which the export names from `action_record` by finish time (catalog workouts such as 2026-10-01's sportType 81 carry no name on the Mac); they count as trained at 0 lb in Muscles worked.
 
 The Social tab shows the user's TikTok account from TikTokAnalyzer's database
 (`~/Documents/Social/TikTokAnalyzer/data/tiktok.db` on RT100, override `TIKTOK_DB_PATH`).

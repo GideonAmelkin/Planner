@@ -25,6 +25,7 @@ LKDB_SCHEMA = [
     "CREATE TABLE weight(weight text,updateDate integer,uid integer,startDate integer,asyncHealth integer,date integer,bundleId text,ID integer primary key autoincrement)",
     "CREATE TABLE HWPlanProgressModel(updateTime double,goal integer,scheduleOn integer,finishDays integer,exerciseUpdateTime double,isCoachSelect integer,extraInfo text,rowid integer primary key autoincrement,lowerUpdateTime double,workoutDays text,currentDayIndex integer,focusArea text,trainDuration integer,totalDays integer,planDifficulty integer,injuryConcerns text,availableEquipments text,gender integer,isFinish integer)",
     "CREATE TABLE workout(uid integer,temp51 integer,isDistance integer,eachActionTimeDicStr text,kcalStr text,sportType integer,totalCount integer,adjustLevelNum text,temp5 integer,distanceUnit integer,temp3 text,sportsState text,bodysDetail text,during integer,updateTime integer,distance double,temp1 text,challengeIndex text,name text,iconName text,date integer,defaultMET text,caculatorType integer,ID integer primary key autoincrement,localizedKey text,elevationUnit integer,isElevation integer,heartRateStr text,temp6 integer,dayIndex integer,temp4 integer,completeCount integer,temp2 text,elevation double)",
+    "CREATE TABLE action_record(temp6 integer,weekNum integer,sportType integer,temp4 integer,actionId text,ID integer primary key autoincrement,temp2 text,unit text,time text,type integer,dayIndex integer,challengeIndex text,temp5 integer,date integer,isWalkrunPlan integer,sportsState text,runningID integer,dayNum integer,updateTime integer)",
     "CREATE TABLE workout_record(timeStamp integer primary key autoincrement,heartRateStr text,cal integer,awayTime integer,templateId integer,unlockActionId text,invalidTime integer,isDeleted integer,title text,totalSIWeight double,duration integer,totalBSWeight double,startTime integer,restTime integer,updateTime integer)",
     "CREATE TABLE exercise_record(pk text primary key,exerciseId text,workoutTimeStamp integer,orderIndex integer,updateTime integer,isDeleted integer)",
     "CREATE TABLE set_record(weight double,exercisePk text,isDeleted integer,reps integer,updateTime integer,originWeight double,timeStamp integer,pk text primary key,workoutTimeStamp integer)",
@@ -168,14 +169,20 @@ class Fixture:
                 (80.0, actions[0], 5, ts, 80.0, start + 60000, 'working-%d' % ts))
         self.lk.commit()
 
-    def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None, sport_type=0):
+    def home_session(self, id_, day_utc_ms, name, timings=None, legacy_times=None, sport_type=0, day_index=0):
         """timings: temp1 JSON as the app writes it today (eachActionTimeDicStr stays empty);
         legacy_times: the old {action_id: seconds} column for app versions that filled it."""
         n = len(legacy_times) if legacy_times else len(json.loads(timings)) if timings else 0
         each = json.dumps({'DB_Type': 'DB_Type_JSON', 'DB_Value': legacy_times}) if legacy_times else ''
         self.lk.execute(
-            "INSERT INTO workout(ID,eachActionTimeDicStr,temp1,kcalStr,sportType,totalCount,during,updateTime,name,date,completeCount) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (id_, each, timings or '', '88.5', sport_type, n, 1200, day_utc_ms, name, day_utc_ms, n))
+            "INSERT INTO workout(ID,eachActionTimeDicStr,temp1,kcalStr,sportType,totalCount,during,updateTime,name,date,completeCount,dayIndex) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            (id_, each, timings or '', '88.5', sport_type, n, 1200, day_utc_ms, name, day_utc_ms, n, day_index))
+        self.lk.commit()
+
+    def action_record(self, day_utc_ms, action_id, finished_ms, sport_type=0):
+        """One planned exercise of a home session; updateTime is when it finished."""
+        self.lk.execute("INSERT INTO action_record(date,actionId,updateTime,sportType) VALUES(?,?,?,?)",
+                        (day_utc_ms, action_id, finished_ms, sport_type))
         self.lk.commit()
 
     def weight(self, kg, day_midnight_utc_ms, at_ms):
@@ -295,11 +302,40 @@ class ExportTest(unittest.TestCase):
 
     def test_home_session_type_names(self):
         self.fx.home_session(8, DAY_UTC_MS, None, temp1([(0, local_ms(2026, 9, 26, 7, 0), 30)]), sport_type=12)
-        self.fx.home_session(9, DAY_UTC_MS + 86400000, None, temp1([(0, local_ms(2026, 9, 27, 7, 0), 30)]), sport_type=21)
+        self.fx.home_session(9, DAY_UTC_MS + 86400000, None, temp1([(0, local_ms(2026, 9, 27, 7, 0), 30)]), sport_type=21, day_index=23)
+        self.fx.home_session(10, DAY_UTC_MS + 2 * 86400000, None, temp1([(0, local_ms(2026, 9, 28, 7, 0), 30)]), sport_type=81)
         self.fx.plan([])
         by_id = {s['id'].split(':')[1]: s for s in self.build()['sessions']}
         self.assertEqual((by_id['8']['title'], by_id['8']['focus'], by_id['8']['level']), ('Chest · Intermediate', 'Chest', 'Intermediate'))
-        self.assertEqual((by_id['9']['title'], by_id['9']['focus'], by_id['9']['level']), ('Workout', None, None))
+        self.assertEqual((by_id['9']['title'], by_id['9']['focus'], by_id['9']['level']), ('28-day plan · Day 23', None, None))
+        self.assertEqual((by_id['10']['title'], by_id['10']['focus']), ('Workout', None))
+
+    def test_home_exercises_named_from_action_record_by_finish_time(self):
+        # The catalog-workout case of 2026-10-01: sportType 81, its list filed under 10000, rows
+        # not in session order. Each position takes the record that finished with it.
+        t0 = local_ms(2026, 9, 26, 7, 30)
+        self.fx.home_session(11, DAY_UTC_MS, None, temp1([(0, t0, 30), (1, t0 + 40000, 30), (2, t0 + 80000, 30)]), sport_type=81)
+        self.fx.action_record(DAY_UTC_MS, '513', t0 + 70400, sport_type=10000)   # ends position 1
+        self.fx.action_record(DAY_UTC_MS, '10', t0 + 30600, sport_type=10000)    # ends position 0
+        self.fx.action_record(DAY_UTC_MS, '999', t0 + 200000, sport_type=10000)  # matches nothing
+        self.fx.plan([])
+        snap = self.build()
+        h = snap['sessions'][0]
+        self.assertEqual([(e['order'], e['action_id'], e['name']) for e in h['exercises']],
+                         [(0, '10', 'Bird Dog'), (1, '513', 'Kickbacks · Dumbbell'), (2, None, None)])
+        self.assertEqual(snap['counts']['home_sessions_named_from_action_record'], 1)
+
+    def test_two_home_sessions_one_day_each_take_their_own_records(self):
+        a = local_ms(2026, 9, 26, 7, 0)
+        b = local_ms(2026, 9, 26, 18, 0)
+        self.fx.home_session(12, DAY_UTC_MS, None, temp1([(0, a, 30)]), sport_type=14)
+        self.fx.home_session(13, DAY_UTC_MS, None, temp1([(0, b, 30)]), sport_type=11)
+        self.fx.action_record(DAY_UTC_MS, '10', b + 30500, sport_type=11)
+        self.fx.action_record(DAY_UTC_MS, '513', a + 29800, sport_type=14)
+        self.fx.plan([])
+        by_id = {s['id'].split(':')[1]: s for s in self.build()['sessions']}
+        self.assertEqual(by_id['12']['exercises'][0]['name'], 'Kickbacks · Dumbbell')
+        self.assertEqual(by_id['13']['exercises'][0]['name'], 'Bird Dog')
 
     def test_home_session_keeps_app_day_after_midnight(self):
         # Started 23:48 local on the 25th; the app files it under the 26th (midnight UTC) and so do we.

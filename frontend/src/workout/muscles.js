@@ -21,7 +21,7 @@ export const groupOf = (key) => MUSCLE_GROUPS.find((g) => g.key === key) || OTHE
 // are shoulders before "fly" is chest and "row" is back; "Bench Press" is chest before "press" is shoulders.
 const RULES = [
   ['calves', /calf/i],
-  ['core', /crunch|twist|farmer|plank|sit-?up/i],
+  ['core', /crunch|twist|farmer|plank|sit-?up|v-?ups?\b|v-hold|flutter|windshield|heel touch|oblique|bicycle|mountain climber|russian|hollow|dead bug|bird dog/i],
   ['glutes', /hip (abductor|thrust|raise)|bridge|pull through|glute/i],
   ['hamstrings', /leg curl|stiff leg|good morning|romanian/i],
   ['shoulders', /reverse fly|upright[- ]row|face pull/i],
@@ -36,6 +36,33 @@ export function muscleOf(name) {
   const n = String(name || '');
   const hit = RULES.find(([, re]) => re.test(n));
   return hit ? hit[0] : 'other';
+}
+
+// The groups a home (bodyweight) session worked. The app's own area wins (the classic workouts:
+// Abs, Chest, Arm, Leg, Shoulder & Back); a session without one (a catalog workout, sportType 81 on
+// 2026-10-01) is judged by its named exercises (exercise_names from /api/workout/recent): every
+// group holding at least a third of the exercises that land in a group. [] when neither tells.
+export const HOME_FOCUS_GROUPS = {
+  Abs: ['core'], Chest: ['chest'], Arm: ['arms'], Leg: ['quads', 'hamstrings', 'glutes', 'calves'], 'Shoulder & Back': ['shoulders', 'back'],
+};
+export function homeGroups(session) {
+  if (!session || session.kind !== 'home') return [];
+  if (session.focus && HOME_FOCUS_GROUPS[session.focus]) return HOME_FOCUS_GROUPS[session.focus];
+  const tally = new Map();
+  for (const n of session.exercise_names || []) {
+    const g = muscleOf(n);
+    if (g !== 'other') tally.set(g, (tally.get(g) || 0) + 1);
+  }
+  const total = [...tally.values()].reduce((a, b) => a + b, 0);
+  return MUSCLE_GROUPS.map((g) => g.key).filter((k) => (tally.get(k) || 0) * 3 >= total && tally.get(k));
+}
+// The Workouts table's name for a home session: the app's area in this tab's words (Abs is Core),
+// else the groups its exercises worked, else null (the caller shows the title).
+export function homeLabel(session) {
+  if (!session || session.kind !== 'home') return null;
+  if (session.focus) return session.focus === 'Abs' ? 'Core' : session.focus;
+  const groups = homeGroups(session);
+  return groups.length ? groups.map((k) => groupOf(k).label).join(' & ') : null;
 }
 
 // Kilograms lifted (weight x reps of every done set) per group, over the given sessions.
