@@ -5,6 +5,11 @@ Planner backend on RT100.
 Runs from launchd every hour (com.gideon.planner.homeworkouts.plist, with --app-sync) and
 by hand:  python3 tools/homeworkouts/sync.py [--app-sync]
 
+--refresh-request <ISO> marks a run asked for by the Workout tab's Refresh button
+(refresh_watch.py): the shipped snapshot carries source.refresh = {request_at, handled_at,
+app_sync}, which is how the tab learns its request was answered. Runs never overlap: a run
+waits up to LOCK_WAIT_S for sync.lock.
+
 --app-sync first presses Me > Sync Data in the Home Workouts Mac app (app_sync.py), so the
 export sees the account's latest cloud backup. Without it the export reads whatever the app
 last synced. The app-sync outcome is stamped into the snapshot as source.app_sync.
@@ -21,6 +26,7 @@ a Python entry point on purpose: launchd runs python3 directly, so python3 is
 the one binary that needs Full Disk Access to read the app container and this
 repo under ~/Documents (both are guarded for background processes).
 """
+import fcntl
 import glob
 import json
 import os
@@ -39,6 +45,8 @@ REMOTE_DIR = '/home/gamelkin/apps/planner/backend/workout-state'
 STATE_DIR = os.path.expanduser('~/Library/Application Support/PlannerHomeWorkouts')
 SNAPSHOT = os.path.join(STATE_DIR, 'home_workouts.json')
 LOG = os.path.join(STATE_DIR, 'sync.log')
+LOCK = os.path.join(STATE_DIR, 'sync.lock')
+LOCK_WAIT_S = 300
 # The app keeps every exercise clip it has downloaded (only after the exercise was
 # started in the app) and the thumbnails of exercises it has shown, both named by
 # action id. They are staged under STATE_DIR/media and shipped next to the snapshot.
@@ -150,16 +158,48 @@ def stamp_app_sync(path, outcome, at, last_synced_at=None):
     os.replace(tmp, path)
 
 
+def stamp_refresh(path, request_at, handled_at, app_outcome):
+    """Name the Refresh request this snapshot answers (the tab polls /api/workout/status for it)."""
+    with open(path) as f:
+        snap = json.load(f)
+    snap.setdefault('source', {})['refresh'] = {'request_at': request_at, 'handled_at': handled_at, 'app_sync': app_outcome}
+    tmp = path + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(snap, f, indent=1)
+    os.replace(tmp, path)
+
+
+def take_lock(wait_s=LOCK_WAIT_S):
+    """The open lock file once this run holds sync.lock, or None after wait_s."""
+    fh = open(LOCK, 'a')
+    deadline = time.time() + wait_s
+    while True:
+        try:
+            fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fh
+        except BlockingIOError:
+            if time.time() >= deadline:
+                fh.close()
+                return None
+            time.sleep(2)
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     do_app_sync = '--app-sync' in argv
+    refresh_request = argv[argv.index('--refresh-request') + 1] if '--refresh-request' in argv else None
     os.makedirs(STATE_DIR, exist_ok=True)
+    lock = take_lock()
     log = open(LOG, 'a')
     os.dup2(log.fileno(), sys.stdout.fileno())
     os.dup2(log.fileno(), sys.stderr.fileno())
     os.environ['PATH'] = '/usr/bin:/bin:/usr/sbin:/sbin:' + os.environ.get('PATH', '')
     stamp = lambda: time.strftime('%Y-%m-%d %H:%M:%S')
-    print('== %s sync start%s' % (stamp(), ' (app sync first)' if do_app_sync else ''))
+    if lock is None:
+        print('== %s sync skipped: another run held sync.lock for %d s' % (stamp(), LOCK_WAIT_S))
+        return 1
+    print('== %s sync start%s%s' % (stamp(), ' (app sync first)' if do_app_sync else '',
+                                   ', refresh requested %s' % refresh_request if refresh_request else ''))
     app_outcome = None
     if do_app_sync:
         app_at = time.strftime('%Y-%m-%dT%H:%M:%S%z')
@@ -176,6 +216,8 @@ def main(argv=None):
         return rc
     if app_outcome is not None:
         stamp_app_sync(SNAPSHOT, app_outcome, app_at, last_app_sync(app_outcome, app_at))
+    if refresh_request:
+        stamp_refresh(SNAPSHOT, refresh_request, time.strftime('%Y-%m-%dT%H:%M:%S%z'), app_outcome)
     sys.stderr.flush()
     try:
         new_clips, new_thumbs = stage_media()

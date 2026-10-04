@@ -7,6 +7,7 @@ import TemplatesView from './TemplatesView';
 import LogView from './LogView';
 import OverviewView from './overview/OverviewView';
 import WorkoutTopNav, { scrollToSection, sectionId } from './WorkoutTopNav';
+import RefreshButton, { useWorkoutRefresh } from './RefreshButton';
 import { RANGES, MAX_RANGE_DAYS, RangePicker } from './ranges';
 import { shiftISO } from '../shared/dayInfo';
 import { COLORS, card } from '../shared/styles';
@@ -50,17 +51,20 @@ export default function WorkoutView() {
   const [catalog, setCatalog] = useState(null);
   const [strength, setStrength] = useState(null); // every gym session with sets
   const [error, setError] = useState(null);
+  // Bumped by the Refresh button: every fetch below re-runs.
+  const [reloadKey, setReloadKey] = useState(0);
+  const refresh = useWorkoutRefresh(() => setReloadKey((k) => k + 1));
 
   useEffect(() => {
     let alive = true;
     setError(null);
     getWorkoutStatus().then((s) => { if (alive) setStatus(s); }).catch((err) => { if (alive) setError(err.message || String(err)); });
     return () => { alive = false; };
-  }, [date]);
+  }, [date, reloadKey]);
   useEffect(() => {
     getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
     getWorkoutStrength().then((d) => setStrength(d && d.sessions ? d : { sessions: [], weight_unit: 'lb' })).catch((err) => setError(err.message || String(err)));
-  }, []);
+  }, [reloadKey]);
 
   // The range: fixed windows end on the shown date; Custom uses its own dates.
   const range = RANGES.find((r) => r.key === rangeKey) || RANGES[2];
@@ -78,7 +82,7 @@ export default function WorkoutView() {
       .then((r) => { if (alive) setRangeRecent(r); })
       .catch((err) => { if (alive) setError(err.message || String(err)); });
     return () => { alive = false; };
-  }, [rangeEnd, rangeDays, customValid]);
+  }, [rangeEnd, rangeDays, customValid, reloadKey]);
 
   // The strip ends on the Saturday of the shown day's week.
   const stripEnd = shiftISO(date, 6 - new Date(`${date}T12:00:00`).getDay());
@@ -89,7 +93,7 @@ export default function WorkoutView() {
       .then((r) => { if (alive) setStripRecent(r); })
       .catch((err) => { if (alive) setError(err.message || String(err)); });
     return () => { alive = false; };
-  }, [stripEnd]);
+  }, [stripEnd, reloadKey]);
 
   const available = status && status.available;
   const profile = (status && status.profile) || {};
@@ -99,7 +103,11 @@ export default function WorkoutView() {
   const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
 
   const rangePicker = (
-    <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
+    // One unit, so the Refresh button wraps with the range select instead of onto a row of its own.
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
+      <RefreshButton phase={refresh.phase} onClick={refresh.start} />
+    </span>
   );
   const age = status ? snapshotAge(status, date) : null;
 
@@ -110,7 +118,9 @@ export default function WorkoutView() {
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '20px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={sticky ? { position: 'sticky', top: 0, zIndex: 5, margin: '-20px -24px 0', padding: '14px 24px 10px', background: 'rgba(236,241,255,.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: `1px solid ${W.glassBorder}` } : undefined}>
             <WorkoutTopNav date={date} extra={rangePicker} />
-            {age ? (
+            {refresh.message ? (
+              <div style={{ fontSize: 12, color: refresh.message.color, marginTop: 10 }}>{refresh.message.text}</div>
+            ) : age ? (
               // How old the data on this page really is: the snapshot only moves when the
               // Mac app has pulled new history from the phone. Same rule as Settings.
               <div style={{ fontSize: 12, color: age.color, marginTop: 10 }}>{age.text}</div>

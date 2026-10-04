@@ -12,6 +12,8 @@ const path = require('path');
 const STATE_DIR = process.env.WORKOUT_STATE_DIR || path.join(__dirname, '..', 'workout-state');
 const SNAPSHOT = path.join(STATE_DIR, 'home_workouts.json');
 const HEALTH = path.join(STATE_DIR, 'health_workouts.json');
+const REFRESH = path.join(STATE_DIR, 'refresh_request.json');
+const REFRESH_THROTTLE_MS = 2 * 60 * 1000; // one new refresh request per window; clicks inside it join the pending one
 const MEDIA_DIR = path.join(STATE_DIR, 'media');
 const MEDIA_KINDS = { video: { dir: 'videos', ext: '.mp4' }, thumb: { dir: 'thumbs', ext: '.jpg' } };
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -113,6 +115,44 @@ function storeHealth(body) {
   return { stored: cleaned.length, new: added, total: Object.keys(workouts).length, received_at };
 }
 
+// The tab's Refresh button. The server cannot reach the Mac, so the request is a file the Mac's
+// refresh watcher (tools/homeworkouts/refresh_watch.py) polls; it answers by shipping a snapshot
+// stamped source.refresh.request_at. Unauthenticated on purpose (a browser cannot hold a secret):
+// all it can do is ask the Mac for the sync it already runs hourly, at most once per throttle window.
+function loadRefresh() {
+  try {
+    return JSON.parse(fs.readFileSync(REFRESH, 'utf8'));
+  } catch (err) {
+    if (err.code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+function requestRefresh(now = Date.now()) {
+  const existing = loadRefresh();
+  if (existing && existing.requested_at && now - Date.parse(existing.requested_at) < REFRESH_THROTTLE_MS) {
+    return { requested_at: existing.requested_at, joined: true };
+  }
+  const data = { requested_at: new Date(now).toISOString() };
+  fs.mkdirSync(STATE_DIR, { recursive: true });
+  const tmp = `${REFRESH}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data));
+  fs.renameSync(tmp, REFRESH);
+  return { requested_at: data.requested_at, joined: false };
+}
+
+// {requested_at, answered_at, outcome}: answered once the shipped snapshot names this request (or a later one).
+function refreshState(snap) {
+  const req = loadRefresh();
+  const stamp = (snap && snap.source && snap.source.refresh) || null;
+  const answered = Boolean(req && stamp && stamp.request_at && Date.parse(stamp.request_at) >= Date.parse(req.requested_at));
+  return {
+    requested_at: req ? req.requested_at : null,
+    answered_at: answered ? stamp.handled_at || null : null,
+    outcome: answered ? stamp.app_sync || null : null,
+  };
+}
+
 // Health workouts as sessions the tab already understands (sets stripped by construction).
 function healthSessions(health) {
   if (!health) return [];
@@ -194,7 +234,7 @@ function healthStatus(health) {
 
 function status(snap, health) {
   const hs = healthStatus(health);
-  if (!snap) return { available: hs.available, path: SNAPSHOT, health: hs, counts: {}, profile: {}, awards: {}, last_session: hs.available ? newestSession(allSessions(null, health)) : null };
+  if (!snap) return { available: hs.available, path: SNAPSHOT, health: hs, refresh: refreshState(null), counts: {}, profile: {}, awards: {}, last_session: hs.available ? newestSession(allSessions(null, health)) : null };
   return {
     available: true,
     schema_version: snap.schema_version,
@@ -211,6 +251,7 @@ function status(snap, health) {
     last_session: newestSession(allSessions(snap, health)),
     snapshot_last_session: newestSession(snap.sessions || []),
     health: hs,
+    refresh: refreshState(snap),
   };
 }
 
@@ -263,5 +304,5 @@ function day(snap, date, health) {
 }
 
 module.exports = {
-  media, mediaPath, SNAPSHOT, HEALTH, load, loadHealth, storeHealth, status, day, recent, sessionsForDate,
+  media, mediaPath, SNAPSHOT, HEALTH, load, loadHealth, storeHealth, loadRefresh, requestRefresh, status, day, recent, sessionsForDate,
   allSessions, strengthSessions, localDateOf, workoutKey, MAX_PUSH_WORKOUTS };

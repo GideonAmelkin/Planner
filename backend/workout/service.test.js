@@ -101,3 +101,22 @@ test('strengthSessions keeps gym sessions with their sets, oldest first, and lea
   assert.equal(out.weight_unit, 'lb');
   assert.deepEqual(workout.strengthSessions(null, null), { sessions: [], weight_unit: 'lb' });
 });
+
+test('requestRefresh throttles, joins the pending request, and status says when the Mac answered', () => {
+  const t0 = Date.parse('2026-10-03T21:50:00Z');
+  const first = workout.requestRefresh(t0);
+  assert.deepEqual(first, { requested_at: '2026-10-03T21:50:00.000Z', joined: false });
+  const joined = workout.requestRefresh(t0 + 60 * 1000);
+  assert.deepEqual(joined, { requested_at: first.requested_at, joined: true }, 'inside the window a click joins');
+  assert.equal(workout.status(null, null).refresh.answered_at, null, 'no snapshot: pending');
+
+  const snap = (refresh) => ({ source: { refresh }, sessions: [], counts: {}, snapshot_mtime_ms: t0 });
+  const older = workout.status(snap({ request_at: '2026-10-03T21:00:00.000Z', handled_at: '2026-10-03T17:00:20-0400', app_sync: 'synced' }), null).refresh;
+  assert.equal(older.answered_at, null, 'a stamp for an earlier request does not answer this one');
+  const answered = workout.status(snap({ request_at: first.requested_at, handled_at: '2026-10-03T17:50:20-0400', app_sync: 'synced' }), null).refresh;
+  assert.deepEqual(answered, { requested_at: first.requested_at, answered_at: '2026-10-03T17:50:20-0400', outcome: 'synced' });
+
+  const next = workout.requestRefresh(t0 + 3 * 60 * 1000);
+  assert.equal(next.joined, false, 'after the window a click is a new request');
+  assert.equal(workout.loadRefresh().requested_at, '2026-10-03T21:53:00.000Z');
+});

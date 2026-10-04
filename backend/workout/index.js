@@ -1,7 +1,8 @@
 // Workout App tab: views over the Home Workouts snapshot the Mac ships to backend/workout-state/
-// plus the phone's Apple Health report. The one write is POST /workout/health, and it is the one
-// route on this API with a secret: the API has no auth otherwise, so the phone must present
-// X-Workout-Token equal to WORKOUT_PUSH_TOKEN from the server's .env.
+// plus the phone's Apple Health report. Two writes: POST /workout/refresh (a throttled request file
+// for the Mac, no secret, see service.requestRefresh) and POST /workout/health, the one route on this
+// API with a secret: the API has no auth otherwise, so the phone must present X-Workout-Token equal
+// to WORKOUT_PUSH_TOKEN from the server's .env.
 const { timingSafeEqual } = require('crypto');
 const { Router } = require('express');
 const workout = require('./service');
@@ -29,6 +30,16 @@ router.post('/workout/health', asyncHandler(async (req, res) => {
   const result = workout.storeHealth(req.body);
   if (result.error) return res.status(400).json({ error: result.error });
   res.json(result);
+}));
+
+// The tab's Refresh button asks the Mac for a sync now; the Mac's watcher polls the GET.
+// No token (see service.requestRefresh): throttled, and it only triggers the hourly sync early.
+router.post('/workout/refresh', asyncHandler(async (req, res) => {
+  res.json(workout.requestRefresh());
+}));
+
+router.get('/workout/refresh', asyncHandler(async (req, res) => {
+  res.json(workout.loadRefresh() || { requested_at: null });
 }));
 
 router.get('/workout/day/:date', asyncHandler(async (req, res) => {

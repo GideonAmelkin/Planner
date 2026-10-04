@@ -195,6 +195,19 @@ Both:  --> GET /api/workout/* (merged: a Health workout within 10 minutes of a s
        is that session; other Health sources such as the watch are stored but shown on the Garmin tab)
 ```
 
+### Refresh button (on demand)
+
+The round refresh button right of the range picker asks for a sync now instead of waiting for the
+hour. The server cannot reach the Mac, so `POST /api/workout/refresh` (no token: throttled to one new
+request per 2 minutes, and all it can do is run the hourly sync early) writes
+`workout-state/refresh_request.json`. A second launchd agent on the Mac,
+`com.gideon.planner.homeworkouts-refresh` (every 15 s, the same CLT python3 and grants), runs
+`tools/homeworkouts/refresh_watch.py`: one GET of `/api/workout/refresh`, and for a new request less
+than 15 minutes old, `sync.py --app-sync --refresh-request <requested_at>` with `APP_SYNC_FORCE=1`.
+The shipped snapshot carries `source.refresh`, `/api/workout/status` reports it as
+`refresh.answered_at`, and the tab reloads. Runs never overlap (`sync.lock`). If the Mac does not
+answer in 3 minutes (asleep, locked, offline) the tab says so in amber. Install lines are in the plist.
+
 ### Phone push setup (once)
 
 Server: the API has no auth, so this one route checks a token.
