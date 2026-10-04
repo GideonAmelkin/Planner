@@ -78,7 +78,7 @@ export default function DataSection({ data, loading, error }) {
   const arrow = (c) => (sort.key === c.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '');
 
   const actions = (
-    <a href={SHEET_URL} target="_blank" rel="noreferrer" style={{ ...outlineButton(COLORS.ink), textDecoration: 'none', display: 'inline-block' }}>Open in Google Sheets</a>
+    <a href={SHEET_URL} target="_blank" rel="noreferrer" style={{ ...outlineButton(COLORS.ink), textDecoration: 'none', display: 'inline-block' }}>Drive</a>
   );
 
   if (error) return <SocialCard title="TikTok Data" actions={actions}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
@@ -94,12 +94,23 @@ export default function DataSection({ data, loading, error }) {
     );
   }
 
-  const aside = summary ? `${num(summary.videos)} videos` : null;
   const visible = filtered.slice(0, shown);
   const colCount = COLUMNS.length;
+  const header = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search caption, hook, id, date..."
+        style={{ border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, width: 240, maxWidth: '100%', background: COLORS.paper, color: COLORS.ink }}
+      />
+      {actions}
+    </div>
+  );
 
   return (
-    <SocialCard title="TikTok Data" aside={aside} actions={actions}>
+    <SocialCard title="TikTok Data" actions={header}>
       {summary ? (
         <div style={tileGrid(130)}>
           <SocialTile label="Videos" value={num(summary.videos)} />
@@ -111,20 +122,7 @@ export default function DataSection({ data, loading, error }) {
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '18px 0 10px', flexWrap: 'wrap' }}>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search caption, hook, id, date..."
-          style={{ border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, width: 280, maxWidth: '100%', background: COLORS.paper, color: COLORS.ink }}
-        />
-        <span style={{ fontSize: 12, color: COLORS.muted }}>
-          {query ? `${num(filtered.length)} of ${num(videos.length)} videos` : `${num(videos.length)} videos`}, sorted by {COLUMNS.find((c) => c.key === sort.key).label.toLowerCase()} {sort.dir === 'asc' ? 'ascending' : 'descending'}. Click a row for the full caption and transcript.
-        </span>
-      </div>
-
-      <div style={tableWrap}>
+      <div style={{ ...tableWrap, marginTop: 18 }}>
         <table style={{ ...table, minWidth: 1180 }}>
           <thead>
             <tr style={headRow}>

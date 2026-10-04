@@ -79,8 +79,8 @@ Hooks & Ideas** (a Claude Opus 5 review of the last 30 days of posts: top perfor
 backend's own numbers and the model's "why it worked", patterns, 6 to 8 next hooks; rows in
 `social_reviews`; one run per 30 minutes and twelve per day because `/api/` is public; a 07:15
 scheduler refreshes once a day when new videos arrived; needs `ANTHROPIC_API_KEY` in the server
-`.env`), **TikTok Data** (every sheet column, search, sort, click a row for the transcript, Open
-in Google Sheets) and an empty **Competitors** card.
+`.env`), **TikTok Data** (every sheet column, search and a Drive button in the card header, sort, click a row for the transcript)
+and an empty **Competitors** card.
 
 The Health tab (since 2026-09-27) is the dashboard the Garmin phone app shows on its home
 screen, rebuilt over a local store that the backend fills from Garmin: Today's Activity (one
