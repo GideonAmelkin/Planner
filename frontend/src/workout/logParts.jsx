@@ -21,8 +21,10 @@ const kindLabel = (s) => (s.via === 'health' ? 'Home (phone)' : s.kind === 'gym'
 // `fill`: the chart takes its parent's height (the Trainer's stretched panel): the caption becomes the title
 // at the top, the bars grow from a 110 px minimum and the date ticks sit at the foot. The tallest bar reaches
 // 70% of the height. A bar with workouts is a button: `onSelect({ key, from, to })` picks its day or bucket
-// (clamped to the range), a second click on the `selected` bar sends null.
-export function RangeBars({ sessions, startISO, endISO, fill = false, selected = null, onSelect = null }) {
+// (clamped to the range), a second click on the `selected` bar sends null. `dateISO`: the date picker's day;
+// its bucket is hatched and carries the count bubble unless a bar is selected (like the Overview's Session
+// length), with a muted line under the ticks when that bucket has no workouts.
+export function RangeBars({ sessions, startISO, endISO, fill = false, selected = null, onSelect = null, dateISO = null }) {
   // Bucket size follows the span so there are never more than about 53 bars,
   // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
@@ -49,11 +51,12 @@ export function RangeBars({ sessions, startISO, endISO, fill = false, selected =
   }
   const counts = new Map(keys.map((k) => [k, 0]));
   const end = Date.parse(`${endISO}T12:00:00`);
+  const keyFor = (iso) => (unit === 'day' ? iso
+    : unit === 'week' ? String(Math.floor((end - Date.parse(`${iso}T12:00:00`)) / (7 * 86400000)))
+      : unit === 'month' ? monthKey(iso) : quarterKey(iso));
   for (const sess of sessions) {
     if (sess.date < startISO || sess.date > endISO) continue;
-    const k = unit === 'day' ? sess.date
-      : unit === 'week' ? String(Math.floor((end - Date.parse(`${sess.date}T12:00:00`)) / (7 * 86400000)))
-      : unit === 'month' ? monthKey(sess.date) : quarterKey(sess.date);
+    const k = keyFor(sess.date);
     if (counts.has(k)) counts.set(k, counts.get(k) + 1);
   }
   const lastDay = (ym) => { const d = new Date(`${ym}-01T12:00:00`); d.setMonth(d.getMonth() + 1, 0); return `${ym}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -71,9 +74,9 @@ export function RangeBars({ sessions, startISO, endISO, fill = false, selected =
   };
   const values = keys.map((k) => counts.get(k));
   const max = Math.max(1, ...values);
-  const peak = values.indexOf(Math.max(...values));
+  const dateIndex = dateISO && dateISO >= startISO && dateISO <= endISO ? keys.indexOf(keyFor(dateISO)) : -1;
   const selIndex = selected === null ? -1 : keys.indexOf(selected);
-  const bubbleAt = selIndex >= 0 && values[selIndex] > 0 ? selIndex : peak;
+  const bubbleAt = selIndex >= 0 && values[selIndex] > 0 ? selIndex : dateIndex;
   const H = 110;
   const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const labelOf = (k, i) => {
@@ -90,7 +93,7 @@ export function RangeBars({ sessions, startISO, endISO, fill = false, selected =
       {fill ? <div style={figureLabel}>Workouts per {unit}</div> : null}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap, marginTop: 30, ...(fill ? { flex: 1, minHeight: H } : { height: H }) }}>
         {values.map((c, i) => {
-          const isPeak = c > 0 && i === peak;
+          const isPicked = c > 0 && i === dateIndex;
           const isSel = c > 0 && i === selIndex;
           const pickable = c > 0 && onSelect;
           const pick = () => onSelect(isSel ? null : spanOf(keys[i]));
@@ -102,7 +105,7 @@ export function RangeBars({ sessions, startISO, endISO, fill = false, selected =
               } : {})}
               style={{
                 flex: 1, minWidth: 0, position: 'relative', height: c ? `${Math.max(8, (c / max) * 70)}%` : 4,
-                borderRadius: c ? '8px 8px 4px 4px' : 999, background: isSel ? W.blue : isPeak ? hatch('#6D93FA') : c ? W.blueSoft : '#EEF2FA',
+                borderRadius: c ? '8px 8px 4px 4px' : 999, background: isSel ? W.blue : isPicked ? hatch('#6D93FA') : c ? W.blueSoft : '#EEF2FA',
                 cursor: pickable ? 'pointer' : 'default',
               }}>
               {c > 0 && i === bubbleAt ? (
@@ -122,6 +125,11 @@ export function RangeBars({ sessions, startISO, endISO, fill = false, selected =
           </span>
         ))}
       </div>
+      {dateIndex >= 0 && values[dateIndex] === 0 ? (
+        <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 6 }}>
+          {unit === 'day' ? `No workout on ${new Date(`${dateISO}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` : `No workouts this ${unit}`}
+        </div>
+      ) : null}
       {fill ? null : <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 8 }}>Workouts per {unit}</div>}
     </div>
   );

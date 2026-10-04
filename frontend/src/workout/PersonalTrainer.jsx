@@ -17,7 +17,8 @@ import { COLORS } from '../shared/styles';
 //   top     big-number figures (sessions, exercises, volume, vs the previous session)
 //   middle  two panels on one row (stacked when narrow): the MuscleChart (volume per group this range
 //           against the same-length range before it) and RangeBars (workouts per day, gym and home; a bar
-//           with workouts selects its day or bucket: the Workouts dropdown opens with those rows tinted)
+//           with workouts selects its day or bucket: the Workouts dropdown opens with those rows tinted;
+//           the date picker's day is hatched, like the Overview's Session length)
 //   bottom  two dropdowns, closed by default and remembered: Exercises, the ticker board (one row per
 //           exercise, sortable, a row opens the exercise detail), and Workouts, one row per day
 // The body figure and the balance radar live in the Overview since 2026-09-29; picking a muscle
@@ -99,7 +100,7 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const days = workoutDays(list);
   const activity = (
     <div className="pt-panel" style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
-      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} fill selected={sel && sel.key} onSelect={selectBar} />
+      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} fill selected={sel && sel.key} onSelect={selectBar} dateISO={date} />
         : <><div style={figureLabel}>Workouts</div><div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Pick a start date on or before the end date.</div></>}
     </div>
   );
