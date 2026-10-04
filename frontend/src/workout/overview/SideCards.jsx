@@ -7,7 +7,7 @@ import { W, glassCard, iconDisc } from '../theme';
 import BalanceRadar from '../BalanceRadar';
 
 // The Overview's right column: Highlights (new records in the range, else the streak and the count;
-// one full-width row each, no heading, since 2026-10-03), the small Volume (area over the gym sessions)
+// one full-width row each, no heading, since 2026-10-03), the small Volume (the range's total against the window before)
 // and Balance (the top group's share, one bar split by the top three, a legend) tiles, and the Muscles card. The last session lives in the profile card now
 // (SessionStats below), so this column ends above the Session length card's bottom.
 
@@ -88,34 +88,60 @@ const miniHead = (icon, text) => (
   </div>
 );
 
-export function MiniCards({ gymSessions, shares, unit }) {
-  // Volume: one point per gym session, oldest first (the export's total_weight_kg).
-  const pts = gymSessions.map((s) => s.total_weight_kg || 0);
+// Volume (the user's pick, 2026-10-04, option 4 of five plus option 1's clean-ups): the range's total pounds
+// as the headline, a chip with the change against the same-length window right before it (none for
+// Lifetime, like the radar), and a line per window from a zero baseline: this range solid with a dot on
+// its last session, the window before dashed behind it, each session placed by its day in its window.
+// 10,267 -> 10.3k so the caption fits a 145px tile on one line.
+const shortVolume = (kg, unit) => { const v = Number(fmtVolume(kg, unit).replace(/,/g, '')); return Number.isFinite(v) && v >= 1000 ? `${(v / 1000).toFixed(1)}k` : fmtVolume(kg, unit); };
+const dayIndex = (from, d) => Math.round((Date.parse(`${d}T12:00:00`) - Date.parse(`${from}T12:00:00`)) / 86400000);
+export function MiniCards({ gymSessions, beforeSessions, rangeStart, beforeStart, span, shares, unit }) {
+  const kg = (s) => s.total_weight_kg || 0;
+  const pts = gymSessions.map((s) => ({ i: dayIndex(rangeStart, s.date), v: kg(s) }));
+  const prior = beforeSessions ? beforeSessions.filter((s) => kg(s) > 0).map((s) => ({ i: dayIndex(beforeStart, s.date), v: kg(s) })).sort((a, b) => a.i - b.i) : null;
+  const total = pts.reduce((t, p) => t + p.v, 0);
+  const priorTotal = prior ? prior.reduce((t, p) => t + p.v, 0) : 0;
+  const change = prior && priorTotal > 0 ? Math.round(((total - priorTotal) / priorTotal) * 100) : null;
+  const priorName = span === 1 ? 'day before' : `prior ${span}d`;
+
   let chart = null;
-  if (pts.length >= 2) {
-    const lo = Math.min(...pts) * 0.85;
-    const hi = Math.max(...pts) * 1.05;
-    const X = (i) => 4 + (i * 112) / (pts.length - 1);
-    const Y = (v) => 52 - ((v - lo) / (hi - lo || 1)) * 44;
-    const line = pts.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+  if (pts.length) {
+    const hi = Math.max(...pts.map((p) => p.v), ...(prior || []).map((p) => p.v)) * 1.1 || 1;
+    const X = (i) => 4 + (Math.min(span - 1, Math.max(0, i)) * 112) / Math.max(1, span - 1);
+    const Y = (v) => 56 - (v / hi) * 50;
+    const path = (list) => list.map((p, n) => `${n ? 'L' : 'M'}${X(p.i).toFixed(1)} ${Y(p.v).toFixed(1)}`).join(' ');
+    const lastPt = pts[pts.length - 1];
     chart = (
-      <svg viewBox="0 0 120 60" width="100%" height="56" preserveAspectRatio="none" role="img" aria-label="Volume per gym session" style={{ display: 'block' }}>
-        <defs><linearGradient id="wkVolArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={W.blue} stopOpacity=".45" /><stop offset="1" stopColor={W.green} stopOpacity=".05" /></linearGradient></defs>
-        <path d={`${line} L${X(pts.length - 1)} 60 L4 60 Z`} fill="url(#wkVolArea)" />
-        <path d={line} fill="none" stroke={W.blue} strokeWidth="2" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <div style={{ position: 'relative', marginTop: 8 }}>
+        <svg viewBox="0 0 120 60" width="100%" height="56" preserveAspectRatio="none" role="img" aria-label="Volume per gym session, this range and the window before" style={{ display: 'block' }}>
+          <defs><linearGradient id="wkVolArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={W.blue} stopOpacity=".35" /><stop offset="1" stopColor={W.blue} stopOpacity=".03" /></linearGradient></defs>
+          <line x1="4" x2="116" y1="56" y2="56" stroke={TRACK} strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          {prior && prior.length >= 2 ? <path d={path(prior)} fill="none" stroke="#9AA3B5" strokeWidth="1.5" strokeDasharray="3 3" vectorEffect="non-scaling-stroke" /> : null}
+          {pts.length >= 2 ? <path d={`${path(pts)} L${X(lastPt.i).toFixed(1)} 56 L${X(pts[0].i).toFixed(1)} 56 Z`} fill="url(#wkVolArea)" /> : null}
+          {pts.length >= 2 ? <path d={path(pts)} fill="none" stroke={W.blue} strokeWidth="2" vectorEffect="non-scaling-stroke" /> : null}
+        </svg>
+        {/* The end dot as HTML so it stays round in the stretched viewBox. */}
+        <span style={{ position: 'absolute', left: `${(X(lastPt.i) / 120) * 100}%`, top: `${(Y(lastPt.v) / 60) * 100}%`, width: 8, height: 8, borderRadius: '50%', background: W.blue, border: '2px solid #FFFFFF', transform: 'translate(-50%, -50%)', boxShadow: '0 1px 3px rgba(30,50,110,.3)' }}
+          title={`Last session: ${fmtVolume(lastPt.v, unit)} ${unit}`} />
+      </div>
     );
   }
   const top3 = shares.slice(0, 3);
+  const oneLine = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gridAutoRows: '1fr', gap: 10 }}>
-      <div style={{ ...glassCard, padding: 14 }}>
+      <div style={{ ...glassCard, padding: 14, minWidth: 0 }}>
         {miniHead('dumbbell', 'Volume')}
         {pts.length ? (
           <>
-            <div style={big}>{fmtVolume(pts[pts.length - 1], unit)}<span style={unitStyle}>{unit}</span></div>
+            <div style={big}>{fmtVolume(total, unit)}<span style={unitStyle}>{unit}</span></div>
+            {change !== null ? (
+              <div style={{ ...oneLine, fontSize: 11, marginTop: 4, color: COLORS.muted }} title={`${fmtVolume(priorTotal, unit)} ${unit} in the ${span} days before`}>
+                <b style={{ color: change > 0 ? W.green : COLORS.muted, fontWeight: 600 }}>{change > 0 ? '+' : ''}{change}%</b> vs {priorName}
+              </div>
+            ) : null}
             {chart}
-            <div style={sub}>{pts.length === 1 ? 'latest gym session' : `latest of ${pts.length} gym sessions`}</div>
+            <div style={{ ...sub, ...oneLine, fontSize: 11, marginTop: 6 }}>{pts.length} session{pts.length === 1 ? '' : 's'}, avg {shortVolume(total / pts.length, unit)}</div>
           </>
         ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
       </div>
