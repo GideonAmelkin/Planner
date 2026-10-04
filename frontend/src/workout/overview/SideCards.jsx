@@ -7,8 +7,8 @@ import { W, glassCard, iconDisc } from '../theme';
 import BalanceRadar from '../BalanceRadar';
 
 // The Overview's right column: Highlights (new records in the range, else the streak and the count;
-// no heading since 2026-10-03) and the small tiles, Volume (area over the gym sessions), Balance (the
-// top three groups' shares as pies) and Muscles. The last session lives in the profile card now
+// one full-width row each, no heading, since 2026-10-03), the small Volume (area over the gym sessions)
+// and Balance (the top three groups' shares as pies) tiles, and the Muscles card. The last session lives in the profile card now
 // (SessionStats below), so this column ends above the Session length card's bottom.
 
 const sub = { fontSize: 12, color: COLORS.muted };
@@ -29,8 +29,10 @@ export function SessionStats({ session, unit }) {
 
 export const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
-const tile = (bg, fg) => ({ borderRadius: 20, padding: 14, minHeight: 104, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, background: bg, color: fg, minWidth: 0 });
-const tileIcon = { width: 30, height: 30, borderRadius: '50%', background: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+// One row per tile (the user's call, 2026-10-03: yellow on one line, blue on the line below).
+const tile = (bg, fg) => ({ borderRadius: 18, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, background: bg, color: fg, minWidth: 0 });
+const oneLine = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+const tileIcon = { flexShrink: 0, width: 30, height: 30, borderRadius: '50%', background: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 
 export function Highlights({ records, streak, count, gymCount, unit }) {
   const colors = [[W.yellowTile, W.yellowInk], [W.blueTile, W.blueInk]];
@@ -45,14 +47,14 @@ export function Highlights({ records, streak, count, gymCount, unit }) {
     ];
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
         {tiles.map((t) => (
           <div key={t.key} style={tile(t.colors[0], t.colors[1])}>
             <span style={tileIcon}><Icon name={t.icon} size={15} /></span>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12 }}>{t.label}</div>
-              <div style={{ fontSize: records.length ? 15 : 19, fontWeight: 700, lineHeight: 1.2, overflowWrap: 'anywhere' }}>{t.value}</div>
-              <div style={{ fontSize: 11 }}>{t.sub}</div>
+            <div style={{ minWidth: 0, flex: 1 }} title={`${t.value}: ${t.sub}`}>
+              <div style={{ fontSize: 12, ...oneLine }}>{t.label}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, ...oneLine }}>{t.value}</div>
+              <div style={{ fontSize: 11, ...oneLine }}>{t.sub}</div>
             </div>
           </div>
         ))}
@@ -82,7 +84,7 @@ const miniHead = (icon, text) => (
   </div>
 );
 
-export function MiniCards({ gymSessions, shares, unit, radar }) {
+export function MiniCards({ gymSessions, shares, unit }) {
   // Volume: one point per gym session, oldest first (the export's total_weight_kg).
   const pts = gymSessions.map((s) => s.total_weight_kg || 0);
   let chart = null;
@@ -102,8 +104,7 @@ export function MiniCards({ gymSessions, shares, unit, radar }) {
   }
   const top3 = shares.slice(0, 3);
   return (
-    // One grid for the three small tiles; equal row heights keep the radar tile the size of the other two.
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gridAutoRows: '1fr', gap: 10 }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gridAutoRows: '1fr', gap: 10 }}>
       <div style={{ ...glassCard, padding: 14 }}>
         {miniHead('dumbbell', 'Volume')}
         {pts.length ? (
@@ -129,23 +130,28 @@ export function MiniCards({ gymSessions, shares, unit, radar }) {
           </>
         ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
       </div>
-      <RadarTile {...radar} />
     </div>
   );
 }
 
-// The balance radar as a small tile beside Volume and Balance: how many of the nine groups the range
-// trained, and the radar (this range filled, the same-length window before dashed, none for Lifetime).
-// A spoke's dot selects that group for the page (the Trainer's chart and ticker follow).
-function RadarTile({ now, before, beforeLabel, selected, onSelect }) {
+// Muscles: how many of the nine groups the range trained and the labelled radar (this range filled, the
+// same-length window before dashed, none for Lifetime); a group's label selects it for the page (the
+// Trainer's chart and ticker follow). Its own card since 2026-10-03, the size of the Session length card
+// (`height`, measured by OverviewView; null where the layout has no card beside it to match).
+export function MusclesCard({ now, before, beforeLabel, selected, onSelect, height, style }) {
   const count = MUSCLE_GROUPS.filter((g) => (now[g.key] || 0) > 0).length;
   return (
-    <div style={{ ...glassCard, padding: 14 }} title={before ? `Filled: this range. Dashed: ${beforeLabel.replace(/^(in|on) /, '')}.` : 'This range'}>
-      {miniHead('radar', 'Muscles')}
+    <div style={{ ...glassCard, height: height || undefined, display: 'flex', flexDirection: 'column', minHeight: 0, ...style }} title={before ? `Filled: this range. Dashed: ${beforeLabel.replace(/^(in|on) /, '')}.` : 'This range'}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={iconDisc()}><Icon name="radar" size={17} /></span>
+        <span style={{ fontSize: 16, fontWeight: 600 }}>Muscles</span>
+      </div>
       {count ? (
         <>
           <div style={big}>{count}<span style={unitStyle}>of {MUSCLE_GROUPS.length} groups</span></div>
-          <div style={{ marginTop: 6 }}><BalanceRadar now={now} before={before} selected={selected} onSelect={onSelect} mini /></div>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+            <div style={{ width: '100%' }}><BalanceRadar now={now} before={before} selected={selected} onSelect={onSelect} /></div>
+          </div>
         </>
       ) : <div style={{ ...sub, marginTop: 10 }}>No gym sessions in this range.</div>}
     </div>

@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../icons';
 import BodyViewer from './BodyViewer';
 import DayStrip from './DayStrip';
-import { Highlights, MiniCards, SessionStats, shortDay } from './SideCards';
+import { Highlights, MiniCards, MusclesCard, SessionStats, shortDay } from './SideCards';
 import { longestStreak, muscleShares, recordsInRange, sessionLengths, shiftDay, stripDays, topExercises } from './select';
 import { inRange, toUnit } from '../strength';
 import { muscleVolume } from '../muscles';
@@ -19,11 +19,27 @@ import { W, glassCard, hatch, iconDisc, statPill } from '../theme';
 //           the date, three counts) and the Session length card (avg, range, one bar per session,
 //           the longest hatched)
 //   centre  BodyFigure: muscles trained in the range, a popover per group
-//   right   Highlights, Volume + Balance + Muscles, ending above the Session length card's bottom
+//   right   Highlights (one row per record), Volume + Balance, and Muscles: the same size as the Session
+//           length card and level with it, so the column ends where Session length does
 //   bottom  DayStrip across the full width
 // Three columns from 1060px of content width, two from 660px (the right column wraps under),
 // one below that. Every number comes from the range's sessions or the gym sessions with sets.
 const MAX_BARS = 40;
+
+// The element's height, kept current (the Muscles card copies the Session length card's).
+function useHeight(ref) {
+  const [h, setH] = useState(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    setH(el.offsetHeight);
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => setH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ref]);
+  return h;
+}
 
 function useWidth(ref) {
   const [w, setW] = useState(1200);
@@ -95,7 +111,7 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, liftUnit, l
   );
 }
 
-function SessionLengthCard({ sessions, compact }) {
+const SessionLengthCard = React.forwardRef(function SessionLengthCard({ sessions, compact }, ref) {
   const { rows: all, avg, min, max } = sessionLengths(sessions);
   const rows = all.slice(-MAX_BARS);
   const peak = rows.length ? rows.reduce((b, r) => (r.min > b.min ? r : b), rows[0]) : null;
@@ -108,7 +124,7 @@ function SessionLengthCard({ sessions, compact }) {
     </div>
   );
   return (
-    <div style={glassCard}>
+    <div ref={ref} style={glassCard}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={iconDisc()}><Icon name="clock" size={17} /></span>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Session length</span>
@@ -149,12 +165,14 @@ function SessionLengthCard({ sessions, compact }) {
       ) : <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 10 }}>No workouts in this range.</div>}
     </div>
   );
-}
+});
 
 export default function OverviewView({ date, profile, weights, sessions, rangeStart, rangeEnd, rangeSub, lifetime, strength, stripSessions, stripStart, stripEnd, onOpenTrainer, muscle, onMuscle }) {
   const ref = useRef(null);
   const width = useWidth(ref);
   const cols = width >= 1060 ? 3 : width >= 660 ? 2 : 1;
+  const sessionRef = useRef(null);
+  const sessionHeight = useHeight(sessionRef);
 
   const unit = (strength && strength.weight_unit) || (profile.shows_kg ? 'kg' : 'lb');
   const bodyUnit = profile.shows_kg ? 'kg' : 'lb';
@@ -187,7 +205,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
       <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit} liftUnit={unit}
         latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
-      <SessionLengthCard sessions={sessions} compact={cols === 1} />
+      <SessionLengthCard ref={sessionRef} sessions={sessions} compact={cols === 1} />
     </div>
   );
   const figure = (
@@ -197,10 +215,12 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const right = (
     <div style={cols === 2
       ? { gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }
-      : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+      : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, alignSelf: cols === 3 ? 'stretch' : undefined }}>
       <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} />
-      <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit}
-        radar={{ now, before, beforeLabel, selected: muscle, onSelect: (m) => onMuscle(muscle === m ? null : m) }} />
+      <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit} />
+      {/* Three columns: the Session length card's twin, pushed to the column's foot so the two line up. */}
+      <MusclesCard now={now} before={before} beforeLabel={beforeLabel} selected={muscle} onSelect={(m) => onMuscle(muscle === m ? null : m)}
+        height={cols === 3 ? sessionHeight : null} style={cols === 3 ? { marginTop: 'auto' } : undefined} />
     </div>
   );
 
