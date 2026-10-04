@@ -198,7 +198,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const highlights = (
     <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} fill={cols === 3} />
   );
-  const minis = <MiniCards gymSessions={gymOldestFirst} beforeSessions={lifetime ? null : beforeGym} rangeStart={rangeStart} beforeStart={beforeStart} span={span} shares={muscleShares(now)} unit={unit} />;
+  const minis = <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit} />;
   const musclesCard = <MusclesCard now={now} before={before} beforeLabel={beforeLabel} selected={muscle} onSelect={(m) => onMuscle(muscle === m ? null : m)} />;
 
   // Three columns, two rows (the user's calls, 2026-10-03): row one holds the profile card and, on the
