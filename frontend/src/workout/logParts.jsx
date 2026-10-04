@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { shiftISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
@@ -19,8 +19,10 @@ const kindLabel = (s) => (s.via === 'health' ? 'Home (phone)' : s.kind === 'gym'
 
 // Workouts per bucket over the range: by day up to 31 days, then week / month / quarter.
 // `fill`: the chart takes its parent's height (the Trainer's stretched panel): the caption becomes the title
-// at the top, the bars grow from a 110 px minimum and the date ticks sit at the foot.
-export function RangeBars({ sessions, startISO, endISO, fill = false }) {
+// at the top, the bars grow from a 110 px minimum and the date ticks sit at the foot. The tallest bar reaches
+// 70% of the height. A bar with workouts is a button: `onSelect({ key, from, to })` picks its day or bucket
+// (clamped to the range), a second click on the `selected` bar sends null.
+export function RangeBars({ sessions, startISO, endISO, fill = false, selected = null, onSelect = null }) {
   // Bucket size follows the span so there are never more than about 53 bars,
   // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
@@ -54,9 +56,24 @@ export function RangeBars({ sessions, startISO, endISO, fill = false }) {
       : unit === 'month' ? monthKey(sess.date) : quarterKey(sess.date);
     if (counts.has(k)) counts.set(k, counts.get(k) + 1);
   }
+  const lastDay = (ym) => { const d = new Date(`${ym}-01T12:00:00`); d.setMonth(d.getMonth() + 1, 0); return `${ym}-${String(d.getDate()).padStart(2, '0')}`; };
+  const spanOf = (k) => {
+    let from; let to;
+    if (unit === 'day') { from = k; to = k; }
+    else if (unit === 'week') { to = shiftISO(endISO, -7 * Number(k)); from = shiftISO(to, -6); }
+    else if (unit === 'month') { from = `${k}-01`; to = lastDay(k); }
+    else {
+      const m = (Number(k.slice(6)) - 1) * 3 + 1;
+      from = `${k.slice(0, 4)}-${String(m).padStart(2, '0')}-01`;
+      to = lastDay(`${k.slice(0, 4)}-${String(m + 2).padStart(2, '0')}`);
+    }
+    return { key: k, from: from < startISO ? startISO : from, to: to > endISO ? endISO : to };
+  };
   const values = keys.map((k) => counts.get(k));
   const max = Math.max(1, ...values);
   const peak = values.indexOf(Math.max(...values));
+  const selIndex = selected === null ? -1 : keys.indexOf(selected);
+  const bubbleAt = selIndex >= 0 && values[selIndex] > 0 ? selIndex : peak;
   const H = 110;
   const monthLabel = (ym) => new Date(`${ym}-01T12:00:00`).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const labelOf = (k, i) => {
@@ -74,12 +91,21 @@ export function RangeBars({ sessions, startISO, endISO, fill = false }) {
       <div style={{ display: 'flex', alignItems: 'flex-end', gap, marginTop: 30, ...(fill ? { flex: 1, minHeight: H } : { height: H }) }}>
         {values.map((c, i) => {
           const isPeak = c > 0 && i === peak;
+          const isSel = c > 0 && i === selIndex;
+          const pickable = c > 0 && onSelect;
+          const pick = () => onSelect(isSel ? null : spanOf(keys[i]));
           return (
-            <div key={keys[i]} title={`${labelOf(keys[i], i)}: ${c} workout${c === 1 ? '' : 's'}`} style={{
-              flex: 1, minWidth: 0, position: 'relative', height: c ? `${Math.max(8, (c / max) * 100)}%` : 4,
-              borderRadius: c ? '8px 8px 4px 4px' : 999, background: isPeak ? hatch('#6D93FA') : c ? W.blueSoft : '#EEF2FA',
-            }}>
-              {isPeak ? (
+            <div key={keys[i]} title={`${labelOf(keys[i], i)}: ${c} workout${c === 1 ? '' : 's'}`}
+              {...(pickable ? {
+                role: 'button', tabIndex: 0, 'aria-pressed': isSel, onClick: pick,
+                onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } },
+              } : {})}
+              style={{
+                flex: 1, minWidth: 0, position: 'relative', height: c ? `${Math.max(8, (c / max) * 70)}%` : 4,
+                borderRadius: c ? '8px 8px 4px 4px' : 999, background: isSel ? W.blue : isPeak ? hatch('#6D93FA') : c ? W.blueSoft : '#EEF2FA',
+                cursor: pickable ? 'pointer' : 'default',
+              }}>
+              {c > 0 && i === bubbleAt ? (
                 <>
                   <span style={{ position: 'absolute', top: -4, left: '50%', width: 8, height: 8, marginLeft: -4, borderRadius: '50%', background: W.blue, border: '2px solid #FFFFFF' }} />
                   <span style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: COLORS.ink, color: '#FFFFFF', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{c} workout{c === 1 ? '' : 's'}</span>
@@ -104,7 +130,12 @@ export function RangeBars({ sessions, startISO, endISO, fill = false }) {
 // How many days the range has workouts on (the Workouts dropdown's count).
 export const workoutDays = (sessions) => new Set(sessions.map((s) => s.date)).size;
 
-export function DayTable({ date, sessions, unit }) {
+// `selFrom` / `selTo`: the bar picked on RangeBars; its days get the stronger tint and the first is scrolled to.
+export function DayTable({ date, sessions, unit, selFrom = null, selTo = null }) {
+  const firstSel = useRef(null);
+  useEffect(() => {
+    if (selFrom && firstSel.current) firstSel.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selFrom, selTo]);
   const hasCalories = sessions.some((s) => s.calories);
   const hasExercises = sessions.some((s) => s.exercise_count);
   const hasLifted = sessions.some((s) => s.total_weight_kg);
@@ -123,6 +154,7 @@ export function DayTable({ date, sessions, unit }) {
     r.lifted_kg += s.total_weight_kg || 0;
     r.n += 1;
   }
+  let refSet = false;
   return dayRows.length ? (
         <div style={tableWrap}>
           <table style={table}>
@@ -134,9 +166,12 @@ export function DayTable({ date, sessions, unit }) {
             <tbody>
               {dayRows.map((r) => {
                 const mine = r.date === date;
-                const cell = (extra) => ({ ...extra, background: mine ? W.blueWash : undefined });
+                const picked = selFrom !== null && r.date >= selFrom && r.date <= selTo;
+                const first = picked && !refSet;
+                if (first) refSet = true;
+                const cell = (extra) => ({ ...extra, background: picked ? W.blueSoft : mine ? W.blueWash : undefined });
                 return (
-                  <tr key={r.date}>
+                  <tr key={r.date} ref={first ? firstSel : undefined}>
                     <td style={cell(td)}>{shortDate(r.date)}</td>
                     <td style={cell(td)}>{r.focus.join(', ')}{r.n > 1 ? <span style={{ color: COLORS.muted, fontSize: 11, marginLeft: 6 }}>{r.n} workouts</span> : null}</td>
                     <td style={cell(td)}>{r.kinds.map((k) => <Chip key={k} color={k === 'Gym' ? COLORS.workout : W.blue} style={{ marginRight: 4 }}>{k}</Chip>)}</td>

@@ -16,7 +16,8 @@ import { COLORS } from '../shared/styles';
 // pick of five layouts: option 2, charts side by side and two dropdowns).
 //   top     big-number figures (sessions, exercises, volume, vs the previous session)
 //   middle  two panels on one row (stacked when narrow): the MuscleChart (volume per group this range
-//           against the same-length range before it) and RangeBars (workouts per day, gym and home)
+//           against the same-length range before it) and RangeBars (workouts per day, gym and home; a bar
+//           with workouts selects its day or bucket: the Workouts dropdown opens with those rows tinted)
 //   bottom  two dropdowns, closed by default and remembered: Exercises, the ticker board (one row per
 //           exercise, sortable, a row opens the exercise detail), and Workouts, one row per day
 // The body figure and the balance radar live in the Overview since 2026-09-29; picking a muscle
@@ -59,6 +60,10 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const [workoutsOpen, setWorkoutsOpen] = useState(() => readFlag(WORKOUTS_OPEN_KEY));
   // A muscle picked on the Overview or the chart filters the board, so the board must be showing.
   useEffect(() => { if (muscle) setExercisesOpen(true); }, [muscle]);
+  // The bar picked on the chart ({ key, from, to } or null); a new range drops it.
+  const [sel, setSel] = useState(null);
+  useEffect(() => { setSel(null); }, [chartStart, logEnd]);
+  const selectBar = (s) => { setSel(s); if (s) setWorkoutsOpen(true); };
   const toggleExercises = () => setExercisesOpen((o) => { writeFlag(EXERCISES_OPEN_KEY, !o); return !o; });
   const toggleWorkouts = () => setWorkoutsOpen((o) => { writeFlag(WORKOUTS_OPEN_KEY, !o); return !o; });
   const [openIds, setOpenIds] = useState(readOpen);
@@ -94,13 +99,13 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const days = workoutDays(list);
   const activity = (
     <div className="pt-panel" style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
-      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} fill />
+      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} fill selected={sel && sel.key} onSelect={selectBar} />
         : <><div style={figureLabel}>Workouts</div><div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Pick a start date on or before the end date.</div></>}
     </div>
   );
   const workoutsDropdown = (
     <Dropdown title="Workouts" count={`${days} day${days === 1 ? '' : 's'}`} open={workoutsOpen} onToggle={toggleWorkouts}>
-      <DayTable date={date} sessions={list} unit={bodyUnit || unit} />
+      <DayTable date={date} sessions={list} unit={bodyUnit || unit} selFrom={sel && sel.from} selTo={sel && sel.to} />
     </Dropdown>
   );
 
