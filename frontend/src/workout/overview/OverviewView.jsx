@@ -152,7 +152,7 @@ function SessionLengthCard({ sessions, compact }) {
   );
 }
 
-export default function OverviewView({ date, profile, weights, sessions, rangeStart, rangeEnd, rangeSub, lifetime, strength, stripSessions, stripStart, stripEnd, onOpenTrainer, muscle, onMuscle }) {
+export default function OverviewView({ date, profile, weights, sessions, rangeStart, rangeEnd, rangeSub, lifetime, strength, stripSessions, stripStart, stripEnd, onOpenTrainer, muscle, onMuscle, rangeControl }) {
   const ref = useRef(null);
   const width = useWidth(ref);
   const cols = width >= 1060 ? 3 : width >= 660 ? 2 : 1;
@@ -191,7 +191,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const sessionCard = <SessionLengthCard sessions={sessions} compact={cols === 1} />;
   const figure = (
     <BodyViewer now={now} before={before} beforeCount={beforeGym.length} beforeLabel={beforeLabel} unit={unit}
-      top={topExercises(gymInRange)} onOpenTrainer={onOpenTrainer} compact={cols === 1} />
+      top={topExercises(gymInRange)} onOpenTrainer={onOpenTrainer} compact={cols === 1} rangeControl={rangeControl} />
   );
   const highlights = (
     <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} fill={cols === 3} />

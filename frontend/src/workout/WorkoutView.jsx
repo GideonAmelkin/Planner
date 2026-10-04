@@ -101,12 +101,9 @@ export default function WorkoutView() {
   // Lifetime starts the Log's chart at the first workout instead of ten empty years back.
   const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
 
+  // The range select sits in the body figure's header row, left of the "+N trained on the ..." pill.
   const rangePicker = (
-    // One unit, so the Refresh button wraps with the range select instead of onto a row of its own.
-    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
-      <RefreshButton phase={refresh.phase} onClick={refresh.start} />
-    </span>
+    <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
   );
   const age = status ? snapshotAge(status, date) : null;
 
@@ -116,7 +113,7 @@ export default function WorkoutView() {
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '20px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={sticky ? { position: 'sticky', top: 0, zIndex: 5, margin: '-20px -24px 0', padding: '14px 24px 10px', background: 'rgba(236,241,255,.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: `1px solid ${W.glassBorder}` } : undefined}>
-            <WorkoutTopNav date={date} extra={rangePicker} />
+            <WorkoutTopNav date={date} extra={<RefreshButton phase={refresh.phase} onClick={refresh.start} />} />
             {refresh.message ? (
               <div style={{ fontSize: 12, color: refresh.message.color, marginTop: 10 }}>{refresh.message.text}</div>
             ) : age ? (
@@ -161,7 +158,7 @@ export default function WorkoutView() {
           date={date} profile={profile} weights={(rangeRecent && rangeRecent.weights) || []}
           sessions={customValid ? rangeSessions : []} rangeStart={rangeStart} rangeEnd={rangeEnd} rangeSub={range.sub} lifetime={rangeKey === 'lifetime'}
           strength={strength} stripSessions={(stripRecent && stripRecent.sessions) || []} stripStart={stripStart} stripEnd={stripEnd}
-          onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle}
+          onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle} rangeControl={rangePicker}
         />
       ))}
       {section('trainer', (

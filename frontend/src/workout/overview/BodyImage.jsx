@@ -62,7 +62,7 @@ function silhouetteRows(img) {
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export default function BodyImage({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, onFail }) {
+export default function BodyImage({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, onFail, rangeControl }) {
   const [side, setSide] = useState('front');
   const [srcs, setSrcs] = useState({ front: FIGURE.front.src, back: FIGURE.back.src });
   const [zoomIx, setZoomIx] = useState(0);
@@ -200,11 +200,14 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
     <div ref={boxRef} style={{ position: 'relative', minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
         <span>{total ? 'Muscles worked · drag to turn' : 'Muscles worked: no gym sessions in this range'}</span>
-        {onlyOther ? (
-          <button type="button" onClick={turn} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
-            +{onlyOther} trained on the {other}
-          </button>
-        ) : null}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {rangeControl}
+          {onlyOther ? (
+            <button type="button" onClick={turn} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
+              +{onlyOther} trained on the {other}
+            </button>
+          ) : null}
+        </span>
       </div>
       {/* The figure and its Front / Back row, centered in whatever height the cell gives (the Overview's
           middle column spans both grid rows); the caption stays at the top. */}

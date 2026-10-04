@@ -14,7 +14,7 @@ import { BODY_HALF, CORE, FOOT, HAND, HEAD, HOTSPOTS, LINES, MUSCLE_HALF, NECK, 
 // + and - zoom the figure; the popover follows the dot.
 const ZOOMS = [1, 1.25, 1.5, 1.75];
 
-export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact }) {
+export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, rangeControl }) {
   const [side, setSide] = useState('front');
   const [zoomIx, setZoomIx] = useState(0);
   const [picked, setPicked] = useState(null);
@@ -65,11 +65,14 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
     <div ref={boxRef} style={{ position: 'relative', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
         <span>{total ? 'Muscles worked' : 'Muscles worked: no gym sessions in this range'}</span>
-        {onOtherSide ? (
-          <button type="button" onClick={() => { setSide(other); setPicked(null); }} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
-            +{onOtherSide} trained on the {other}
-          </button>
-        ) : null}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {rangeControl}
+          {onOtherSide ? (
+            <button type="button" onClick={() => { setSide(other); setPicked(null); }} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
+              +{onOtherSide} trained on the {other}
+            </button>
+          ) : null}
+        </span>
       </div>
       <div style={{ width: '100%', maxWidth: 340, overflow: 'hidden', position: 'relative' }}>
         <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={`Body, ${side}: muscles trained in the range`}
