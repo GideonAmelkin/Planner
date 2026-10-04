@@ -11,12 +11,9 @@ import { BODY_HALF, CORE, FOOT, HAND, HEAD, HOTSPOTS, LINES, MUSCLE_HALF, NECK, 
 // tinted by its share of the range's volume, and a dot on every group trained in the range (bigger =
 // more). A dot opens a popover: pounds, share, change against the same-length window before (only
 // when that window has gym sessions to compare with), the top exercise, and Open in Trainer.
-// + and - zoom the figure; the popover follows the dot.
-const ZOOMS = [1, 1.25, 1.5, 1.75];
 
-export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, rangeControl }) {
+export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, rangeControl, statusLine }) {
   const [side, setSide] = useState('front');
-  const [zoomIx, setZoomIx] = useState(0);
   const [picked, setPicked] = useState(null);
   const [popPos, setPopPos] = useState(null);
   const boxRef = useRef(null);
@@ -27,7 +24,6 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
   const trained = (k) => (now[k] || 0) > 0;
   const other = side === 'front' ? 'back' : 'front';
   const onOtherSide = Object.keys(HOTSPOTS[other]).filter((k) => trained(k) && !HOTSPOTS[side][k]).length;
-  const zoom = ZOOMS[zoomIx];
   const pick = (k) => setPicked((cur) => (cur === k ? null : k));
 
   // Place the popover beside its dot (left of it when there is room, else right); on a narrow
@@ -42,7 +38,7 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
     const cy = d.top + d.height / 2 - b.top;
     const left = cx - POP_W - 22 >= 0 ? cx - POP_W - 22 : Math.min(b.width - POP_W, cx + 22);
     setPopPos({ left, top: Math.max(0, cy - 40) });
-  }, [picked, side, zoom, compact]);
+  }, [picked, side, compact]);
 
   const mirror = (children) => (
     <>
@@ -64,8 +60,8 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
   return (
     <div ref={boxRef} style={{ position: 'relative', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
-        <span>{total ? 'Muscles worked' : 'Muscles worked: no gym sessions in this range'}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>{statusLine}{total ? null : <>{statusLine ? ' · ' : null}No gym sessions in this range</>}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
           {onOtherSide ? (
             <button type="button" onClick={() => { setSide(other); setPicked(null); }} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
               +{onOtherSide} trained on the {other}
@@ -76,7 +72,7 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
       </div>
       <div style={{ width: '100%', maxWidth: 340, overflow: 'hidden', position: 'relative' }}>
         <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} role="img" aria-label={`Body, ${side}: muscles trained in the range`}
-          style={{ width: '100%', height: 'auto', display: 'block', transform: `scale(${zoom})`, transformOrigin: '50% 35%', transition: 'transform .2s' }}>
+          style={{ width: '100%', height: 'auto', display: 'block' }}>
           <defs>
             <radialGradient id="wkSkin" cx="150" cy="230" r="260" gradientUnits="userSpaceOnUse">
               <stop offset="0" stopColor="#F7F8FB" /><stop offset=".55" stopColor="#DCE1EA" /><stop offset="1" stopColor="#AEB7C6" />
@@ -120,10 +116,6 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
             );
           })}
         </svg>
-      </div>
-      <div style={{ position: 'absolute', left: 0, top: popPos || !picked ? undefined : 36, bottom: popPos || !picked ? 72 : undefined, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <button type="button" style={roundButton()} aria-label="Zoom in" disabled={zoomIx === ZOOMS.length - 1} onClick={() => setZoomIx((i) => Math.min(ZOOMS.length - 1, i + 1))}><Icon name="plus" /></button>
-        <button type="button" style={roundButton()} aria-label="Zoom out" disabled={zoomIx === 0} onClick={() => setZoomIx((i) => Math.max(0, i - 1))}><Icon name="minus" /></button>
       </div>
       {popover}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, fontSize: 12, color: COLORS.muted }}>

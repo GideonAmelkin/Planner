@@ -106,6 +106,11 @@ export default function WorkoutView() {
     <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
   );
   const age = status ? snapshotAge(status, date) : null;
+  // How old the data on this page really is (the snapshot only moves when the Mac app has pulled new
+  // history from the phone; same rule as Settings), or Refresh's progress. Shown in the body figure's
+  // header row, where "Muscles worked" used to be.
+  const shown = refresh.message || age;
+  const statusLine = shown ? <span style={{ color: shown.color }}>{shown.text}</span> : null;
 
   const shell = (inner) => (
     <div style={{ display: 'flex', alignItems: 'flex-start', minHeight: '100vh', background: pageBackground }}>
@@ -114,13 +119,6 @@ export default function WorkoutView() {
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '20px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={sticky ? { position: 'sticky', top: 0, zIndex: 5, margin: '-20px -24px 0', padding: '14px 24px 10px', background: 'rgba(236,241,255,.82)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: `1px solid ${W.glassBorder}` } : undefined}>
             <WorkoutTopNav date={date} extra={<RefreshButton phase={refresh.phase} onClick={refresh.start} />} />
-            {refresh.message ? (
-              <div style={{ fontSize: 12, color: refresh.message.color, marginTop: 10 }}>{refresh.message.text}</div>
-            ) : age ? (
-              // How old the data on this page really is: the snapshot only moves when the
-              // Mac app has pulled new history from the phone. Same rule as Settings.
-              <div style={{ fontSize: 12, color: age.color, marginTop: 10 }}>{age.text}</div>
-            ) : null}
           </div>
           {inner}
         </div>
@@ -158,7 +156,7 @@ export default function WorkoutView() {
           date={date} profile={profile} weights={(rangeRecent && rangeRecent.weights) || []}
           sessions={customValid ? rangeSessions : []} rangeStart={rangeStart} rangeEnd={rangeEnd} rangeSub={range.sub} lifetime={rangeKey === 'lifetime'}
           strength={strength} stripSessions={(stripRecent && stripRecent.sessions) || []} stripStart={stripStart} stripEnd={stripEnd}
-          onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle} rangeControl={rangePicker}
+          onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle} rangeControl={rangePicker} statusLine={statusLine}
         />
       ))}
       {section('trainer', (

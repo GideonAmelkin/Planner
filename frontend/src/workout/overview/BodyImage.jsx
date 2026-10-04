@@ -16,9 +16,7 @@ import { FIGURE, FIGURE_RATIO, SPOTS } from './figureSpots';
 //           that rotates about the vertical axis (a crossfade under reduced motion)
 //   dots    one per trained group at its first spot on the side shown; a dot opens MusclePopover, placed
 //           clear of the body (left of the silhouette, else right, else under the figure), never over it
-//   zoom    + / - scale the figure inside its frame
 // A failed image load calls onFail and BodyViewer shows the SVG figure.
-const ZOOMS = [1, 1.25, 1.5, 1.8];
 const lerp = (a, b, t) => a + (b - a) * t;
 const mix = (c1, c2, t) => c1.map((v, i) => Math.round(lerp(v, c2[i], t)));
 const YELLOW = [255, 214, 74];
@@ -35,7 +33,6 @@ const glow = (w) => {
 // Where the body is, row by row: for ROWS bands of the image, the leftmost and rightmost opaque x as
 // fractions of its width (null for an empty row), read once from the image's own alpha.
 const ROWS = 120;
-const ORIGIN_Y = 0.32; // the zoom's transform origin, matching transformOrigin below
 function silhouetteRows(img) {
   try {
     const w = 200;
@@ -62,10 +59,9 @@ function silhouetteRows(img) {
 
 const reducedMotion = () => typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export default function BodyImage({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, onFail, rangeControl }) {
+export default function BodyImage({ now, before, beforeCount, beforeLabel, unit, top, onOpenTrainer, compact, onFail, rangeControl, statusLine }) {
   const [side, setSide] = useState('front');
   const [srcs, setSrcs] = useState({ front: FIGURE.front.src, back: FIGURE.back.src });
-  const [zoomIx, setZoomIx] = useState(0);
   const [picked, setPicked] = useState(null);
   const [popPos, setPopPos] = useState(null);
   const boxRef = useRef(null);
@@ -81,7 +77,6 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
   const trained = (k) => (now[k] || 0) > 0;
   const other = side === 'front' ? 'back' : 'front';
   const onlyOther = Object.keys(SPOTS[other]).filter((k) => trained(k) && !SPOTS[side][k]).length;
-  const zoom = ZOOMS[zoomIx];
   const pick = (k) => setPicked((cur) => (cur === k ? null : k));
   const turn = () => { setSide(other); setPicked(null); };
 
@@ -120,11 +115,11 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
       setPopPos({ left: cx - POP_W - 22 >= 0 ? cx - POP_W - 22 : Math.min(b.width - POP_W, cx + 22), top });
       return;
     }
-    // Image fraction <-> box px, through the zoom (scaled about 50% / ORIGIN_Y, clipped by the frame).
+    // Image fraction <-> box px (clipped by the frame).
     const fl = f.left - b.left;
     const ft = f.top - b.top;
-    const toX = (u) => Math.min(fl + f.width, Math.max(fl, fl + f.width * (0.5 + (u - 0.5) * zoom)));
-    const toV = (y) => ORIGIN_Y + ((y - ft) / f.height - ORIGIN_Y) / zoom;
+    const toX = (u) => Math.min(fl + f.width, Math.max(fl, fl + f.width * u));
+    const toV = (y) => (y - ft) / f.height;
     const v0 = Math.max(0, toV(Math.max(top, ft)));
     const v1 = Math.min(1, toV(Math.min(top + height, ft + f.height)));
     let lo = Infinity;
@@ -137,7 +132,7 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
     if (bodyL - gap - POP_W >= 0) setPopPos({ left: bodyL - gap - POP_W, top });
     else if (bodyR + gap + POP_W <= b.width) setPopPos({ left: bodyR + gap, top });
     else setPopPos(null);
-  }, [picked, zoom, compact, side, layoutTick]);
+  }, [picked, compact, side, layoutTick]);
 
   // A sideways drag of 50 px or more turns him around (clicks on dots and buttons are left alone).
   const onPointerDown = (e) => { if (e.target.closest('button')) return; drag.current = e.clientX; };
@@ -186,7 +181,7 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
             <button key={k} ref={(el) => { dotRefs.current[`${s}-${k}`] = el; }} type="button" onClick={() => pick(k)} tabIndex={shown ? 0 : -1}
               title={`${g.label}: ${fmtVolume(now[k], unit)} ${unit}`} aria-label={`${g.label} details`}
               style={{
-                position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: d, height: d, transform: `translate(-50%, -50%) scale(${1 / zoom})`,
+                position: 'absolute', left: `${p.x}%`, top: `${p.y}%`, width: d, height: d, transform: 'translate(-50%, -50%)',
                 borderRadius: '50%', padding: 0, cursor: 'pointer', background: g.color, border: '3px solid #FFFFFF',
                 boxShadow: picked === k ? `0 0 0 7px ${g.color}33` : '0 2px 6px rgba(30,50,110,.25)',
               }} />
@@ -199,8 +194,8 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
   return (
     <div ref={boxRef} style={{ position: 'relative', minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
-        <span>{total ? 'Muscles worked · drag to turn' : 'Muscles worked: no gym sessions in this range'}</span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>{statusLine}{total ? null : <>{statusLine ? ' · ' : null}No gym sessions in this range</>}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
           {onlyOther ? (
             <button type="button" onClick={turn} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
               +{onlyOther} trained on the {other}
@@ -214,7 +209,7 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
       <div style={{ flex: 1, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div ref={frameRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { drag.current = null; }}
         style={{ width: '100%', maxWidth: compact ? 300 : 400, overflow: 'hidden', position: 'relative', marginTop: 6, perspective: 1600, touchAction: 'pan-y', cursor: 'grab' }}>
-        <div style={{ position: 'relative', width: '100%', aspectRatio: `${FIGURE_RATIO}`, transform: `scale(${zoom})`, transformOrigin: '50% 32%', transition: 'transform .2s' }}>
+        <div style={{ position: 'relative', width: '100%', aspectRatio: `${FIGURE_RATIO}` }}>
           <div data-side={side} style={{
             position: 'absolute', inset: 0, transformStyle: 'preserve-3d',
             transform: reduced || side === 'front' ? 'none' : 'rotateY(180deg)', transition: reduced ? 'none' : 'transform .6s cubic-bezier(.4, 0, .2, 1)',
@@ -228,10 +223,6 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
         <MusclePopover muscle={picked} now={now} total={total} before={before} beforeCount={beforeCount} beforeLabel={beforeLabel} unit={unit} top={top}
           onClose={() => setPicked(null)} onOpenTrainer={onOpenTrainer} pos={popPos} />
       ) : null}
-      <div style={{ position: 'absolute', left: 0, top: 36, display: 'flex', flexDirection: 'column', gap: 8, zIndex: 2 }}>
-        <button type="button" style={roundButton()} aria-label="Zoom in" disabled={zoomIx === ZOOMS.length - 1} onClick={() => setZoomIx((i) => Math.min(ZOOMS.length - 1, i + 1))}><Icon name="plus" /></button>
-        <button type="button" style={roundButton()} aria-label="Zoom out" disabled={zoomIx === 0} onClick={() => setZoomIx((i) => Math.max(0, i - 1))}><Icon name="minus" /></button>
-      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, fontSize: 12, color: COLORS.muted }}>
         <button type="button" style={roundButton(28)} aria-label="Turn him around" onClick={turn}><Icon name="left" size={14} /></button>
         <span style={{ minWidth: 34, textAlign: 'center' }}>{side === 'front' ? 'Front' : 'Back'}</span>
