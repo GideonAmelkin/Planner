@@ -4,7 +4,7 @@ import { shiftISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
 import { COLORS } from '../shared/styles';
 import { W, hatch } from './theme';
-import { Chip } from './ui';
+import { Chip, figureLabel } from './ui';
 import { toUnit } from './strength';
 
 // The workout log's pieces (the Log section until 2026-10-03, now inside the Personal Trainer card, the
@@ -18,7 +18,9 @@ const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString
 const kindLabel = (s) => (s.via === 'health' ? 'Home (phone)' : s.kind === 'gym' ? 'Gym' : 'Home');
 
 // Workouts per bucket over the range: by day up to 31 days, then week / month / quarter.
-export function RangeBars({ sessions, startISO, endISO }) {
+// `fill`: the chart takes its parent's height (the Trainer's stretched panel): the caption becomes the title
+// at the top, the bars grow from a 110 px minimum and the date ticks sit at the foot.
+export function RangeBars({ sessions, startISO, endISO, fill = false }) {
   // Bucket size follows the span so there are never more than about 53 bars,
   // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
@@ -67,8 +69,9 @@ export function RangeBars({ sessions, startISO, endISO }) {
   const every = Math.max(1, Math.ceil(keys.length / 5));
   const gap = keys.length > 40 ? 2 : keys.length > 20 ? 3 : 6;
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: H, marginTop: 30 }}>
+    <div style={fill ? { height: '100%', display: 'flex', flexDirection: 'column' } : undefined}>
+      {fill ? <div style={figureLabel}>Workouts per {unit}</div> : null}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap, marginTop: 30, ...(fill ? { flex: 1, minHeight: H } : { height: H }) }}>
         {values.map((c, i) => {
           const isPeak = c > 0 && i === peak;
           return (
@@ -93,7 +96,7 @@ export function RangeBars({ sessions, startISO, endISO }) {
           </span>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 8 }}>Workouts per {unit}</div>
+      {fill ? null : <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 8 }}>Workouts per {unit}</div>}
     </div>
   );
 }

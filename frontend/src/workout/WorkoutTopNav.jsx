@@ -12,7 +12,6 @@ import { W, roundButton } from './theme';
 export const SECTIONS = [
   { key: 'overview', label: 'Overview', icon: 'grid' },
   { key: 'trainer', label: 'Trainer', icon: 'dumbbell' },
-  { key: 'workouts', label: 'Workouts', icon: 'list' },
 ];
 export const sectionId = (key) => `workout-${key}`;
 export const scrollToSection = (key) => {

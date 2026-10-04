@@ -93,9 +93,9 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const aside = `${list.length} workout${list.length === 1 ? '' : 's'} ${rangeSub}`;
   const days = workoutDays(list);
   const activity = (
-    <div className="pt-panel" style={panel}>
-      <div style={figureLabel}>Workouts per day</div>
-      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Pick a start date on or before the end date.</div>}
+    <div className="pt-panel" style={{ ...panel, display: 'flex', flexDirection: 'column' }}>
+      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} fill />
+        : <><div style={figureLabel}>Workouts</div><div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Pick a start date on or before the end date.</div></>}
     </div>
   );
   const workoutsDropdown = (

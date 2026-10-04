@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AgendaRail from '../shared/AgendaRail';
-import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
+import { getWorkoutStatus, getWorkoutRecent, getWorkoutStrength } from './api';
 import PersonalTrainer from './PersonalTrainer';
-import TemplatesView from './TemplatesView';
 import OverviewView from './overview/OverviewView';
 import WorkoutTopNav, { scrollToSection, sectionId } from './WorkoutTopNav';
 import RefreshButton, { useWorkoutRefresh } from './RefreshButton';
@@ -19,7 +18,10 @@ import { useViewDate } from '../shared/today';
 //   Overview  the body-figure dashboard (overview/), picked by the user 2026-09-29
 //   Trainer   Personal Trainer (muscles, workouts per day, the Exercises and Workouts dropdowns; the
 //             Log section folded in on 2026-10-03)
-//   Workouts  the app's gym templates
+// Shelved 2026-10-03 (the user: off the UI, kept on the server for later): the Workouts section, the app's
+// gym template art (TemplatesView.jsx, fed by getWorkoutCatalog / GET /api/workout/catalog, both kept). To
+// bring it back: a { key: 'workouts' } entry in WorkoutTopNav's SECTIONS, the catalog fetch, and
+// {section('workouts', <TemplatesView catalog={catalog} />)} after the Trainer.
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 const MAX_WIDTH = 1500;
 const STRIP_WEEKS = 7; // the Overview's day strip: seven Sunday-start weeks ending with the shown day's week
@@ -47,7 +49,6 @@ export default function WorkoutView() {
   const [rangeKey, setRangeKey] = useState('d30');
   const [customFrom, setCustomFrom] = useState(() => shiftISO(date, -29));
   const [customTo, setCustomTo] = useState(date);
-  const [catalog, setCatalog] = useState(null);
   const [strength, setStrength] = useState(null); // every gym session with sets
   const [error, setError] = useState(null);
   // Bumped by the Refresh button: every fetch below re-runs.
@@ -61,7 +62,6 @@ export default function WorkoutView() {
     return () => { alive = false; };
   }, [date, reloadKey]);
   useEffect(() => {
-    getWorkoutCatalog().then(setCatalog).catch((err) => setError(err.message || String(err)));
     getWorkoutStrength().then((d) => setStrength(d && d.sessions ? d : { sessions: [], weight_unit: 'lb' })).catch((err) => setError(err.message || String(err)));
   }, [reloadKey]);
 
@@ -168,7 +168,6 @@ export default function WorkoutView() {
         <PersonalTrainer data={strength} date={date} rangeKey={rangeKey} customFrom={customFrom} customTo={customTo} muscle={muscle} onMuscle={setMuscle}
           workouts={rangeSessions} chartStart={chartStart} rangeEnd={rangeEnd} customValid={customValid} rangeSub={range.sub} bodyUnit={weightUnit(profile)} />
       ))}
-      {section('workouts', <TemplatesView catalog={catalog} />)}
       <div style={{ fontSize: 11, color: COLORS.faint }}>
         Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac presses the app's own Sync and exports it every hour (per-exercise detail, only what the app's cloud backup holds). Both live in <code>backend/workout-state</code>.
       </div>
