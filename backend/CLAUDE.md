@@ -15,7 +15,7 @@ runs the suites against a throwaway database (`PLANNER_DB_PATH`).
 | File | Role |
 |---|---|
 | `server.js` | The listener: `createApp()` from `app.js`, then `agenda.startScheduler()`, `startHealthScheduler()` (before the first warm), `startWarmCache()`, `startReviewScheduler()`. |
-| `app.js` | `createApp()`: cors, json, the `GET /api/health` liveness probe (registered before the Health router so it keeps answering `{status:"ok"}`), the five tab routers under `/api`, the error middleware. Tests mount it on an ephemeral port. |
+| `app.js` | `createApp()`: cors, json, the `GET /api/health` liveness probe (registered before the Health router so it keeps answering `{status:"ok"}`), `GET /api/today`, `POST /api/client-event` + `GET /api/client-events`, the five tab routers under `/api`, the error middleware. Tests mount it on an ephemeral port. |
 | `lib/bus.js` | One process-wide `EventEmitter`; `bus.announce(event, ...)` is emit with a throwing listener logged, not propagated. The Garmin warm announces `garmin:day` `{kind, date, results, fetched_at}`. |
 | `health/metrics.js` | The Health store's declarations: one entry per metric naming the day-bundle calls it reads (plus the two static reads `get_heart_rate_zones` and `get_user_profile`), `derive(results, ctx)` for the small card value (goals from the same day's response, never constants), `takenAt`, and `absent()` for the card's reason. Every bundle call feeds at least one metric so its full response is kept. VO2 max label from Garmin's manual table (URL and read date in the file). |
 | `health/ingest.js` | `ingestDays(dates, {kind, refresh, dryRun, bundles, maxCalls})`: writes `health_days` and `health_activities` under the store rules (below), records every run in `health_runs` (row inserted with `started_at` before any work), counts cached vs direct calls, stops before exceeding `MAX_CALLS_PER_RUN` (100) with `budget_stop`. A dry run uses `callMany(cacheOnly)` (never spawns the bridge) and touches no table. Read helpers `metricsForDate`, `history`, `activitiesBetween`, `recentRuns`. |
@@ -30,6 +30,8 @@ runs the suites against a throwaway database (`PLANNER_DB_PATH`).
 | `agenda/routes/calendar.js` | Accounts list/disconnect plus connect/callback for every provider in the registry. |
 | `agenda/queries.js` | Priority ordering expression, column lists, month and recap aggregations. |
 | `lib/http.js` | `asyncHandler`, `isDate`/`isDateTime`/`isYearMonth`, and the generic `patchRow`, `reorderRows`, `deleteRow` handlers. |
+| `lib/today.js` | `today()`: `{date, tz, msUntilMidnight}` for the server's local day; the frontend's only source of "today". |
+| `lib/clientEvents.js` | In-memory ring (300) of what open tabs report: loads, snaps to today, build reloads; fields clipped because `/api/` is public. |
 | `lib/dates.js` | `localISO`, `nextDayISO`, `toLocalDateTime`, `dayWindow`, `monthPrefix`. Everything is local time. |
 | `db.js` | Opens `planner.db`, creates tables, applies best-effort `ALTER TABLE` migrations. Exports `run / get / all`. |
 | `agenda/rollover.js` | `pullForward(sourceDate)`: copy open tasks and notes to the next day with dedup. |
@@ -83,6 +85,9 @@ health_runs          One row per ingest run: started_at (written first), finishe
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/health` | `{status:"ok"}` |
+| GET | `/api/today` | `{date, tz, msUntilMidnight}`, the server's local day, `no-store` |
+| POST | `/api/client-event` | one trail line from an open tab (JSON or text body, 4 KB max): 204, or 400 without `event` |
+| GET | `/api/client-events` | the last 300 trail lines, oldest first |
 | GET | `/api/day/:date` | `{date, tasks, appointments, notes, ongoing, notes_text, quote, external_events, calendar_errors}` |
 | POST | `/api/day/:date/pull-forward` | `{rolledTasks, movedNotes, targetDate}`; records a manual run |
 | POST / PATCH / DELETE | `/api/tasks[/:id]` | PATCH allows text, priority, priority_num, status, order_index, parent_id |

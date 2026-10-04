@@ -8,8 +8,11 @@ React 19, `react-scripts 5.0.1`, inline styles. Built on the server with
 
 `/agenda/:date` renders `agenda/AgendaView`, `/garmin/:date` renders `garmin/GarminView` (the tab lived at `/health` until 2026-09-27; `/health/:date/<page>` and `/health/:date/activity/:id` redirect to `/garmin` for good), `/health/:date` renders `health/HealthView`,
 `/workout/:date` renders `workout/WorkoutView` and `/social/:date` renders `social/SocialView`;
-`/`, the legacy `/day/:date` and unknown paths redirect to today's agenda. On a fresh page
-load any `/<section>/:date` snaps back to today in that section (`BootRedirectToToday`). `src/index.js` turns
+`/`, the legacy `/day/:date` and unknown paths redirect to `/agenda/today`. `:date` is an ISO
+date or the literal `today` (the current day, resolved by `useViewDate()` from
+`shared/today.js`; views never read `useParams().date` directly); `Dated` rewrites a dated URL
+that names today to `/today`. `SnapToToday` moves a tab on another day back to today (see the
+root CLAUDE.md), `ServerClock` keeps `todayISO()` on the server's day. `src/index.js` turns
 `?connected=` / `?calendar_error=` query params from the OAuth callback into a toast in
 `sessionStorage` (`plannerCalendarToast`) that `CalendarToast` shows once.
 
@@ -91,7 +94,9 @@ Settings is where the connections live. Relative imports only; there is no `jsco
 | `shared/CalendarToast.jsx` | The post-OAuth toast. |
 | `shared/api.js` | Axios client with a retry-once interceptor for network errors (never for 4xx/5xx), `API_BASE` (used by Settings to build the connect URL and by the Workout tab for media URLs), and the calls more than one tab makes: `getDay`, `getRecap`, the calendar accounts. |
 | `agenda/api.js`, `garmin/api.js`, `workout/api.js`, `social/api.js` | One export per endpoint of that tab, built on the shared client: the list / appointment / Monthly Goals calls; the Garmin calls (`getGarminDay`, `callGarmin`, `garminBatch`, `postGarmin`, sign-in); the Workout reads (`getWorkoutStatus`, `getWorkoutRecent`, `getWorkoutCatalog`; 404 means no snapshot yet); the Social reads (`getSocialStatus`, `getSocialVideos`, `getSocialVideo`, `getReview`; 404 means no tracker db or no review yet) and `generateReview` (202 / 409 / 429 / 503 resolved, not thrown). |
-| `shared/dayInfo.js` | `todayISO`, `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `headlineLong`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |
+| `shared/today.js` | `TODAY` (the `today` path segment), `ServerClock` (asks `GET /api/today` on load, focus, shown again and every 10 minutes; re-renders subscribers at the day's end), `useToday()`, `useViewDate()`. |
+| `shared/clientEvent.js` | `reportClientEvent(event, fields)`: one sendBeacon line to `POST /api/client-event` with path, bundle, visibility, browser day and today. |
+| `shared/dayInfo.js` | `todayISO` (the server's day once known, rolled past its midnight; `setServerDay`, `onTodayChange`, `todayEndsAt`), `isoToDate`, `dateToISO`, `shiftISO`, `dayInfo`, `headlineLong`, `longDate`, `ordinal`, `sortByOrder`, `monthGrid`. |
 | `shared/styles.js` | `COLORS` tokens (card look: white cards, `#F5F4F0` canvas, indigo accent; every key is also read by the Workout tab and the shared modals, so keep the keys), `card`, `pill`, `PRIORITY_CHIPS`, `GOAL_WASH`, `SECTION_DOTS`, `sectionDot`, `INDENT_PX`, and the shared style objects (section header, row input, nav button, outline button, modal shell, drop-zone borders). |
 
 ## Conventions
