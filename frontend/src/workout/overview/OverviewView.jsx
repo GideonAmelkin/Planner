@@ -26,21 +26,6 @@ import { W, glassCard, hatch, iconDisc, statPill } from '../theme';
 // one below that. Every number comes from the range's sessions or the gym sessions with sets.
 const MAX_BARS = 40;
 
-// The element's height, kept current (the Muscles card copies the Session length card's).
-function useHeight(ref) {
-  const [h, setH] = useState(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    setH(el.offsetHeight);
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(() => setH(el.offsetHeight));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [ref]);
-  return h;
-}
-
 function useWidth(ref) {
   const [w, setW] = useState(1200);
   useLayoutEffect(() => {
@@ -111,7 +96,7 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, liftUnit, l
   );
 }
 
-const SessionLengthCard = React.forwardRef(function SessionLengthCard({ sessions, compact }, ref) {
+function SessionLengthCard({ sessions, compact }) {
   const { rows: all, avg, min, max } = sessionLengths(sessions);
   const rows = all.slice(-MAX_BARS);
   const peak = rows.length ? rows.reduce((b, r) => (r.min > b.min ? r : b), rows[0]) : null;
@@ -124,7 +109,7 @@ const SessionLengthCard = React.forwardRef(function SessionLengthCard({ sessions
     </div>
   );
   return (
-    <div ref={ref} style={glassCard}>
+    <div style={{ ...glassCard, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={iconDisc()}><Icon name="clock" size={17} /></span>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Session length</span>
@@ -165,14 +150,12 @@ const SessionLengthCard = React.forwardRef(function SessionLengthCard({ sessions
       ) : <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 10 }}>No workouts in this range.</div>}
     </div>
   );
-});
+}
 
 export default function OverviewView({ date, profile, weights, sessions, rangeStart, rangeEnd, rangeSub, lifetime, strength, stripSessions, stripStart, stripEnd, onOpenTrainer, muscle, onMuscle }) {
   const ref = useRef(null);
   const width = useWidth(ref);
   const cols = width >= 1060 ? 3 : width >= 660 ? 2 : 1;
-  const sessionRef = useRef(null);
-  const sessionHeight = useHeight(sessionRef);
 
   const unit = (strength && strength.weight_unit) || (profile.shows_kg ? 'kg' : 'lb');
   const bodyUnit = profile.shows_kg ? 'kg' : 'lb';
@@ -201,39 +184,51 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   const gymOldestFirst = [...sessions].filter((s) => s.kind === 'gym' && s.total_weight_kg).reverse();
   const bandStart = [shiftDay(rangeEnd, -6), rangeStart].sort()[1];
 
-  const left = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-      <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit} liftUnit={unit}
-        latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
-      <SessionLengthCard ref={sessionRef} sessions={sessions} compact={cols === 1} />
-    </div>
+  const profileCard = (
+    <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit} liftUnit={unit}
+      latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
   );
+  const sessionCard = <SessionLengthCard sessions={sessions} compact={cols === 1} />;
   const figure = (
     <BodyViewer now={now} before={before} beforeCount={beforeGym.length} beforeLabel={beforeLabel} unit={unit}
       top={topExercises(gymInRange)} onOpenTrainer={onOpenTrainer} compact={cols === 1} />
   );
-  const right = (
-    <div style={cols === 2
-      ? { gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }
-      : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0, alignSelf: cols === 3 ? 'stretch' : undefined }}>
-      <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} />
-      <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit} />
-      {/* Three columns: the Session length card's twin, pushed to the column's foot so the two line up. */}
-      <MusclesCard now={now} before={before} beforeLabel={beforeLabel} selected={muscle} onSelect={(m) => onMuscle(muscle === m ? null : m)}
-        height={cols === 3 ? sessionHeight : null} style={cols === 3 ? { marginTop: 'auto' } : undefined} />
+  const highlights = (
+    <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} fill={cols === 3} />
+  );
+  const minis = <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit} />;
+  const musclesCard = <MusclesCard now={now} before={before} beforeLabel={beforeLabel} selected={muscle} onSelect={(m) => onMuscle(muscle === m ? null : m)} />;
+
+  // Three columns, two rows (the user's calls, 2026-10-03): row one holds the profile card and, on the
+  // right, the record rows (stretched to take the spare height) over Volume + Balance; row two holds
+  // Session length and Muscles, which the row makes the same height, so the right side ends exactly
+  // where Session length does. The figure spans both rows.
+  const grid = cols === 3 ? (
+    <div style={{ display: 'grid', columnGap: 18, rowGap: 16, alignItems: 'stretch', gridTemplateColumns: 'minmax(250px, 300px) minmax(0, 1fr) minmax(250px, 300px)', gridTemplateRows: 'auto auto' }}>
+      <div style={{ gridColumn: 1, gridRow: 1, minWidth: 0 }}>{profileCard}</div>
+      <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{sessionCard}</div>
+      <div style={{ gridColumn: 2, gridRow: '1 / span 2', minWidth: 0, alignSelf: 'start' }}>{figure}</div>
+      <div style={{ gridColumn: 3, gridRow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ flex: 1, minHeight: 0 }}>{highlights}</div>
+        {minis}
+      </div>
+      <div style={{ gridColumn: 3, gridRow: 2, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{musclesCard}</div>
+    </div>
+  ) : (
+    <div style={{ display: 'grid', gap: 18, alignItems: 'start', gridTemplateColumns: cols === 2 ? 'minmax(250px, 300px) minmax(0, 1fr)' : 'minmax(0, 1fr)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>{profileCard}{sessionCard}</div>
+      {figure}
+      <div style={cols === 2
+        ? { gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }
+        : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+        {highlights}{minis}{musclesCard}
+      </div>
     </div>
   );
 
   return (
     <div ref={ref} style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
-      <div style={{
-        display: 'grid', gap: 18, alignItems: 'start',
-        gridTemplateColumns: cols === 3 ? 'minmax(250px, 300px) minmax(0, 1fr) minmax(250px, 300px)' : cols === 2 ? 'minmax(250px, 300px) minmax(0, 1fr)' : 'minmax(0, 1fr)',
-      }}>
-        {left}
-        {figure}
-        {right}
-      </div>
+      {grid}
       <DayStrip days={stripDays(stripStart, stripEnd, stripSessions, strengthById)} date={date} bandStart={bandStart} bandEnd={rangeEnd} />
     </div>
   );

@@ -32,9 +32,13 @@ export const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(
 // One row per tile (the user's call, 2026-10-03: yellow on one line, blue on the line below).
 const tile = (bg, fg) => ({ borderRadius: 18, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, background: bg, color: fg, minWidth: 0 });
 const oneLine = { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' };
+// Taller rows (filling the column, 2026-10-03) have room for a name over two lines.
+const twoLines = { display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2, overflow: 'hidden', overflowWrap: 'anywhere' };
 const tileIcon = { flexShrink: 0, width: 30, height: 30, borderRadius: '50%', background: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
 
-export function Highlights({ records, streak, count, gymCount, unit }) {
+// `fill`: the two rows split the height the parent gives them (the Overview's right column at three
+// columns, so Volume + Balance sit right above the Muscles card).
+export function Highlights({ records, streak, count, gymCount, unit, fill = false }) {
   const colors = [[W.yellowTile, W.yellowInk], [W.blueTile, W.blueInk]];
   const tiles = records.length
     ? records.slice(0, 2).map((r, i) => ({
@@ -46,15 +50,15 @@ export function Highlights({ records, streak, count, gymCount, unit }) {
       { key: 'count', icon: 'trophy', label: 'Workouts', value: String(count), sub: `${gymCount} gym · ${count - gymCount} home`, colors: colors[1] },
     ];
   return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10 }}>
+    <div style={fill ? { height: '100%', display: 'flex', flexDirection: 'column' } : undefined}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: 10, ...(fill ? { flex: 1, gridTemplateRows: '1fr 1fr' } : null) }}>
         {tiles.map((t) => (
           <div key={t.key} style={tile(t.colors[0], t.colors[1])}>
             <span style={tileIcon}><Icon name={t.icon} size={15} /></span>
             <div style={{ minWidth: 0, flex: 1 }} title={`${t.value}: ${t.sub}`}>
               <div style={{ fontSize: 12, ...oneLine }}>{t.label}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, ...oneLine }}>{t.value}</div>
-              <div style={{ fontSize: 11, ...oneLine }}>{t.sub}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1.25, ...(fill ? twoLines : oneLine) }}>{t.value}</div>
+              <div style={{ fontSize: 11, ...(fill ? twoLines : oneLine) }}>{t.sub}</div>
             </div>
           </div>
         ))}
@@ -136,12 +140,12 @@ export function MiniCards({ gymSessions, shares, unit }) {
 
 // Muscles: how many of the nine groups the range trained and the labelled radar (this range filled, the
 // same-length window before dashed, none for Lifetime); a group's label selects it for the page (the
-// Trainer's chart and ticker follow). Its own card since 2026-10-03, the size of the Session length card
-// (`height`, measured by OverviewView; null where the layout has no card beside it to match).
-export function MusclesCard({ now, before, beforeLabel, selected, onSelect, height, style }) {
+// Trainer's chart and ticker follow). Its own card since 2026-10-03; at three columns it shares a grid row
+// with the Session length card, which makes the two the same size.
+export function MusclesCard({ now, before, beforeLabel, selected, onSelect }) {
   const count = MUSCLE_GROUPS.filter((g) => (now[g.key] || 0) > 0).length;
   return (
-    <div style={{ ...glassCard, height: height || undefined, display: 'flex', flexDirection: 'column', minHeight: 0, ...style }} title={before ? `Filled: this range. Dashed: ${beforeLabel.replace(/^(in|on) /, '')}.` : 'This range'}>
+    <div style={{ ...glassCard, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }} title={before ? `Filled: this range. Dashed: ${beforeLabel.replace(/^(in|on) /, '')}.` : 'This range'}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={iconDisc()}><Icon name="radar" size={17} /></span>
         <span style={{ fontSize: 16, fontWeight: 600 }}>Muscles</span>
