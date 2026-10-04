@@ -101,7 +101,7 @@ export default function WorkoutView() {
   // Lifetime starts the Log's chart at the first workout instead of ten empty years back.
   const chartStart = rangeKey === 'lifetime' && rangeSessions.length ? rangeSessions[rangeSessions.length - 1].date : rangeStart;
 
-  // The range select sits in the body figure's header row, left of the "+N trained on the ..." pill.
+  // The range select sits in the body figure's header row, right of the "+N trained on the ..." pill.
   const rangePicker = (
     <RangePicker rangeKey={rangeKey} onRangeKey={setRangeKey} customFrom={customFrom} customTo={customTo} onCustomFrom={setCustomFrom} onCustomTo={setCustomTo} />
   );

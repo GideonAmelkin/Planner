@@ -66,12 +66,12 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
         <span>{total ? 'Muscles worked' : 'Muscles worked: no gym sessions in this range'}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {rangeControl}
           {onOtherSide ? (
             <button type="button" onClick={() => { setSide(other); setPicked(null); }} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
               +{onOtherSide} trained on the {other}
             </button>
           ) : null}
+          {rangeControl}
         </span>
       </div>
       <div style={{ width: '100%', maxWidth: 340, overflow: 'hidden', position: 'relative' }}>

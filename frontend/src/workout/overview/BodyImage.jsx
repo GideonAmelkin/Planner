@@ -201,12 +201,12 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
         <span>{total ? 'Muscles worked · drag to turn' : 'Muscles worked: no gym sessions in this range'}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {rangeControl}
           {onlyOther ? (
             <button type="button" onClick={turn} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
               +{onlyOther} trained on the {other}
             </button>
           ) : null}
+          {rangeControl}
         </span>
       </div>
       {/* The figure and its Front / Back row, centered in whatever height the cell gives (the Overview's
