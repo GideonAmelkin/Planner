@@ -4,13 +4,12 @@ import SocialCard from './SocialCard';
 import ReviewSection from './ReviewSection';
 import DataSection from './DataSection';
 import { getSocialVideos } from './api';
-import { COLORS, card } from '../shared/styles';
+import { COLORS } from '../shared/styles';
 import { useViewDate } from '../shared/today';
 
 const MAX_WIDTH = 1500;
 
-// The Social tab: four stacked cards. The top one is reserved; the review reads the
-// recent videos; the data card is every column of the tracker's videos table (the
+// The Social tab: three stacked cards. The review reads the recent videos; the data card is every column of the tracker's videos table (the
 // same rows the Google Sheet holds); competitors are not chosen yet.
 export default function SocialView() {
   const date = useViewDate();
@@ -33,9 +32,6 @@ export default function SocialView() {
       <AgendaRail dateISO={date} section="social" />
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div style={{ ...card, minHeight: 96, display: 'flex', alignItems: 'center', color: COLORS.faint, fontSize: 13 }}>
-            Nothing here yet.
-          </div>
           <ReviewSection videos={data && data.videos} />
           <DataSection data={data} loading={loading} error={error} />
           <SocialCard title="Competitors" empty emptyText="No competitors selected yet." />

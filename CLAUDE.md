@@ -74,7 +74,7 @@ The Social tab shows the user's TikTok account from TikTokAnalyzer's database
 (`~/Documents/Social/TikTokAnalyzer/data/tiktok.db` on RT100, override `TIKTOK_DB_PATH`).
 That tracker's 06:15 cron writes the db and then rewrites the "Tik Tok" Google Sheet from it;
 the Planner is a second, read-only reader of the same file and never writes it, so the sheet
-and the tab always show the same rows. Four stacked cards: a reserved top card, **Next Video
+and the tab always show the same rows. Three stacked cards: **Next Video
 Hooks & Ideas** (a Claude Opus 5 review of the last 30 days of posts: top performers with the
 backend's own numbers and the model's "why it worked", patterns, 6 to 8 next hooks; rows in
 `social_reviews`; one run per 30 minutes and twelve per day because `/api/` is public; a 07:15
