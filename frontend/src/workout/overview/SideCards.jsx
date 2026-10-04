@@ -8,7 +8,7 @@ import BalanceRadar from '../BalanceRadar';
 
 // The Overview's right column: Highlights (new records in the range, else the streak and the count;
 // one full-width row each, no heading, since 2026-10-03), the small Volume (area over the gym sessions)
-// and Balance (the top three groups' shares as pies) tiles, and the Muscles card. The last session lives in the profile card now
+// and Balance (the top group's share, one bar split by the top three, a legend) tiles, and the Muscles card. The last session lives in the profile card now
 // (SessionStats below), so this column ends above the Session length card's bottom.
 
 const sub = { fontSize: 12, color: COLORS.muted };
@@ -68,16 +68,16 @@ export function Highlights({ records, streak, count, gymCount, unit, fill = fals
   );
 }
 
-function Pie({ share, color }) {
-  const a = share * 2 * Math.PI;
-  const x = 18 + 16 * Math.sin(a);
-  const y = 18 - 16 * Math.cos(a);
+// Balance (the user's pick, 2026-10-03, option 1 of five): the top group's share as the headline, one 100% bar
+// split by the top three groups (the rest grey) so they read as parts of one whole, and a legend with each share.
+const TRACK = '#E6E9F2';
+function ShareBar({ shares }) {
   return (
-    <svg viewBox="0 0 36 36" width="40" height="40" aria-hidden="true">
-      <circle cx="18" cy="18" r="16" fill="#EEF1F7" />
-      {share >= 0.999 ? <circle cx="18" cy="18" r="16" fill={color} />
-        : <path d={`M18 18 L18 2 A16 16 0 ${a > Math.PI ? 1 : 0} 1 ${x.toFixed(2)} ${y.toFixed(2)} Z`} fill={color} />}
-    </svg>
+    <div style={{ display: 'flex', height: 8, borderRadius: 99, overflow: 'hidden', background: TRACK, marginTop: 10 }} aria-hidden="true">
+      {shares.map((s, i) => (
+        <span key={s.key} style={{ width: `${s.share * 100}%`, background: groupOf(s.key).color, boxShadow: i ? '-1.5px 0 0 #FFFFFF' : 'none' }} />
+      ))}
+    </div>
   );
 }
 
@@ -123,11 +123,14 @@ export function MiniCards({ gymSessions, shares, unit }) {
         {miniHead('pie', 'Balance')}
         {top3.length ? (
           <>
-            <div style={big}>{Math.round(top3[0].share * 100)}<span style={unitStyle}>% {groupOf(top3[0].key).label.toLowerCase()}</span></div>
-            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+            <div style={big}>{Math.round(top3[0].share * 100)}%<span style={unitStyle}>{groupOf(top3[0].key).label.toLowerCase()}</span></div>
+            <ShareBar shares={top3} />
+            <div style={{ display: 'grid', gap: 3, marginTop: 10, fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>
               {top3.map((s) => (
-                <div key={s.key} style={{ textAlign: 'center', fontSize: 10, color: COLORS.muted }} title={`${groupOf(s.key).label}: ${Math.round(s.share * 100)}%`}>
-                  <Pie share={s.share} color={groupOf(s.key).color} /><br />{groupOf(s.key).label}
+                <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }} title={`${groupOf(s.key).label}: ${Math.round(s.share * 100)}% of the volume lifted`}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: groupOf(s.key).color, flexShrink: 0 }} />
+                  <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{groupOf(s.key).label}</span>
+                  <span style={{ marginLeft: 'auto', fontWeight: 600 }}>{Math.round(s.share * 100)}%</span>
                 </div>
               ))}
             </div>
