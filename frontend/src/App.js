@@ -8,6 +8,7 @@ import HealthView from './health/HealthView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
 import { ServerClock, TODAY, useToday } from './shared/today';
+import { reportClientEvent } from './shared/clientEvent';
 
 // The top-level tabs, each with its own /<section>/:date route.
 export const SECTIONS = ['agenda', 'garmin', 'workout', 'social', 'health'];
@@ -65,6 +66,8 @@ const ACTIVE_THROTTLE_MS = 5 * 1000;
 // A new build reloads an open tab only after this long without input, so nothing typed is lost.
 const RELOAD_IDLE_MS = 60 * 1000;
 const RELOADED_FOR_KEY = 'planner.reloadedFor';
+// A tab sitting on another day reports that to the trail at most this often.
+const DATED_REPORT_MS = 60 * 60 * 1000;
 const BUNDLE_PATH = /\/static\/js\/main\.\w+\.js/;
 
 // The current URL moved to today (/<section>/today) in the same section, keeping the sub-page.
@@ -87,6 +90,7 @@ function reloadIfNewBundle() {
         if (sessionStorage.getItem(RELOADED_FOR_KEY) === served) return;
         sessionStorage.setItem(RELOADED_FOR_KEY, served);
       } catch (_) { /* ignore */ }
+      reportClientEvent('reload', { served: served.replace(/^.*\/static\/js\//, ''), to: todayPath() });
       window.location.replace(todayPath());
     })
     .catch(() => { /* offline: try again next time */ });
@@ -105,9 +109,13 @@ function SnapToToday() {
   const navigateRef = React.useRef(navigate);
   navigateRef.current = navigate;
   React.useEffect(() => {
-    const snap = () => {
+    const snap = (reason) => {
+      const from = window.location.pathname;
       const path = todayPath();
-      if (path !== window.location.pathname) navigateRef.current(path, { replace: true });
+      if (path === from) return;
+      const last = readLastActive();
+      reportClientEvent('snap', { reason, from, to: path, idleSec: last ? Math.round((Date.now() - last) / 1000) : undefined });
+      navigateRef.current(path, { replace: true });
     };
     const readLastActive = () => {
       try { return Number(sessionStorage.getItem(LAST_ACTIVE_KEY)) || 0; } catch (_) { return 0; }
@@ -118,8 +126,8 @@ function SnapToToday() {
     const isAway = (last, now) => !last || now - last >= AWAY_MS || dateToISO(new Date(last)) !== dateToISO(new Date(now));
     // The away period already handled by the tick, so an idle tab checks the bundle once.
     let handledFor = 0;
-    const comeBack = () => {
-      snap();
+    const comeBack = (reason) => {
+      snap(reason);
       reloadIfNewBundle();
     };
 
@@ -127,7 +135,7 @@ function SnapToToday() {
     const active = () => {
       const now = Date.now();
       const last = readLastActive();
-      if (isAway(last, now) && handledFor !== last) comeBack();
+      if (isAway(last, now) && handledFor !== last) comeBack('return');
       handledFor = 0;
       writeLastActive(now);
     };
@@ -140,7 +148,8 @@ function SnapToToday() {
       active();
     };
 
-    snap();
+    reportClientEvent('load', { from: window.location.pathname, to: todayPath() });
+    snap('load');
     writeLastActive(Date.now());
 
     const onVisibility = () => { if (!document.hidden) active(); };
@@ -150,6 +159,7 @@ function SnapToToday() {
     // for a new build once the user has been idle a minute, so a fix reaches an open tab
     // without anyone reloading it.
     let lastTick = Date.now();
+    let datedReportedAt = 0;
     let tickDay = todayISO();
     const tick = setInterval(() => {
       const now = Date.now();
@@ -160,10 +170,14 @@ function SnapToToday() {
       if (document.hidden) return;
       const last = readLastActive();
       if (slept || newDay || (isAway(last, now) && handledFor !== last)) {
-        comeBack();
+        comeBack(slept ? 'slept' : newDay ? 'new-day' : 'idle');
         handledFor = last;
       } else if (now - last >= RELOAD_IDLE_MS) {
         reloadIfNewBundle();
+      }
+      if (todayPath() !== window.location.pathname && now - datedReportedAt >= DATED_REPORT_MS) {
+        datedReportedAt = now;
+        reportClientEvent('on-other-day', { idleSec: Math.round((now - last) / 1000) });
       }
     }, 60 * 1000);
 

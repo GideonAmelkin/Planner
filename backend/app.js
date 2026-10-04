@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const agenda = require('./agenda');
 const { today } = require('./lib/today');
+const clientEvents = require('./lib/clientEvents');
 
 const JSON_LIMIT = '2mb';
 
@@ -20,6 +21,16 @@ function createApp() {
     res.set('Cache-Control', 'no-store');
     res.json(today());
   });
+
+  // The open tabs' trail of loads, snaps to today and build reloads (lib/clientEvents.js).
+  app.post('/api/client-event', express.text({ type: '*/*', limit: '4kb' }), (req, res) => {
+    let body = req.body;
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (_) { body = null; }
+    }
+    res.status(clientEvents.record(body, req.get('user-agent')) ? 204 : 400).end();
+  });
+  app.get('/api/client-events', (req, res) => res.json(clientEvents.list()));
 
   // One router per tab. Every route file declares its own /api/... paths so they stay greppable.
   app.use('/api', agenda);
