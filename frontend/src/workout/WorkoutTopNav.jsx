@@ -5,8 +5,8 @@ import { shiftISO } from '../shared/dayInfo';
 import { COLORS } from '../shared/styles';
 import { W, roundButton } from './theme';
 
-// The Workout tab's top bar: the tab's mark, a pill per section of the page, and the day controls
-// (Prev / Today / Next, the date field) plus the range picker. The page is one scrolling dashboard
+// The Workout tab's top bar: a pill per section of the page on the left (no tab mark or title since
+// 2026-10-04), and the day controls (‹ date field ›) plus Refresh on the right. The page is one scrolling dashboard
 // (the user's call, 2026-09-29: "I don't want to toggle, I want to scroll"), so a pill only jumps to
 // its section, and the pill of the section on screen is the highlighted one.
 export const SECTIONS = [
@@ -56,12 +56,6 @@ export default function WorkoutTopNav({ date, extra = null }) {
   const current = useCurrentSection();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px 14px', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 17 }}>
-        <span style={{ width: 38, height: 38, borderRadius: 12, background: COLORS.paper, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(30,50,110,.1)', color: W.blue }}>
-          <Icon name="dumbbell" size={22} />
-        </span>
-        Workout
-      </div>
       <nav aria-label="Workout sections" style={navWrap}>
         {SECTIONS.map((v) => (
           <button key={v.key} type="button" onClick={() => scrollToSection(v.key)} aria-current={current === v.key ? 'location' : undefined} style={tab(current === v.key)}>
