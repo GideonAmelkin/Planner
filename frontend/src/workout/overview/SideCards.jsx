@@ -2,58 +2,32 @@ import React from 'react';
 import Icon from '../icons';
 import { MUSCLE_GROUPS, groupOf } from '../muscles';
 import { e1rmText, fmtVolume, monthDay, nameOf } from '../ptParts';
-import { templateForSession } from '../art';
-import TemplateBanner from '../TemplateBanner';
 import { COLORS } from '../../shared/styles';
 import { W, glassCard, iconDisc } from '../theme';
 import BalanceRadar from '../BalanceRadar';
 
-// The Overview's right column: Last session (with the app's art), Highlights (new records in the
-// range, else the streak and the count), and two small cards, Volume (area over the gym sessions)
-// and Balance (the top three groups' shares as pies).
+// The Overview's right column: Highlights (new records in the range, else the streak and the count;
+// no heading since 2026-10-03) and the small tiles, Volume (area over the gym sessions), Balance (the
+// top three groups' shares as pies) and Muscles. The last session lives in the profile card now
+// (SessionStats below), so this column ends above the Session length card's bottom.
 
-const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-const title = { fontSize: 16, fontWeight: 600 };
 const sub = { fontSize: 12, color: COLORS.muted };
 const big = { fontSize: 26, fontWeight: 500, letterSpacing: -1, fontVariantNumeric: 'tabular-nums', lineHeight: 1.05, marginTop: 8 };
 const unitStyle = { fontSize: 12, color: COLORS.muted, fontWeight: 500, letterSpacing: 0, marginLeft: 3 };
 
-export function LastSessionCard({ session, unit }) {
-  if (!session) {
-    return (
-      <div style={glassCard}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}><span style={iconDisc()}><Icon name="dumbbell" size={17} /></span><span style={title}>Last session</span></div>
-        <div style={{ ...sub, marginTop: 10 }}>No workouts in this range.</div>
-      </div>
-    );
-  }
-  const banner = templateForSession(session);
-  const name = session.title || session.focus || 'Workout';
+// The last session's numbers in one row (the profile card shows them under the workout's banner).
+export function SessionStats({ session, unit }) {
   return (
-    <div style={glassCard}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={iconDisc()}><Icon name={session.kind === 'gym' ? 'dumbbell' : 'home'} size={17} /></span>
-        <div style={{ minWidth: 0 }}>
-          <div style={sub}>Last session · {shortDay(session.date)}</div>
-          <div style={title}>{name}</div>
-        </div>
-      </div>
-      {banner ? (
-        <div style={{ marginTop: 12 }}><TemplateBanner name={banner} sub={session.kind === 'gym' ? undefined : 'Home workout'} radius={16} /></div>
-      ) : (
-        <div style={{ height: 112, borderRadius: 16, marginTop: 12, background: W.blueWash, color: W.blue, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontWeight: 600 }}>
-          <Icon name={session.kind === 'gym' ? 'dumbbell' : 'home'} size={26} />{session.kind === 'gym' ? 'Gym' : 'Home'} workout
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 10, fontSize: 13 }}>
-        {session.duration_s ? <span><b>{Math.round(session.duration_s / 60)}</b> min</span> : null}
-        {session.total_weight_kg ? <span><b>{fmtVolume(session.total_weight_kg, unit)}</b> {unit}</span> : null}
-        {session.calories ? <span><b>{session.calories}</b> kcal</span> : null}
-        {session.exercise_count ? <span><b>{session.exercise_count}</b> exercises</span> : null}
-      </div>
+    <div style={{ display: 'flex', gap: '4px 14px', flexWrap: 'wrap', fontSize: 13 }}>
+      {session.duration_s ? <span><b>{Math.round(session.duration_s / 60)}</b> min</span> : null}
+      {session.total_weight_kg ? <span><b>{fmtVolume(session.total_weight_kg, unit)}</b> {unit}</span> : null}
+      {session.calories ? <span><b>{session.calories}</b> kcal</span> : null}
+      {session.exercise_count ? <span><b>{session.exercise_count}</b> exercises</span> : null}
     </div>
   );
 }
+
+export const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
 const tile = (bg, fg) => ({ borderRadius: 20, padding: 14, minHeight: 104, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 8, background: bg, color: fg, minWidth: 0 });
 const tileIcon = { width: 30, height: 30, borderRadius: '50%', background: '#FFFFFF', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
@@ -71,7 +45,6 @@ export function Highlights({ records, streak, count, gymCount, unit }) {
     ];
   return (
     <div>
-      <div style={{ ...title, margin: '0 0 10px 4px' }}>Highlights</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10 }}>
         {tiles.map((t) => (
           <div key={t.key} style={tile(t.colors[0], t.colors[1])}>

@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import Icon from '../icons';
 import BodyViewer from './BodyViewer';
 import DayStrip from './DayStrip';
-import { Highlights, LastSessionCard, MiniCards } from './SideCards';
+import { Highlights, MiniCards, SessionStats, shortDay } from './SideCards';
 import { longestStreak, muscleShares, recordsInRange, sessionLengths, shiftDay, stripDays, topExercises } from './select';
 import { inRange, toUnit } from '../strength';
 import { muscleVolume } from '../muscles';
@@ -15,10 +15,11 @@ import { W, glassCard, hatch, iconDisc, statPill } from '../theme';
 
 // The Overview view (picked by the user on 2026-09-29 from two mockups; artifact
 // https://claude.ai/artifact/EgVG5xnUgNbrvZ12DAvUEG, option A):
-//   left    profile card (the last gym workout's app art, stat pills, the date, three counts) and
-//           the Session length card (avg, range, one bar per session, the longest hatched)
+//   left    profile card (the last workout's app art with its date and numbers under it, stat pills,
+//           the date, three counts) and the Session length card (avg, range, one bar per session,
+//           the longest hatched)
 //   centre  BodyFigure: muscles trained in the range, a popover per group
-//   right   Last session, Highlights, Volume + Balance
+//   right   Highlights, Volume + Balance + Muscles, ending above the Session length card's bottom
 //   bottom  DayStrip across the full width
 // Three columns from 1060px of content width, two from 660px (the right column wraps under),
 // one below that. Every number comes from the range's sessions or the gym sessions with sets.
@@ -38,7 +39,7 @@ function useWidth(ref) {
   return w;
 }
 
-function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, latest, sessions, gymCount, streak, rangeSub }) {
+function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, liftUnit, latest, sessions, gymCount, streak, rangeSub }) {
   const banner = templateForSession(latest);
   const d = new Date(`${date}T12:00:00`);
   const weekday = d.toLocaleDateString('en-US', { weekday: 'long' });
@@ -59,6 +60,17 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, latest, ses
         // The latest workout's own banner from the app (the Workouts grid art).
         <TemplateBanner name={banner} sub={latest.kind === 'gym' ? undefined : 'Home workout'} radius={0} size={17} />
       ) : <div style={{ height: 104, background: `linear-gradient(135deg, ${W.blueSoft}, ${W.blueWash})` }} />}
+      {/* The last session (was its own card in the right column until 2026-10-03). The banner already
+          names the workout, so the name only shows when there is no banner. */}
+      <div style={{ padding: '12px 20px 0' }}>
+        {latest ? (
+          <>
+            <div style={{ fontSize: 12, color: COLORS.muted }}>Last session · {shortDay(latest.date)}</div>
+            {banner ? null : <div style={{ fontSize: 15, fontWeight: 600 }}>{latest.title || latest.focus || 'Workout'}</div>}
+            <div style={{ marginTop: 4 }}><SessionStats session={latest} unit={liftUnit} /></div>
+          </>
+        ) : <div style={{ fontSize: 12, color: COLORS.muted }}>No workouts in this range</div>}
+      </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '0 16px', marginTop: 14 }}>
         {sex ? <span style={statPill} title={sex}>{sex === 'Male' ? '♂' : '♀'}</span> : null}
         {weightKg ? (
@@ -173,7 +185,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
 
   const left = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-      <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit}
+      <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit} liftUnit={unit}
         latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
       <SessionLengthCard sessions={sessions} compact={cols === 1} />
     </div>
@@ -186,7 +198,6 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
     <div style={cols === 2
       ? { gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, alignItems: 'start' }
       : { display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-      <LastSessionCard session={last} unit={unit} />
       <Highlights records={recordsInRange(allGym, rangeStart, rangeEnd)} streak={streak} count={sessions.length} gymCount={gymCount} unit={unit} />
       <MiniCards gymSessions={gymOldestFirst} shares={muscleShares(now)} unit={unit}
         radar={{ now, before, beforeLabel, selected: muscle, onSelect: (m) => onMuscle(muscle === m ? null : m) }} />
