@@ -62,6 +62,8 @@ const AWAY_MS = 10 * 60 * 1000;
 const LAST_ACTIVE_KEY = 'planner.lastActive';
 // Mouse movement and scrolling fire constantly; record them at most this often.
 const ACTIVE_THROTTLE_MS = 5 * 1000;
+// A new build reloads an open tab only after this long without input, so nothing typed is lost.
+const RELOAD_IDLE_MS = 60 * 1000;
 const RELOADED_FOR_KEY = 'planner.reloadedFor';
 const BUNDLE_PATH = /\/static\/js\/main\.\w+\.js/;
 
@@ -144,7 +146,9 @@ function SnapToToday() {
     const onVisibility = () => { if (!document.hidden) active(); };
     const onPageShow = (e) => { if (e.persisted) active(); };
     // Every minute while visible. Never counts as interaction. A gap of AWAY_MS since the
-    // previous tick means the machine slept or the tab was frozen.
+    // previous tick means the machine slept or the tab was frozen. Every tick also looks
+    // for a new build once the user has been idle a minute, so a fix reaches an open tab
+    // without anyone reloading it.
     let lastTick = Date.now();
     let tickDay = todayISO();
     const tick = setInterval(() => {
@@ -158,6 +162,8 @@ function SnapToToday() {
       if (slept || newDay || (isAway(last, now) && handledFor !== last)) {
         comeBack();
         handledFor = last;
+      } else if (now - last >= RELOAD_IDLE_MS) {
+        reloadIfNewBundle();
       }
     }, 60 * 1000);
 
