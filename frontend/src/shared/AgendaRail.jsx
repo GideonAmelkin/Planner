@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import NavLinks from './NavLinks';
 import { TABS } from './TopNav';
-import { todayISO } from './dayInfo';
 import { COLORS, navButton } from './styles';
 
 export const RAIL_WIDTH = 240;
@@ -74,7 +73,7 @@ export default function AgendaRail({ section = 'agenda' }) {
       </div>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {TABS.map((t) => (
-          <Link key={t.section} to={`/${t.section}/${todayISO()}`} style={tabStyle(t.section === section)}>
+          <Link key={t.section} to={`/${t.section}/today`} style={tabStyle(t.section === section)}>
             {t.label}
           </Link>
         ))}

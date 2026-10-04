@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Icon from './icons';
-import { shiftISO, todayISO } from '../shared/dayInfo';
+import { shiftISO } from '../shared/dayInfo';
 import { COLORS } from '../shared/styles';
 import { W, roundButton } from './theme';
 
@@ -73,7 +73,7 @@ export default function WorkoutTopNav({ date, extra = null }) {
       </nav>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <Link to={`/workout/${shiftISO(date, -1)}`} style={roundButton()} title="Previous day" aria-label="Previous day"><Icon name="left" /></Link>
-        <Link to={`/workout/${todayISO()}`} style={chip}>Today</Link>
+        <Link to={`/workout/today`} style={chip}>Today</Link>
         <Link to={`/workout/${shiftISO(date, 1)}`} style={roundButton()} title="Next day" aria-label="Next day"><Icon name="right" /></Link>
         <input type="date" value={date} aria-label="Date" onChange={(e) => { if (e.target.value) navigate(`/workout/${e.target.value}`); }} style={dateInput} />
         {extra}

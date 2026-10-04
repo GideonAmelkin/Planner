@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import MiniCalendar from '../shared/MiniCalendar';
 import { DayInfoBadge, QuoteCallout } from './QuoteHeader';
-import { headlineLong, shiftISO, todayISO } from '../shared/dayInfo';
+import { headlineLong, shiftISO } from '../shared/dayInfo';
 import { COLORS, card, navButton } from '../shared/styles';
 
 // The header card across the top of the spread: headline, day controls and
@@ -29,7 +29,7 @@ export default function DateCard({ dateISO, quote }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Link to={`/agenda/${shiftISO(dateISO, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-          <Link to={`/agenda/${todayISO()}`} style={navButton}>Today</Link>
+          <Link to={`/agenda/today`} style={navButton}>Today</Link>
           <Link to={`/agenda/${shiftISO(dateISO, 1)}`} style={arrowStyle} title="Next day">›</Link>
           <input
             type="date"

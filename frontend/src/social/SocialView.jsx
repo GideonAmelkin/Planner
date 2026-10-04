@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
 import SocialCard from './SocialCard';
 import ReviewSection from './ReviewSection';
 import DataSection from './DataSection';
 import { getSocialVideos } from './api';
 import { COLORS, card } from '../shared/styles';
+import { useViewDate } from '../shared/today';
 
 const MAX_WIDTH = 1500;
 
@@ -13,7 +13,7 @@ const MAX_WIDTH = 1500;
 // recent videos; the data card is every column of the tracker's videos table (the
 // same rows the Google Sheet holds); competitors are not chosen yet.
 export default function SocialView() {
-  const { date } = useParams();
+  const date = useViewDate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -14,6 +14,7 @@ import { getGarminDay, getGarminStatus } from './api';
 import { metersToMiles, gramsToLbs, mlToOz, clock, localOffset, series } from './format';
 import { num, secondsToHm, titleCase } from '../shared/format';
 import { G, sectionLabel, card, cardBody, pillButton, column } from './theme';
+import { useViewDate } from '../shared/today';
 
 const pick = (r, key) => (r && r[key] && r[key].ok ? r[key].data : null);
 const first = (v) => (Array.isArray(v) ? v[0] : v);
@@ -35,7 +36,7 @@ const detailsBlock = (label, node) => (
 
 export default function GarminView() {
   const params = useParams();
-  const date = params.date;
+  const date = useViewDate();
   const activityId = params.id || null;
   const slug = activityId ? 'activity' : params.page;
   const page = slug ? pageFor(slug) : null;

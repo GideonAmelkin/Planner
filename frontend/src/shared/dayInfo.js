@@ -12,8 +12,49 @@ import {
   startOfWeek,
 } from 'date-fns';
 
-export function todayISO() {
+// The server's local day (GET /api/today, set by shared/today.js): the date and the
+// moment it ends on this machine's clock. Until it is known, or if it is hours stale,
+// the browser's own day stands in.
+const DAY_MS = 24 * 60 * 60 * 1000;
+let serverDay = null;
+const dayListeners = new Set();
+
+function browserTodayISO() {
   return format(startOfDay(new Date()), 'yyyy-MM-dd');
+}
+
+// Today: the server's day, rolled forward past each midnight it reported, so a page that
+// stays open turns over on time even before the next fetch.
+export function todayISO() {
+  if (!serverDay) return browserTodayISO();
+  const now = Date.now();
+  if (now < serverDay.endsAt) return serverDay.date;
+  const days = 1 + Math.floor((now - serverDay.endsAt) / DAY_MS);
+  return days > 1 ? browserTodayISO() : shiftISO(serverDay.date, days);
+}
+
+// Record the server's answer and tell subscribers when that changes what today is.
+export function setServerDay({ date, msUntilMidnight }) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !(msUntilMidnight >= 0)) return;
+  const before = todayISO();
+  serverDay = { date, endsAt: Date.now() + msUntilMidnight };
+  if (todayISO() !== before) dayListeners.forEach((fn) => fn());
+}
+
+// The end of the current day on this machine's clock (ms timestamp).
+export function todayEndsAt() {
+  if (serverDay && Date.now() < serverDay.endsAt) return serverDay.endsAt;
+  const d = startOfDay(new Date());
+  return addDays(d, 1).getTime();
+}
+
+export function onTodayChange(fn) {
+  dayListeners.add(fn);
+  return () => dayListeners.delete(fn);
+}
+
+export function notifyTodayChange() {
+  dayListeners.forEach((fn) => fn());
 }
 
 export function isoToDate(iso) {

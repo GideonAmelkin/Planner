@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
 import PersonalTrainer from './PersonalTrainer';
@@ -13,6 +12,7 @@ import { shiftISO } from '../shared/dayInfo';
 import { COLORS, card } from '../shared/styles';
 import { snapshotAge } from '../shared/snapshotAge';
 import { W, glassCard, pageBackground } from './theme';
+import { useViewDate } from '../shared/today';
 
 // The Workout tab: one scrolling dashboard (the user's call, 2026-09-29: "I don't want to toggle, I
 // want to scroll") under a top bar that sticks on wide screens (a pill per section, the day controls,
@@ -31,7 +31,7 @@ const STICKY_QUERY = '(min-width: 900px)';
 const weightUnit = (profile) => (profile && profile.shows_kg ? 'kg' : 'lb');
 
 export default function WorkoutView() {
-  const { date } = useParams();
+  const date = useViewDate();
   const [sticky, setSticky] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(STICKY_QUERY).matches : true));
   useEffect(() => {
     if (!window.matchMedia) return undefined;

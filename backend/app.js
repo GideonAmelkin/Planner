@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const agenda = require('./agenda');
+const { today } = require('./lib/today');
 
 const JSON_LIMIT = '2mb';
 
@@ -13,6 +14,12 @@ function createApp() {
   // Liveness probe. Registered before the Health router so /api/health stays this
   // and /api/health/... belongs to the Health tab.
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+
+  // The server's local day; the frontend's "today" (shared/dayInfo.js todayISO).
+  app.get('/api/today', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(today());
+  });
 
   // One router per tab. Every route file declares its own /api/... paths so they stay greppable.
   app.use('/api', agenda);

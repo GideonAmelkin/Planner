@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import AgendaView from './agenda/AgendaView';
 import GarminView from './garmin/GarminView';
 import WorkoutView from './workout/WorkoutView';
@@ -7,12 +7,13 @@ import SocialView from './social/SocialView';
 import HealthView from './health/HealthView';
 import CalendarToast from './shared/CalendarToast';
 import { todayISO, isoToDate, dateToISO } from './shared/dayInfo';
+import { ServerClock, TODAY, useToday } from './shared/today';
 
 // The top-level tabs, each with its own /<section>/:date route.
 export const SECTIONS = ['agenda', 'garmin', 'workout', 'social', 'health'];
 
 function TodayRedirect() {
-  return <Navigate to={`/agenda/${todayISO()}`} replace />;
+  return <Navigate to={`/agenda/${TODAY}`} replace />;
 }
 
 // A real calendar date in YYYY-MM-DD form ('2026-09-26.' and '2026-13-40' are not).
@@ -25,30 +26,36 @@ function isValidISO(date) {
   }
 }
 
-// Guards a /<section>/:date page: a malformed date lands on today in that section
+// Guards a /<section>/:date page. /<section>/today is today, always; a dated URL that
+// names today becomes /<section>/today (so the address bar never pins today's date and a
+// reopened or restored tab can not stay on an old day); a malformed date lands on today
 // instead of throwing inside the date helpers and blanking the app.
 function Dated({ section, children }) {
   const { date } = useParams();
-  if (!isValidISO(date)) return <Navigate to={`/${section}/${todayISO()}`} replace />;
+  const { pathname } = useLocation();
+  const today = useToday();
+  if (date === TODAY) return children;
+  if (!isValidISO(date)) return <Navigate to={`/${section}/${TODAY}`} replace />;
+  if (date === today) return <Navigate to={pathname.replace(`/${date}`, `/${TODAY}`)} replace />;
   return children;
 }
 
 // Legacy /day/:date links (bookmarks, old calendar links) land on the agenda.
 function LegacyDayRedirect() {
   const { date } = useParams();
-  return <Navigate to={`/agenda/${isValidISO(date) ? date : todayISO()}`} replace />;
+  return <Navigate to={`/agenda/${isValidISO(date) ? date : TODAY}`} replace />;
 }
 
 // The Garmin tab lived at /health until 2026-09-27. Its sub-page URLs redirect for
 // good (bookmarks, old calendar chips); bare /health/:date is the Health tab now.
 function HealthToGarmin() {
   const { date, page, id } = useParams();
-  const d = isValidISO(date) ? date : todayISO();
+  const d = isValidISO(date) || date === TODAY ? date : TODAY;
   return <Navigate to={id ? `/garmin/${d}/activity/${id}` : `/garmin/${d}/${page}`} replace />;
 }
 
 // A dated tab URL: section, date, optional sub-page (/garmin/:date/sleep, /garmin/:date/activity/:id).
-const DATED_PATH = /^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2})(\/[\w-]+(\/\d+)?)?$/;
+const DATED_PATH = /^\/(agenda|garmin|health|workout|social)\/(\d{4}-\d{2}-\d{2}|today)(\/[\w-]+(\/\d+)?)?$/;
 // How long the app must go untouched (no click, key, scroll or mouse movement; tab
 // hidden; machine asleep) before it moves back to today.
 const AWAY_MS = 10 * 60 * 1000;
@@ -58,10 +65,10 @@ const ACTIVE_THROTTLE_MS = 5 * 1000;
 const RELOADED_FOR_KEY = 'planner.reloadedFor';
 const BUNDLE_PATH = /\/static\/js\/main\.\w+\.js/;
 
-// The current URL moved to today in the same section, keeping the sub-page.
+// The current URL moved to today (/<section>/today) in the same section, keeping the sub-page.
 function todayPath() {
   const m = window.location.pathname.match(DATED_PATH);
-  return m ? `/${m[1]}/${todayISO()}${m[3] || ''}` : window.location.pathname;
+  return m ? `/${m[1]}/${TODAY}${m[3] || ''}` : window.location.pathname;
 }
 
 // After a deploy, a tab left open keeps running the old bundle. Compare the served
@@ -106,7 +113,7 @@ function SnapToToday() {
     const writeLastActive = (v) => {
       try { sessionStorage.setItem(LAST_ACTIVE_KEY, String(v)); } catch (_) { /* ignore */ }
     };
-    const isAway = (last, now) => !last || now - last >= AWAY_MS || dateToISO(new Date(last)) !== todayISO();
+    const isAway = (last, now) => !last || now - last >= AWAY_MS || dateToISO(new Date(last)) !== dateToISO(new Date(now));
     // The away period already handled by the tick, so an idle tab checks the bundle once.
     let handledFor = 0;
     const comeBack = () => {
@@ -181,6 +188,7 @@ function SnapToToday() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ServerClock />
       <SnapToToday />
       <CalendarToast />
       <Routes>

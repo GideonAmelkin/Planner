@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { shiftISO, todayISO } from './dayInfo';
+import { shiftISO } from './dayInfo';
 import NavLinks from './NavLinks';
 import { COLORS, navButton } from './styles';
 
@@ -46,13 +46,13 @@ export default function TopNav({ dateISO, section = 'agenda' }) {
       <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: -0.3, marginRight: 8 }}>Planner</div>
       <div style={{ display: 'flex', gap: 2, marginRight: 12 }}>
         {TABS.map((t) => (
-          <Link key={t.section} to={`/${t.section}/${todayISO()}`} style={tabStyle(t.section === section)}>
+          <Link key={t.section} to={`/${t.section}/today`} style={tabStyle(t.section === section)}>
             {t.label}
           </Link>
         ))}
       </div>
       <Link to={`/${section}/${shiftISO(dateISO, -1)}`} style={arrowStyle}>‹ Prev</Link>
-      <Link to={`/${section}/${todayISO()}`} style={linkStyle}>Today</Link>
+      <Link to={`/${section}/today`} style={linkStyle}>Today</Link>
       <Link to={`/${section}/${shiftISO(dateISO, 1)}`} style={arrowStyle}>Next ›</Link>
       <input
         type="date"

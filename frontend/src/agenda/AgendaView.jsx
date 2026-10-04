@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
 import DateCard from './DateCard';
 import TimelineSchedule from './TimelineSchedule';
@@ -12,11 +11,12 @@ import CalendarSection from './CalendarSection';
 import { COLORS, card } from '../shared/styles';
 import { getDay } from '../shared/api';
 import { createTask, deleteTask, createNote, deleteNote, createOngoing, deleteOngoing } from './api';
+import { useViewDate } from '../shared/today';
 
 const SPREAD_MAX_WIDTH = 1500;
 
 export default function AgendaView() {
-  const { date } = useParams();
+  const date = useViewDate();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 

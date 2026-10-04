@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AgendaRail from '../shared/AgendaRail';
 import { COLORS, card, navButton } from '../shared/styles';
-import { headlineLong, shiftISO, todayISO } from '../shared/dayInfo';
+import { headlineLong, shiftISO } from '../shared/dayInfo';
 import { getHealthDay, getHealthStatus, runHealthFetch } from './api';
 import { TodayActivity, InFocus, Glance, LastSeven } from './sections';
 import { timeOfDay } from './format';
+import { useViewDate } from '../shared/today';
 
 // The Health tab: the day's Garmin data from the Health store, never live from Garmin.
 // Four sections: Today's Activity, In Focus, At a Glance (the declared card grid), Last
@@ -36,7 +37,7 @@ export function statusLine(status) {
 }
 
 export default function HealthView() {
-  const { date } = useParams();
+  const date = useViewDate();
   const navigate = useNavigate();
   const [day, setDay] = useState(null);
   const [status, setStatus] = useState(null);
@@ -71,7 +72,7 @@ export default function HealthView() {
             <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: -0.5, lineHeight: 1.1 }}>{headlineLong(date)}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Link to={`/health/${shiftISO(date, -1)}`} style={arrowStyle} title="Previous day">‹</Link>
-              <Link to={`/health/${todayISO()}`} style={navButton}>Today</Link>
+              <Link to={`/health/today`} style={navButton}>Today</Link>
               <Link to={`/health/${shiftISO(date, 1)}`} style={arrowStyle} title="Next day">›</Link>
               <input type="date" value={date} onChange={(e) => { if (e.target.value) navigate(`/health/${e.target.value}`); }} style={dateInputStyle} />
               <button type="button" onClick={onFetch} style={{ ...navButton, cursor: 'pointer' }} title="Refetch today from Garmin (at most once per 30 minutes)">Fetch now</button>

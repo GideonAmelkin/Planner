@@ -6,7 +6,7 @@ import GarminIcon from '../GarminIcon';
 import { G, sectionLabel, pillButton, chevronButton, roundNav } from '../theme';
 import { metersToMiles } from '../format';
 import { num } from '../../shared/format';
-import { shiftISO, todayISO } from '../../shared/dayInfo';
+import { shiftISO } from '../../shared/dayInfo';
 
 const hms = (sec) => { if (!sec) return '0:00'; const s = Math.round(sec); const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60); const r = s % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}` : `${m}:${String(r).padStart(2, '0')}`; };
 const listOf = (v) => (Array.isArray(v) ? v : (v && (v.badgeChallenges || v.challenges || v.content)) || []);
@@ -51,12 +51,11 @@ export function Calendar({ dateISO, results }) {
   const byDay = {}; acts.forEach((a) => { const d = Number(String(a.startTimeLocal || '').slice(8, 10)); (byDay[d] = byDay[d] || []).push(a); });
   const monthTo = (delta) => `/garmin/${new Date(y, m - 1 + delta, 1).toISOString().slice(0, 10)}/calendar`;
   const totals = { n: acts.length, dist: acts.reduce((s, a) => s + (a.distance || 0), 0), time: acts.reduce((s, a) => s + (a.duration || 0), 0), cal: acts.reduce((s, a) => s + (a.calories || 0), 0) };
-  const today = todayISO();
   return (
     <PageContainer style={{ padding: 'clamp(12px, 2vw, 20px)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Link to={`/garmin/${today}/calendar`} style={pillButton()}>Today</Link>
+          <Link to={`/garmin/today/calendar`} style={pillButton()}>Today</Link>
           <Link to={monthTo(-1)} style={chevronButton}>‹</Link><Link to={monthTo(1)} style={chevronButton}>›</Link>
           <span style={{ fontSize: 14 }}>{new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
         </div>
