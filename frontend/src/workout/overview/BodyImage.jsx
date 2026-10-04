@@ -197,7 +197,7 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
   };
 
   return (
-    <div ref={boxRef} style={{ position: 'relative', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div ref={boxRef} style={{ position: 'relative', minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
         <span>{total ? 'Muscles worked · drag to turn' : 'Muscles worked: no gym sessions in this range'}</span>
         {onlyOther ? (
@@ -206,6 +206,9 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
           </button>
         ) : null}
       </div>
+      {/* The figure and its Front / Back row, centered in whatever height the cell gives (the Overview's
+          middle column spans both grid rows); the caption stays at the top. */}
+      <div style={{ flex: 1, alignSelf: 'stretch', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       <div ref={frameRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} onPointerCancel={() => { drag.current = null; }}
         style={{ width: '100%', maxWidth: compact ? 300 : 400, overflow: 'hidden', position: 'relative', marginTop: 6, perspective: 1600, touchAction: 'pan-y', cursor: 'grab' }}>
         <div style={{ position: 'relative', width: '100%', aspectRatio: `${FIGURE_RATIO}`, transform: `scale(${zoom})`, transformOrigin: '50% 32%', transition: 'transform .2s' }}>
@@ -230,6 +233,7 @@ export default function BodyImage({ now, before, beforeCount, beforeLabel, unit,
         <button type="button" style={roundButton(28)} aria-label="Turn him around" onClick={turn}><Icon name="left" size={14} /></button>
         <span style={{ minWidth: 34, textAlign: 'center' }}>{side === 'front' ? 'Front' : 'Back'}</span>
         <button type="button" style={roundButton(28)} aria-label="Turn him around" onClick={turn}><Icon name="right" size={14} /></button>
+      </div>
       </div>
     </div>
   );

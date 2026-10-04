@@ -202,12 +202,12 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
   // Three columns, two rows (the user's calls, 2026-10-03): row one holds the profile card and, on the
   // right, the record rows (stretched to take the spare height) over Volume + Balance; row two holds
   // Session length and Muscles, which the row makes the same height, so the right side ends exactly
-  // where Session length does. The figure spans both rows.
+  // where Session length does. The figure spans both rows, centered in their height (2026-10-04).
   const grid = cols === 3 ? (
     <div style={{ display: 'grid', columnGap: 18, rowGap: 16, alignItems: 'stretch', gridTemplateColumns: 'minmax(250px, 300px) minmax(0, 1fr) minmax(250px, 300px)', gridTemplateRows: 'auto auto' }}>
       <div style={{ gridColumn: 1, gridRow: 1, minWidth: 0 }}>{profileCard}</div>
       <div style={{ gridColumn: 1, gridRow: 2, minWidth: 0, display: 'flex', flexDirection: 'column' }}>{sessionCard}</div>
-      <div style={{ gridColumn: 2, gridRow: '1 / span 2', minWidth: 0, alignSelf: 'start' }}>{figure}</div>
+      <div style={{ gridColumn: 2, gridRow: '1 / span 2', minWidth: 0, alignSelf: 'stretch', display: 'flex', flexDirection: 'column' }}>{figure}</div>
       <div style={{ gridColumn: 3, gridRow: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ flex: 1, minHeight: 0 }}>{highlights}</div>
         {minis}
