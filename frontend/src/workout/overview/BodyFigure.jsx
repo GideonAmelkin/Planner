@@ -60,7 +60,8 @@ export default function BodyFigure({ now, before, beforeCount, beforeLabel, unit
   return (
     <div ref={boxRef} style={{ position: 'relative', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       <div style={{ alignSelf: 'stretch', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
-        <span>{statusLine}{total ? null : <>{statusLine ? ' · ' : null}No gym sessions in this range</>}</span>
+        {/* The status copy wraps before it crosses the figure's centre line. */}
+        <span style={compact ? undefined : { flex: '0 1 50%', maxWidth: '50%', minWidth: 0 }}>{statusLine}{total ? null : <>{statusLine ? ' · ' : null}No gym sessions in this range</>}</span>
         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
           {onOtherSide ? (
             <button type="button" onClick={() => { setSide(other); setPicked(null); }} style={{ border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.8)', borderRadius: 999, padding: '5px 10px', fontSize: 12, color: COLORS.ink, cursor: 'pointer', font: 'inherit' }}>
