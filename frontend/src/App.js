@@ -41,10 +41,12 @@ function Dated({ section, children }) {
   return children;
 }
 
-// Legacy /day/:date links (bookmarks, old calendar links) land on the agenda.
+// Legacy /day/:date links (bookmarks, old calendar links) land on today's agenda.
+// Only ever reached by loading the page (a bookmark or startup page saved before the
+// tabs existed), and loading the app always lands on today, so the old date is dropped:
+// keeping it is what reopened the app on Sat June 20 again and again until 2026-10-03.
 function LegacyDayRedirect() {
-  const { date } = useParams();
-  return <Navigate to={`/agenda/${isValidISO(date) ? date : TODAY}`} replace />;
+  return <Navigate to={`/agenda/${TODAY}`} replace />;
 }
 
 // The Garmin tab lived at /health until 2026-09-27. Its sub-page URLs redirect for
