@@ -325,6 +325,15 @@ class ExportTest(unittest.TestCase):
                          [(0, '10', 'Bird Dog'), (1, '513', 'Kickbacks · Dumbbell'), (2, None, None)])
         self.assertEqual(snap['counts']['home_sessions_named_from_action_record'], 1)
 
+    def test_excluded_home_session_is_dropped_by_content(self):
+        start = int(datetime(2023, 6, 26, 19, 37, 2).astimezone().timestamp() * 1000)
+        self.fx.home_session(500, DAY_UTC_MS, None, temp1([(0, start, 30)]), sport_type=13)
+        self.fx.home_session(501, DAY_UTC_MS, None, temp1([(0, start, 30)]), sport_type=12)   # same start, other type: kept
+        self.fx.plan([])
+        snap = self.build()
+        self.assertEqual([s['id'].split(':')[1] for s in snap['sessions']], ['501'])
+        self.assertEqual(snap['counts']['home_sessions_excluded'], 1)
+
     def test_two_home_sessions_one_day_each_take_their_own_records(self):
         a = local_ms(2026, 9, 26, 7, 0)
         b = local_ms(2026, 9, 26, 18, 0)

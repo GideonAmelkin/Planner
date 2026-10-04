@@ -438,6 +438,13 @@ for _base, _area in ((11, 'Chest'), (14, 'Abs'), (17, 'Arm'), (31, 'Leg'), (34, 
 
 PLAN_SPORT_TYPES = {21, 22}
 
+# Home sessions the user had removed, keyed by content (local start to the second, sportType),
+# not by the LKDB rowid, which a restore from the cloud backup can change. Dropped from the
+# snapshot even if the app brings the row back.
+EXCLUDED_HOME = {
+    ('2023-06-26T19:37:02', 13): 'Chest · Advanced left running for 10h 17m; removed at the user\'s request 2026-10-04',
+}
+
 
 ACTION_MATCH_MS = 3000
 
@@ -516,6 +523,7 @@ def read_home_sessions(lk, names, counts):
     sessions = []
     from_temp1 = 0
     named = 0
+    excluded = 0
     action_records = home_action_records(lk)
     for r in rows(lk, 'SELECT * FROM workout ORDER BY date'):
         day = utc_date(r.get('date'), 'workout.date')
@@ -524,6 +532,9 @@ def read_home_sessions(lk, names, counts):
             started_at = local_iso(epoch_to_dt(min(t[1] for t in timings), 'workout.temp1'))
         else:
             started_at = '%sT00:00:00' % day if day else None
+        if ((started_at or '')[:19], to_int(r.get('sportType'))) in EXCLUDED_HOME:
+            excluded += 1
+            continue
         exercises = []
         times = lk_value(r.get('eachActionTimeDicStr'))
         if isinstance(times, dict):
@@ -565,6 +576,7 @@ def read_home_sessions(lk, names, counts):
     counts['home_sessions'] = len(sessions)
     counts['home_sessions_from_temp1'] = from_temp1
     counts['home_sessions_named_from_action_record'] = named
+    counts['home_sessions_excluded'] = excluded
     return sessions
 
 
