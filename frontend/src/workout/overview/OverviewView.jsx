@@ -96,10 +96,11 @@ function ProfileCard({ date, profile, weightKg, weightDeltaKg, unit, liftUnit, l
   );
 }
 
-function SessionLengthCard({ sessions, compact }) {
+function SessionLengthCard({ sessions, date, compact }) {
   const { rows: all, avg, min, max } = sessionLengths(sessions);
   const rows = all.slice(-MAX_BARS);
-  const peak = rows.length ? rows.reduce((b, r) => (r.min > b.min ? r : b), rows[0]) : null;
+  // The bar for the day the date picker is on (the last session that day); none on a rest day.
+  const picked = [...rows].reverse().find((r) => r.date === date) || null;
   // Label at most five bars (three on a phone), evenly, always including the last.
   const every = Math.max(1, Math.ceil(rows.length / (compact ? 3 : 5)));
   const figure = (label, value) => (
@@ -122,13 +123,13 @@ function SessionLengthCard({ sessions, compact }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: rows.length > 20 ? 3 : 6, height: 132, marginTop: 38 }}>
             {rows.map((r, i) => {
-              const isPeak = r === peak;
+              const isPicked = r === picked;
               return (
                 <div key={`${r.date}-${i}`} title={`${monthDay(r.date)}, ${r.title}: ${Math.round(r.min)} min`} style={{
                   flex: 1, minWidth: 0, position: 'relative', height: `${Math.max(6, (r.min / max) * 100)}%`,
-                  borderRadius: '8px 8px 4px 4px', background: isPeak ? hatch('#6D93FA') : W.blueSoft,
+                  borderRadius: '8px 8px 4px 4px', background: isPicked ? hatch('#6D93FA') : W.blueSoft,
                 }}>
-                  {isPeak ? (
+                  {isPicked ? (
                     <>
                       <span style={{ position: 'absolute', top: -4, left: '50%', width: 8, height: 8, marginLeft: -4, borderRadius: '50%', background: W.blue, border: '2px solid #FFFFFF' }} />
                       <span style={{ position: 'absolute', top: -30, left: '50%', transform: 'translateX(-50%)', background: COLORS.ink, color: '#FFFFFF', fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 999, whiteSpace: 'nowrap' }}>{Math.round(r.min)} min</span>
@@ -145,6 +146,7 @@ function SessionLengthCard({ sessions, compact }) {
               </span>
             ))}
           </div>
+          {picked ? null : <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 6 }}>No session on {shortDay(date)}</div>}
           {all.length > rows.length ? <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 6 }}>Latest {rows.length} of {all.length} sessions.</div> : null}
         </>
       ) : <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 10 }}>No workouts in this range.</div>}
@@ -188,7 +190,7 @@ export default function OverviewView({ date, profile, weights, sessions, rangeSt
     <ProfileCard date={date} profile={profile} weightKg={latest ? latest.kg : profile.current_weight_kg} weightDeltaKg={weightDeltaKg} unit={bodyUnit} liftUnit={unit}
       latest={last} sessions={sessions} gymCount={gymCount} streak={streak} rangeSub={rangeSub} />
   );
-  const sessionCard = <SessionLengthCard sessions={sessions} compact={cols === 1} />;
+  const sessionCard = <SessionLengthCard sessions={sessions} date={date} compact={cols === 1} />;
   const figure = (
     <BodyViewer now={now} before={before} beforeCount={beforeGym.length} beforeLabel={beforeLabel} unit={unit}
       top={topExercises(gymInRange)} onOpenTrainer={onOpenTrainer} compact={cols === 1} rangeControl={rangeControl} />
