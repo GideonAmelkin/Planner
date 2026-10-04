@@ -1,20 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import WorkoutCard from './WorkoutCard';
 import { exerciseHistory, inRange, newRecords, records } from './strength';
 import { muscleVolume } from './muscles';
 import { Delta, fmtVolume, monthDay, readOpen, writeOpen } from './ptParts';
-import { Figure } from './ui';
+import { Chip, Figure, figureLabel } from './ui';
+import Icon from './icons';
+import { DayTable, RangeBars, workoutDays } from './logParts';
 import ExerciseTicker from './ExerciseTicker';
 import MuscleChart from './MuscleChart';
 import { shiftISO } from '../shared/dayInfo';
 import { RANGES } from './ranges';
 import { COLORS } from '../shared/styles';
 
-// Personal Trainer: the guided gym sessions the user logs in the app with reps and weight.
-//   top     big-number figures (sessions, exercises, volume, vs the previous session), then the
-//           MuscleChart: volume per group this range against the same-length range before it
-//   bottom  the ticker board: one row per exercise (est. 1RM, change, trend, volume), sortable,
-//           a row click opens the exercise detail (rep-max table, records, sessions, chart)
+// Personal Trainer: the gym lifts plus every workout (the Log section folded in on 2026-10-03, the user's
+// pick of five layouts: option 2, charts side by side and two dropdowns).
+//   top     big-number figures (sessions, exercises, volume, vs the previous session)
+//   middle  two panels on one row (stacked when narrow): the MuscleChart (volume per group this range
+//           against the same-length range before it) and RangeBars (workouts per day, gym and home)
+//   bottom  two dropdowns, closed by default and remembered: Exercises, the ticker board (one row per
+//           exercise, sortable, a row opens the exercise detail), and Workouts, one row per day
 // The body figure and the balance radar live in the Overview since 2026-09-29; picking a muscle
 // there, or on the MuscleChart here, filters the ticker.
 // The range and the muscle filter belong to the page (WorkoutView): one range picker in the top bar
@@ -22,7 +26,41 @@ import { COLORS } from '../shared/styles';
 // Rule: never render a comparison that has nothing to compare (trend lines, PR pills and the
 // chart need two sessions). Math in strength.js and muscles.js; shared pieces in ptParts.jsx.
 
-export default function PersonalTrainer({ data, date, rangeKey, customFrom, customTo, muscle, onMuscle }) {
+const EXERCISES_OPEN_KEY = 'plannerWorkoutExercisesOpen';
+const WORKOUTS_OPEN_KEY = 'plannerWorkoutLogOpen';
+const readFlag = (key) => { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } };
+const writeFlag = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (_) { /* ignore */ } };
+
+// A dropdown row: chevron, title, a count chip; the body shows while open.
+function Dropdown({ title, count, open, onToggle, children }) {
+  return (
+    <div style={{ minWidth: 0 }}>
+      <button type="button" onClick={onToggle} aria-expanded={open} style={{
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.6)',
+        borderRadius: 14, padding: '11px 14px', font: 'inherit', fontSize: 14, fontWeight: 600, color: COLORS.ink, cursor: 'pointer', textAlign: 'left',
+      }}>
+        <span style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s', color: COLORS.muted }}><Icon name="right" size={16} /></span>
+        {title}
+        {count ? <Chip>{count}</Chip> : null}
+      </button>
+      {open ? <div style={{ marginTop: 10, minWidth: 0 }}>{children}</div> : null}
+    </div>
+  );
+}
+
+// The two chart panels. On a narrow card (one column) they drop their frame, so the muscle chart's rows
+// keep the width they had before the panels (a container query: it follows the card, not the window).
+const panel = { minWidth: 0 };
+const PANEL_CSS = `.pt-panel { border: 1px solid ${COLORS.hairline}; border-radius: 18px; padding: 14px 16px; background: rgba(255,255,255,.55); }
+@container ptpanels (max-width: 560px) { .pt-panel { border: none; padding: 0; background: none; border-radius: 0; } }`;
+
+export default function PersonalTrainer({ data, date, rangeKey, customFrom, customTo, muscle, onMuscle, workouts, chartStart, rangeEnd: logEnd, customValid, rangeSub, bodyUnit }) {
+  const [exercisesOpen, setExercisesOpen] = useState(() => readFlag(EXERCISES_OPEN_KEY));
+  const [workoutsOpen, setWorkoutsOpen] = useState(() => readFlag(WORKOUTS_OPEN_KEY));
+  // A muscle picked on the Overview or the chart filters the board, so the board must be showing.
+  useEffect(() => { if (muscle) setExercisesOpen(true); }, [muscle]);
+  const toggleExercises = () => setExercisesOpen((o) => { writeFlag(EXERCISES_OPEN_KEY, !o); return !o; });
+  const toggleWorkouts = () => setWorkoutsOpen((o) => { writeFlag(WORKOUTS_OPEN_KEY, !o); return !o; });
   const [openIds, setOpenIds] = useState(readOpen);
   const [metric, setMetric] = useState('e1rm_kg');
   const all = (data && data.sessions) || [];
@@ -51,20 +89,36 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
   const now = muscleVolume(sessions);
   const pick = (m) => onMuscle(muscle === m ? null : m);
   const toggle = (id) => setOpenIds((ids) => { const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]; writeOpen(next); return next; });
-  const aside = data === null ? 'Loading...' : `${all.length} gym session${all.length === 1 ? '' : 's'}`;
+  const list = workouts || [];
+  const aside = `${list.length} workout${list.length === 1 ? '' : 's'} ${rangeSub}`;
+  const days = workoutDays(list);
+  const activity = (
+    <div className="pt-panel" style={panel}>
+      <div style={figureLabel}>Workouts per day</div>
+      {customValid ? <RangeBars sessions={list} startISO={chartStart} endISO={logEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 8 }}>Pick a start date on or before the end date.</div>}
+    </div>
+  );
+  const workoutsDropdown = (
+    <Dropdown title="Workouts" count={`${days} day${days === 1 ? '' : 's'}`} open={workoutsOpen} onToggle={toggleWorkouts}>
+      <DayTable date={date} sessions={list} unit={bodyUnit || unit} />
+    </Dropdown>
+  );
 
   if (data && !all.length) {
     return (
-      <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your gym lifts: volume per muscle and every exercise" aside={aside}>
+      <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your workouts: every session, muscle volume and lift" aside={aside}>
         <div style={{ fontSize: 13, color: COLORS.muted, lineHeight: 1.6, maxWidth: 640 }}>
           No gym sessions here yet. A session shows up after four steps: you finish it in the phone app, the phone app backs it up (Me &gt; Sync Data), the Mac's hourly sync pulls that backup, and the export ships it here. The status line at the top says where that chain stands.
         </div>
+        <style>{PANEL_CSS}</style>
+        <div style={{ marginTop: 18 }}>{activity}</div>
+        <div style={{ marginTop: 18 }}>{workoutsDropdown}</div>
       </WorkoutCard>
     );
   }
 
   return (
-    <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your gym lifts: volume per muscle and every exercise" aside={aside}>
+    <WorkoutCard title="Personal Trainer" icon="dumbbell" sub="Your workouts: every session, muscle volume and lift" aside={aside}>
       {unnamed.length ? (
         <div style={{ fontSize: 12, color: COLORS.warn, marginBottom: 10 }}>
           {unnamed.length} exercise{unnamed.length === 1 ? '' : 's'} without a name yet (id{unnamed.length === 1 ? '' : 's'} {unnamed.map((h) => h.action_id).join(', ')}): the app has not downloaded their text, so they show as "Exercise &lt;id&gt;".
@@ -81,17 +135,27 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
         </div>
       ) : <div style={{ marginTop: 4, fontSize: 13, color: COLORS.muted }}>No gym sessions in this range. Pick a longer range at the top.</div>}
 
-      {latest ? (
-        <>
-          <div style={{ marginTop: 22 }}>
+      <style>{PANEL_CSS}</style>
+      <div style={{ containerType: 'inline-size', containerName: 'ptpanels', marginTop: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 16, alignItems: 'stretch' }}>
+        {latest ? (
+          <div className="pt-panel" style={panel}>
             <MuscleChart now={now} before={before} beforeLabel={beforeLabel} unit={unit} selected={muscle} onSelect={pick} />
           </div>
-          <div style={{ marginTop: 26 }}>
+        ) : null}
+        {activity}
+      </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
+        {latest ? (
+          <Dropdown title="Exercises" count={`${history.length} lift${history.length === 1 ? '' : 's'}`} open={exercisesOpen} onToggle={toggleExercises}>
             <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => onMuscle(null)}
               openIds={openIds} onToggle={toggle} sessionsById={sessionsById} metric={metric} setMetric={setMetric} />
-          </div>
-        </>
-      ) : null}
+          </Dropdown>
+        ) : null}
+        {workoutsDropdown}
+      </div>
     </WorkoutCard>
   );
 }

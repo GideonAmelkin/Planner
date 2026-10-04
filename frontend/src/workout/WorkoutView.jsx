@@ -3,7 +3,6 @@ import AgendaRail from '../shared/AgendaRail';
 import { getWorkoutStatus, getWorkoutRecent, getWorkoutCatalog, getWorkoutStrength } from './api';
 import PersonalTrainer from './PersonalTrainer';
 import TemplatesView from './TemplatesView';
-import LogView from './LogView';
 import OverviewView from './overview/OverviewView';
 import WorkoutTopNav, { scrollToSection, sectionId } from './WorkoutTopNav';
 import RefreshButton, { useWorkoutRefresh } from './RefreshButton';
@@ -18,9 +17,9 @@ import { useViewDate } from '../shared/today';
 // want to scroll") under a top bar that sticks on wide screens (a pill per section, the day controls,
 // the one range picker that drives every section). Sections, top to bottom:
 //   Overview  the body-figure dashboard (overview/), picked by the user 2026-09-29
-//   Trainer   Personal Trainer (muscles, ticker, exercise detail)
+//   Trainer   Personal Trainer (muscles, workouts per day, the Exercises and Workouts dropdowns; the
+//             Log section folded in on 2026-10-03)
 //   Workouts  the app's gym templates
-//   Log       workouts per bucket and the per-day table
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 const MAX_WIDTH = 1500;
 const STRIP_WEEKS = 7; // the Overview's day strip: seven Sunday-start weeks ending with the shown day's week
@@ -165,9 +164,11 @@ export default function WorkoutView() {
           onOpenTrainer={openTrainer} muscle={muscle} onMuscle={setMuscle}
         />
       ))}
-      {section('trainer', <PersonalTrainer data={strength} date={date} rangeKey={rangeKey} customFrom={customFrom} customTo={customTo} muscle={muscle} onMuscle={setMuscle} />)}
+      {section('trainer', (
+        <PersonalTrainer data={strength} date={date} rangeKey={rangeKey} customFrom={customFrom} customTo={customTo} muscle={muscle} onMuscle={setMuscle}
+          workouts={rangeSessions} chartStart={chartStart} rangeEnd={rangeEnd} customValid={customValid} rangeSub={range.sub} bodyUnit={weightUnit(profile)} />
+      ))}
       {section('workouts', <TemplatesView catalog={catalog} />)}
-      {section('log', <LogView date={date} sessions={rangeSessions} unit={weightUnit(profile)} rangeSub={range.sub} chartStart={chartStart} rangeEnd={rangeEnd} customValid={customValid} />)}
       <div style={{ fontSize: 11, color: COLORS.faint }}>
         Home Workouts sessions reach here two ways: the phone posts its Apple Health workouts as they happen (timing, duration, calories), and the Mac presses the app's own Sync and exports it every hour (per-exercise detail, only what the app's cloud backup holds). Both live in <code>backend/workout-state</code>.
       </div>

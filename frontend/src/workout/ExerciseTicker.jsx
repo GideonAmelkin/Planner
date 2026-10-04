@@ -5,13 +5,13 @@ import { groupOf, muscleOf } from './muscles';
 import { ExerciseDetail, Sparkline, e1rmText, fmtVolume, missingMark, monthDay, muted, nameOf, setText } from './ptParts';
 import { COLORS } from '../shared/styles';
 import { W } from './theme';
-import { Chip, figureLabel } from './ui';
+import { Chip } from './ui';
 
 // The ticker board: one row per exercise in the range, like a market board. Change is the est. 1RM
 // against the first time in the range; with one session in the range, against the previous time
 // ever (dated); "new" when there is none. The trend line needs two sessions in the range. A row
 // click opens the full exercise detail (rep-max table, records, sessions, chart) under it.
-// Sort is kept in localStorage.
+// Sort is kept in localStorage. The Trainer wraps it in the Exercises dropdown (2026-10-03).
 const SORT_KEY = 'plannerWorkoutTickerSort';
 const readSort = () => { try { const v = JSON.parse(localStorage.getItem(SORT_KEY) || 'null'); return v && v.k ? v : { k: 'last', dir: -1 }; } catch (_) { return { k: 'last', dir: -1 }; } };
 const writeSort = (v) => { try { localStorage.setItem(SORT_KEY, JSON.stringify(v)); } catch (_) { /* ignore */ } };
@@ -58,7 +58,6 @@ export default function ExerciseTicker({ history, allHistory, unit, muscle, onCl
   return (
     <div style={{ minWidth: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        <span style={figureLabel}>Exercises</span>
         {g ? (
           <button type="button" onClick={onClearMuscle} style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', font: 'inherit' }}>
             <Chip color={g.color} style={{ fontSize: 12, padding: '4px 11px' }}>Showing {g.label} · show all ✕</Chip>

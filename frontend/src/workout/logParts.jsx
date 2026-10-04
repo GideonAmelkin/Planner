@@ -1,5 +1,4 @@
 import React from 'react';
-import WorkoutCard from './WorkoutCard';
 import { tableWrap, table, th, headRow, td, tdNum } from './WorkoutTile';
 import { shiftISO } from '../shared/dayInfo';
 import { num, secondsToHm } from '../shared/format';
@@ -8,8 +7,10 @@ import { W, hatch } from './theme';
 import { Chip } from './ui';
 import { toUnit } from './strength';
 
-// The Log view: workouts per bucket over the range, then one row per day (types joined,
-// durations and counts added up, empty columns hidden, the shown day tinted).
+// The workout log's pieces (the Log section until 2026-10-03, now inside the Personal Trainer card, the
+// user's pick of five layouts): RangeBars, workouts per bucket over the range, and DayTable, one row per
+// day (types joined, durations and counts added up, empty columns hidden, the shown day tinted). Both
+// count every workout, gym and home.
 const daysBetween = (a, b) => Math.round((Date.parse(`${b}T12:00:00`) - Date.parse(`${a}T12:00:00`)) / 86400000);
 // Every date on this tab reads 'Mon, Sep 8, 2026'.
 const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-');
@@ -17,7 +18,7 @@ const shortDate = (ymd) => (ymd ? new Date(`${ymd}T12:00:00`).toLocaleDateString
 const kindLabel = (s) => (s.via === 'health' ? 'Home (phone)' : s.kind === 'gym' ? 'Gym' : 'Home');
 
 // Workouts per bucket over the range: by day up to 31 days, then week / month / quarter.
-function RangeBars({ sessions, startISO, endISO }) {
+export function RangeBars({ sessions, startISO, endISO }) {
   // Bucket size follows the span so there are never more than about 53 bars,
   // which keeps the count printed over each bar from touching its neighbours.
   const totalDays = daysBetween(startISO, endISO) + 1;
@@ -67,7 +68,7 @@ function RangeBars({ sessions, startISO, endISO }) {
   const gap = keys.length > 40 ? 2 : keys.length > 20 ? 3 : 6;
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: H, marginTop: 34 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap, height: H, marginTop: 30 }}>
         {values.map((c, i) => {
           const isPeak = c > 0 && i === peak;
           return (
@@ -97,7 +98,10 @@ function RangeBars({ sessions, startISO, endISO }) {
   );
 }
 
-export default function LogView({ date, sessions, unit, rangeSub, chartStart, rangeEnd, customValid }) {
+// How many days the range has workouts on (the Workouts dropdown's count).
+export const workoutDays = (sessions) => new Set(sessions.map((s) => s.date)).size;
+
+export function DayTable({ date, sessions, unit }) {
   const hasCalories = sessions.some((s) => s.calories);
   const hasExercises = sessions.some((s) => s.exercise_count);
   const hasLifted = sessions.some((s) => s.total_weight_kg);
@@ -116,12 +120,8 @@ export default function LogView({ date, sessions, unit, rangeSub, chartStart, ra
     r.lifted_kg += s.total_weight_kg || 0;
     r.n += 1;
   }
-  const aside = `${sessions.length} workout${sessions.length === 1 ? '' : 's'} ${rangeSub}`;
-  return (
-    <WorkoutCard title="Log" icon="log" sub="Every workout in the range, one row per day" aside={aside}>
-      {customValid ? <RangeBars sessions={sessions} startISO={chartStart} endISO={rangeEnd} /> : <div style={{ fontSize: 12, color: COLORS.muted }}>Pick a start date on or before the end date.</div>}
-      {dayRows.length ? (
-        <div style={{ ...tableWrap, marginTop: 18 }}>
+  return dayRows.length ? (
+        <div style={tableWrap}>
           <table style={table}>
             <thead>
               <tr style={headRow}>
@@ -147,7 +147,5 @@ export default function LogView({ date, sessions, unit, rangeSub, chartStart, ra
             </tbody>
           </table>
         </div>
-      ) : <div style={{ marginTop: 14, fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>}
-    </WorkoutCard>
-  );
+      ) : <div style={{ fontSize: 13, color: COLORS.muted }}>No workouts in this range.</div>;
 }
