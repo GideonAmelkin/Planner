@@ -4,8 +4,9 @@ import { COLORS, card, pill, sectionDot, sectionHeader } from '../shared/styles'
 // One card on the Social tab, in the Agenda's card look: dotted title, optional aside
 // pill and controls on the right. A copy of the Workout tab's card (tabs do not import
 // each other). `collapsible` turns the title into a chevron toggle; the body hides while `open`
-// is false and the header's controls stay; the caller owns `open`.
-export default function SocialCard({ title, dot = COLORS.social, children, aside = null, actions = null, empty = false, emptyText = 'Nothing here yet.', collapsible = false, open = true, onToggle = null }) {
+// is false and the header's controls stay; the caller owns `open`. `always` renders under the header
+// in both states (e.g. headline tiles above a folded table).
+export default function SocialCard({ title, dot = COLORS.social, children, aside = null, actions = null, empty = false, emptyText = 'Nothing here yet.', collapsible = false, open = true, onToggle = null, always = null }) {
   const shown = !collapsible || open;
   return (
     <div style={{ ...card, minWidth: 0 }}>
@@ -28,6 +29,7 @@ export default function SocialCard({ title, dot = COLORS.social, children, aside
           {actions}
         </span>
       </div>
+      {always}
       {!shown ? null : empty ? <div style={{ color: COLORS.muted, fontSize: 13 }}>{emptyText}</div> : children}
     </div>
   );

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
 import SocialTile, { tileGrid, tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { getSocialVideo } from './api';
+import { HEADER_BUTTON_MIN } from './ReviewSection';
 import { shortDate, dateTime, multipleText, count } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
 import { num } from '../shared/format';
@@ -39,12 +40,11 @@ function compare(a, b, key, kind, dir) {
   return dir === 'asc' ? r : -r;
 }
 
-// Every column of the tracker's videos table, searchable and sortable; a click on a row
-// opens the full caption, hook and transcript (fetched then).
+// Every column of the tracker's videos table, sortable; a click on a row opens the full caption,
+// hook and transcript (fetched then). The headline tiles stay visible when the table is folded.
 const OPEN_KEY = 'planner.social.dataOpen';
 
 export default function DataSection({ data, loading, error }) {
-  const [query, setQuery] = useState('');
   const [sort, setSort] = useState({ key: 'date_posted', dir: 'desc' });
   const [shown, setShown] = useState(PAGE);
   const [open, setOpen] = useState(null);
@@ -57,15 +57,11 @@ export default function DataSection({ data, loading, error }) {
   const summary = (data && data.summary) || null;
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? videos.filter((v) => [v.caption, v.hook_summary, v.video_id, v.date_posted].some((f) => f && String(f).toLowerCase().includes(q)))
-      : videos;
     const col = COLUMNS.find((c) => c.key === sort.key) || COLUMNS[0];
-    return [...list].sort((a, b) => compare(a, b, sort.key, col.sort, sort.dir) || compare(a, b, 'video_id', 'text', 'desc'));
-  }, [videos, query, sort]);
+    return [...videos].sort((a, b) => compare(a, b, sort.key, col.sort, sort.dir) || compare(a, b, 'video_id', 'text', 'desc'));
+  }, [videos, sort]);
 
-  useEffect(() => { setShown(PAGE); }, [query, sort]);
+  useEffect(() => { setShown(PAGE); }, [sort]);
 
   useEffect(() => {
     if (!open || detail[open]) return;
@@ -82,8 +78,10 @@ export default function DataSection({ data, loading, error }) {
   };
   const arrow = (c) => (sort.key === c.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '');
 
+  // A button like the Summary card's Refresh (same element, same outlineButton), so both render the
+  // same size; it opens the Google Sheet in a new tab.
   const actions = (
-    <a href={SHEET_URL} target="_blank" rel="noreferrer" style={{ ...outlineButton(COLORS.ink), textDecoration: 'none', display: 'inline-block' }}>Drive</a>
+    <button type="button" onClick={() => window.open(SHEET_URL, '_blank', 'noopener,noreferrer')} style={{ ...outlineButton(COLORS.ink), minWidth: HEADER_BUTTON_MIN }} title="Open the Google Sheet">Drive</button>
   );
 
   if (error) return <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
@@ -101,31 +99,19 @@ export default function DataSection({ data, loading, error }) {
 
   const visible = filtered.slice(0, shown);
   const colCount = COLUMNS.length;
-  const header = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search caption, hook, id, date..."
-        style={{ border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '6px 10px', fontSize: 13, width: 240, maxWidth: '100%', background: COLORS.paper, color: COLORS.ink }}
-      />
-      {actions}
+  const tiles = summary ? (
+    <div style={tileGrid(130)}>
+      <SocialTile label="Videos" value={num(summary.videos)} />
+      <SocialTile label="Total views" value={num(summary.total_views)} />
+      <SocialTile label="Views, last 30 days" value={num(summary.views_30d)} />
+      <SocialTile label="Posts, last 30 days" value={num(summary.posts_30d)} />
+      <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
+      <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
     </div>
-  );
+  ) : null;
 
   return (
-    <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={header}>
-      {summary ? (
-        <div style={tileGrid(130)}>
-          <SocialTile label="Videos" value={num(summary.videos)} />
-          <SocialTile label="Total views" value={num(summary.total_views)} />
-          <SocialTile label="Views, last 30 days" value={num(summary.views_30d)} />
-          <SocialTile label="Posts, last 30 days" value={num(summary.posts_30d)} />
-          <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
-          <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
-        </div>
-      ) : null}
+    <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions} always={tiles}>
 
       <div style={{ ...tableWrap, marginTop: 18 }}>
         <table style={{ ...table, minWidth: 1180 }}>
@@ -183,7 +169,7 @@ export default function DataSection({ data, loading, error }) {
                 </React.Fragment>
               );
             })}
-            {!visible.length ? <tr><td colSpan={colCount} style={{ ...td, color: COLORS.muted }}>No videos match.</td></tr> : null}
+            {!visible.length ? <tr><td colSpan={colCount} style={{ ...td, color: COLORS.muted }}>No videos yet.</td></tr> : null}
           </tbody>
         </table>
       </div>

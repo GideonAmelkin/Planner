@@ -7,6 +7,8 @@ import { COLORS, outlineButton } from '../shared/styles';
 import { num } from '../shared/format';
 
 const POLL_MS = 3000;
+// Header buttons on this tab share one minimum width so Refresh and the TikTok Data card's Drive match.
+export const HEADER_BUTTON_MIN = 72;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
 // "Summary": the latest Claude review of the recent videos: Top performers (the backend's own numbers, each opening line tagged
@@ -61,7 +63,7 @@ export default function ReviewSection({ videos }) {
   const capped = Boolean(rev && rev.throttle);   // the day's refreshes are used up
   const buttonTitle = running ? 'A new set is being written' : capped ? `${rev.throttle.cap} refreshes used today; more tomorrow` : 'Ask for a new set of hooks';
   const refreshButton = (
-    <button type="button" onClick={refresh} disabled={running || capped} title={buttonTitle} style={outlineButton(COLORS.accent, { disabled: running || capped })}>
+    <button type="button" onClick={refresh} disabled={running || capped} title={buttonTitle} style={{ ...outlineButton(COLORS.accent, { disabled: running || capped }), minWidth: HEADER_BUTTON_MIN }}>
       {running ? 'Refreshing...' : 'Refresh'}
     </button>
   );
