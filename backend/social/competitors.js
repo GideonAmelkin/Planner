@@ -89,6 +89,10 @@ function band(followers, own) {
   return '100x+';
 }
 
+// Sound titles and artist names can carry private-use and specials characters (U+FFF0..FFFF) that
+// render as boxes; keep letters, digits, marks, punctuation, symbols and spaces.
+const printable = (s) => String(s || '').replace(/[^\p{L}\p{N}\p{M}\p{P}\p{S}\p{Zs}]/gu, '').replace(/\s+/g, ' ').trim() || null;
+
 const BAND_ORDER = { Near: 0, '10x': 1, '100x+': 2 };
 const perK = (n, views) => (views ? round((Number(n) || 0) / views * 1000, 1) : null);
 
@@ -320,7 +324,7 @@ async function payload() {
   const sounds = new Map();
   for (const v of data.videos) {
     if (!v.music_id || v.music_original || !v.date_posted || v.date_posted < soundCut) continue;
-    if (!sounds.has(v.music_id)) sounds.set(v.music_id, { id: v.music_id, title: v.music_title, author: v.music_author, handles: new Set(), videos: 0 });
+    if (!sounds.has(v.music_id)) sounds.set(v.music_id, { id: v.music_id, title: printable(v.music_title), author: printable(v.music_author), handles: new Set(), videos: 0 });
     const s = sounds.get(v.music_id);
     s.handles.add(cleanHandle(v.handle));
     s.videos += 1;
