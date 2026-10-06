@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { API_BASE } from '../shared/api';
@@ -6,6 +6,7 @@ import { getCompetitors, changeCompetitor, putCompetitorSettings, saveCompetitor
 import { leaderboardRows, sortRows, TYPE_LABEL, TEXT_COLUMNS } from './competitorRows';
 import { monthDay, dateTime, multipleText } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
+import { HEADER_BUTTON_MIN } from './ReviewSection';
 import { num } from '../shared/format';
 
 const PICK_KEY = 'planner.social.competitorPick';
@@ -51,7 +52,10 @@ function Star({ on, onClick }) {
 
 const SORT_KEY = 'planner.social.competitorSort';
 const COLS_KEY = 'planner.social.competitorCols';
-// [key, header, numeric, shown by default]
+// [key, header, numeric, shown by default, header tooltip]
+const VISIBLE_ROWS = 10;
+// The header row stays put while the rows scroll under it.
+const stickyTh = { position: 'sticky', top: 0, background: COLORS.paper, zIndex: 1 };
 const COLUMNS = [
   ['account', 'Account', false, true],
   ['posted', 'Posted', false, true],
@@ -59,8 +63,8 @@ const COLUMNS = [
   ['format', 'Format', false, true],
   ['sound', 'Sound', false, false],
   ['multiple', 'Multiple', true, true],
-  ['saves', 'Saves/1k', true, true],
-  ['shares', 'Shares/1k', true, true],
+  ['saves', 'Saves', true, true, 'Saves per 1,000 views'],
+  ['shares', 'Shares', true, true, 'Shares per 1,000 views'],
   ['views', 'Views', true, true],
   ['type', 'Type', false, true],
 ];
@@ -90,6 +94,23 @@ export function Cover({ v, width = 34 }) {
   );
 }
 
+// The opening line: the first 3 seconds, then "..." to read the rest of the sentence (or of the
+// caption when the video has no speech), "less" to fold it again.
+export function OpeningLine({ v, style = null }) {
+  const [open, setOpen] = useState(false);
+  const toggle = { border: 'none', background: 'none', padding: '0 0 0 4px', cursor: 'pointer', color: COLORS.accent, fontWeight: 600, font: 'inherit' };
+  return (
+    <span style={style}>
+      <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>{v.hook || '(no opening line)'}</a>
+      {v.hook_more ? (
+        open
+          ? <><span style={{ color: COLORS.muted }}> {v.hook_more}</span><button type="button" onClick={() => setOpen(false)} style={toggle}>less</button></>
+          : <button type="button" onClick={() => setOpen(true)} style={toggle} aria-label="Read the rest of the sentence" title="Read the rest">...</button>
+      ) : null}
+    </span>
+  );
+}
+
 function MultipleCell({ v }) {
   if (v.multiple !== null && v.multiple !== undefined) return <span style={{ fontWeight: 600 }}>{multipleText(v.multiple, v.gap)}</span>;
   if (v.early_multiple) return <span style={{ color: '#2E7D4F' }} title="Under 7 days old: views so far against the account's usual views">{num(v.early_multiple, 1)}x early</span>;
@@ -114,6 +135,25 @@ function Leaderboard({ rows, onToggleSave, onNote, notes = false }) {
   const [sort, setSort] = useState(() => readJson(SORT_KEY, { key: 'multiple', dir: -1 }));
   const [cols, setCols] = useState(() => readJson(COLS_KEY, Object.fromEntries(COLUMNS.map(([k, , , on]) => [k, on]))));
   const sorted = useMemo(() => sortRows(rows, sort.key, sort.dir), [rows, sort]);
+  // The box shows exactly VISIBLE_ROWS rows (the first ten of the current sort); the rest scroll inside
+  // it. Re-measured whenever the rows resize (a "..." opened, columns changed, a narrower screen).
+  const boxRef = useRef(null);
+  const [boxHeight, setBoxHeight] = useState(null);
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box) return undefined;
+    const measure = () => {
+      const trs = box.querySelectorAll('tbody tr');
+      if (trs.length <= VISIBLE_ROWS) { setBoxHeight(null); return; }
+      const last = trs[VISIBLE_ROWS - 1];
+      setBoxHeight(last.offsetTop + last.offsetHeight + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    const body = box.querySelector('tbody');
+    if (body) ro.observe(body);
+    return () => ro.disconnect();
+  }, [sorted, cols]);
   const shown = COLUMNS.filter(([k]) => cols[k]);
   const pickSort = (key) => {
     const next = sort.key === key ? { key, dir: -sort.dir } : { key, dir: TEXT_COLUMNS.includes(key) ? 1 : -1 };
@@ -131,19 +171,19 @@ function Leaderboard({ rows, onToggleSave, onNote, notes = false }) {
         ))}
       </div>
       {sorted.length ? (
-        <div style={tableWrap}>
+        <div ref={boxRef} style={{ ...tableWrap, overflowY: 'auto', maxHeight: boxHeight || undefined }}>
           <table style={{ ...table, minWidth: 860 }}>
             <thead>
               <tr style={headRow}>
-                <th style={th} />
-                <th style={{ ...th, minWidth: 220 }}>Opening line</th>
-                {shown.map(([k, label, numeric]) => (
-                  <th key={k} onClick={() => pickSort(k)} style={{ ...(numeric ? thNum : th), cursor: 'pointer', color: sort.key === k ? COLORS.accent : undefined }}>
+                <th style={{ ...th, ...stickyTh }} />
+                <th style={{ ...th, ...stickyTh, minWidth: 220 }}>Opening line</th>
+                {shown.map(([k, label, numeric, , tip]) => (
+                  <th key={k} onClick={() => pickSort(k)} title={tip} style={{ ...(numeric ? thNum : th), ...stickyTh, cursor: 'pointer', color: sort.key === k ? COLORS.accent : undefined }}>
                     {label}{sort.key === k ? (sort.dir < 0 ? ' ↓' : ' ↑') : ''}
                   </th>
                 ))}
-                {notes ? <th style={th}>Note</th> : null}
-                <th style={th} />
+                {notes ? <th style={{ ...th, ...stickyTh }}>Note</th> : null}
+                <th style={{ ...th, ...stickyTh }} />
               </tr>
             </thead>
             <tbody>
@@ -151,7 +191,7 @@ function Leaderboard({ rows, onToggleSave, onNote, notes = false }) {
                 <tr key={v.video_id}>
                   <td style={{ ...td, width: 34 }}><Cover v={v} /></td>
                   <td style={{ ...td, maxWidth: 380 }}>
-                    <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>{v.hook || v.caption || '(no opening line)'}</a>
+                    <OpeningLine v={v} />
                   </td>
                   {shown.map(([k, , numeric]) => <td key={k} style={numeric ? tdNum : { ...td, whiteSpace: k === 'format' || k === 'sound' ? 'normal' : 'nowrap' }}>{CELL[k](v)}</td>)}
                   {notes ? (
@@ -241,7 +281,7 @@ export default function CompetitorsSection() {
       <form onSubmit={add} style={{ display: 'flex', gap: 6 }}>
         <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle" aria-label="Add a TikTok handle"
           style={{ width: 120, border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '4px 8px', fontSize: 12 }} />
-        <button type="submit" disabled={!handle.trim()} style={outlineButton(COLORS.accent, { small: true, disabled: !handle.trim() })}>Add</button>
+        <button type="submit" disabled={!handle.trim()} style={{ ...outlineButton(COLORS.accent, { disabled: !handle.trim() }), minWidth: HEADER_BUTTON_MIN }}>Add</button>
       </form>
     </span>
   ) : null;

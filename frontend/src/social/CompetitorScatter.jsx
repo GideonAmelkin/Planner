@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
 import { getCompetitors } from './api';
 import { leaderboardRows, TYPE_LABEL } from './competitorRows';
-import { compact, perK, secs, Pill, Cover, TYPE_STYLE } from './CompetitorsSection';
+import { compact, perK, secs, Pill, Cover, TYPE_STYLE, OpeningLine } from './CompetitorsSection';
 import { monthDay } from './format';
 import { COLORS } from '../shared/styles';
 import { API_BASE } from '../shared/api';
@@ -131,7 +131,7 @@ export default function CompetitorScatter() {
                 <span style={{ ...TYPE_STYLE[on.type], fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 5 }}>{TYPE_LABEL[on.type]}</span>
                 <span style={{ color: COLORS.muted }}>{monthDay(on.date_posted)}</span>
               </div>
-              <a href={on.url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: COLORS.ink, textDecoration: 'none', fontSize: 14 }}>{on.hook || on.caption || '(no opening line)'}</a>
+              <OpeningLine key={on.video_id} v={on} style={{ fontSize: 14 }} />
               {on.move ? <em style={{ color: COLORS.muted }}>{on.move}</em> : null}
               <span style={{ fontSize: 12, color: COLORS.muted }}>{[on.format, on.text_overlay ? 'text overlay' : null, secs(on.duration)].filter(Boolean).join(', ')}</span>
               <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
