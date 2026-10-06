@@ -3,6 +3,8 @@
 const { Router } = require('express');
 const social = require('./service');
 const review = require('./review');
+const comp = require('./competitors');
+const compJobs = require('./competitorJobs');
 const { asyncHandler } = require('../lib/http');
 
 const router = Router();
@@ -40,5 +42,54 @@ router.post('/social/review/generate', asyncHandler(async (req, res) => {
   res.status(status).json(body);
 }));
 
+// -- Competitors card --------------------------------------------------------------
+
+router.get('/social/competitors', asyncHandler(async (req, res) => {
+  const p = await comp.payload();
+  res.json({ ...p, job_running: compJobs.isRunning() });
+}));
+
+// What the TikTok tracker's daily pass reads (research.py competitors / discover-weekly).
+router.get('/social/competitors/handles', asyncHandler(async (req, res) => {
+  res.json(await comp.listing());
+}));
+
+// {handle, action: add | remove | approve | dismiss}
+router.post('/social/competitors/handles', asyncHandler(async (req, res) => {
+  const { handle, action } = req.body || {};
+  const { status, body } = await comp.changeHandle(String(action || 'add'), handle);
+  res.status(status).json(body);
+}));
+
+// {niche?, tags?}
+router.put('/social/competitors/settings', asyncHandler(async (req, res) => {
+  const { niche, tags } = req.body || {};
+  if (niche !== undefined) {
+    const text = String(niche).replace(/\s+/g, ' ').trim();
+    if (text.length < 20 || text.length > 600) return res.status(400).json({ error: 'niche must be 20 to 600 characters' });
+    await comp.setSetting('niche', text);
+  }
+  if (tags !== undefined) {
+    const list = (Array.isArray(tags) ? tags : String(tags).split(/[\s,]+/))
+      .map((t) => String(t).trim().replace(/^#+/, '').toLowerCase()).filter((t) => /^[a-z0-9_]{2,40}$/.test(t));
+    if (!list.length || list.length > 20) return res.status(400).json({ error: '1 to 20 hashtags' });
+    await comp.setSetting('tags', JSON.stringify([...new Set(list)]));
+  }
+  res.json({ niche: await comp.niche(), tags: await comp.tags() });
+}));
+
+router.put('/social/competitors/saves/:id', asyncHandler(async (req, res) => {
+  if (!isVideoId(req.params.id)) return res.status(400).json({ error: 'invalid video id' });
+  await comp.saveVideo(req.params.id, (req.body || {}).note);
+  res.json({ saved: true });
+}));
+
+router.delete('/social/competitors/saves/:id', asyncHandler(async (req, res) => {
+  if (!isVideoId(req.params.id)) return res.status(400).json({ error: 'invalid video id' });
+  await comp.unsaveVideo(req.params.id);
+  res.json({ saved: false });
+}));
+
 module.exports = router;
 module.exports.startReviewScheduler = review.startReviewScheduler;
+module.exports.startCompetitorScheduler = compJobs.startCompetitorScheduler;

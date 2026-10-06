@@ -2,6 +2,7 @@ require('dotenv').config();
 const agenda = require('./agenda');
 const { startWarmCache } = require('./garmin/service');
 const { startReviewScheduler } = require('./social/review');
+const { startCompetitorScheduler } = require('./social/competitorJobs');
 const { startHealthScheduler } = require('./health/scheduler');
 const { createApp } = require('./app');
 
@@ -16,4 +17,5 @@ app.listen(PORT, () => {
   startHealthScheduler();
   startWarmCache();
   startReviewScheduler();
+  startCompetitorScheduler();
 });
