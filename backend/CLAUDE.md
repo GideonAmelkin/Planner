@@ -45,15 +45,18 @@ runs the suites against a throwaway database (`PLANNER_DB_PATH`).
 | `workout/index.js` | `GET /api/workout/{status,day/:date,recent,catalog}` plus `POST /api/workout/health`, the one route on this API with a secret: `X-Workout-Token` must equal `WORKOUT_PUSH_TOKEN` (503 when unset, 401 when wrong, constant-time compare). The API has no auth otherwise, which is why nothing else writes from outside. |
 | `garmin/index.js` | Status, login, MFA, logout, endpoints, `day/:date` bundle, batch, and GET/POST `/api/garmin/:name`. |
 | `social/service.js` | Read-only reader of the TikTok tracker's `tiktok.db` (`TIKTOK_DB_PATH`, default `~/Documents/Social/TikTokAnalyzer/data/tiktok.db`): `OPEN_READONLY`, busy timeout, re-queries on mtime change, reopens if the inode changes. `rows` (every sheet column, no script), `video(id)` (with script), `summary`, `recentWindow` (last 30 days or the 20 most recent), `allTimeBest`. Never writes. |
-| `social/review.js` | The Claude review: deterministic stats (rank by views, per-1k engagement, medians, `series` = where today sits in the current run of daily posts) + `claude-opus-5` with a JSON schema output, prompt v6, a writer's brief: `hook_types` (every window video's opening line named by its move, free text) and `hooks` (10 spoken opening lines grouped by move, 4 or 5 moves with at least 2 each, Relatable always one of them, at most 12 words, open loops, banned copywriter constructions); `trigger` carries the prompt version suffix; stored in `social_reviews` beside the numbers; em dashes stripped. Cap: five manual runs per local day (failed ones count, the scheduled run does not); the button greys out at the cap. |
-| `social/index.js` | `GET /api/social/{status,videos,videos/:id,review}`, `POST /api/social/review/generate`. |
+| `social/review.js` | The Claude review: deterministic stats (rank by views, per-1k engagement, medians, `series` = where today sits in the current run of daily posts) + `claude-opus-5` with a JSON schema output, prompt v7 (adds `competitor_winners` from `competitors.winnersForReview`), a writer's brief: `hook_types` (every window video's opening line named by its move, free text) and `hooks` (10 spoken opening lines grouped by move, 4 or 5 moves with at least 2 each, Relatable always one of them, at most 12 words, open loops, banned copywriter constructions); `trigger` carries the prompt version suffix; stored in `social_reviews` beside the numbers; em dashes stripped. Cap: five manual runs per local day (failed ones count, the scheduled run does not); the button greys out at the cap. |
+| `social/research.js` | Read-only reader of the tracker's `research.db` (`RESEARCH_DB_PATH`): accounts, every video of watched / proposed / removed accounts, hook rows, snapshots; cached by mtime. `hookLine` is the tracker's HookRow.hook_line rule. |
+| `social/competitors.js` | The Competitors payload: `multiplesFor` (port of `selection.multiples_for`, Python rounding included; `test/competitors.test.js` pins it against a Python fixture), follower bands vs `own_followers`, per-1k saves and shares, velocity from snapshots, rising sounds, niche filter from `social_competitor_relevance`, labels, comment ideas, saves; the watchlist (`listing`, `changeHandle`), settings (niche, tags), `winnersForReview`. |
+| `social/competitorJobs.js` | Scheduled only (public API): Haiku 4.5 niche scores (batches of 20, 200 a run, keyed by the niche text's hash), move + format labels (`LABEL_HASH`), comments of on-niche outliers read signed out from TikTok's public comment list (2 x 50, top 30 by likes, re-read weekly under 30 days, stop on the first refusal) and tagged, the own follower count once a day; one `social_competitor_runs` row per run; 15-minute sweep that runs only when research.db or the niche changed, a capped step left work, or a new day. |
+| `social/index.js` | `GET /api/social/{status,videos,videos/:id,review}`, `POST /api/social/review/generate`; Competitors: `GET /api/social/competitors`, `GET/POST /api/social/competitors/handles` (`{handle, action: add|remove|approve|dismiss}`), `PUT /api/social/competitors/settings` (`{niche, tags}`), `PUT/DELETE /api/social/competitors/saves/:id`. |
 | `scripts/smoke.sh` | Exercises every non-OAuth route against `127.0.0.1:5002`; run after every restart. |
 | `.env` | `PORT`, `FRONTEND_URL`, `BACKEND_URL`, four OAuth secrets, `GARMIN_EMAIL` / `GARMIN_PASSWORD`, `ANTHROPIC_API_KEY` (the Social review), optional `TIKTOK_DB_PATH`, optional `HEALTH_CATCHUP_DAYS` (0 / unset = the Health store never fetches history on its own). Gitignored; the server copy is the live one. |
 | `garmin-state/` | Garmin session tokens (0700 dir, 0600 file). Gitignored; push.sh refuses it. |
 | `workout-state/` | `home_workouts.json`, the Home Workouts snapshot rsynced from the Mac. Gitignored; push.sh refuses it. `media/thumbs/` holds the app's own thumbnails plus frames the Mac renders from the clips with `tools/homeworkouts/thumbs.swift`; the Templates card falls back to the clip's first frame for the few clips AVFoundation cannot decode. |
 | `planner.db` | SQLite WAL database. Gitignored; the server copy is the real data. |
 
-## Schema (15 tables)
+## Schema (23 tables)
 
 ```
 tasks                Action Items: priority A/B/C + number, status in_process|completed|forwarded,
@@ -68,6 +71,13 @@ calendar_accounts    One row per connected account: provider, email, tokens, exp
 pull_forward_runs    Which dates were pulled forward and by what trigger (manual|auto).
 daily_tracker        Legacy; no route reads or writes it.
 garmin_cache         Garmin read results: (name, params JSON) -> payload, fetched_at epoch ms.
+social_competitors   The Competitors watchlist: handle, status watch|removed|dismissed.
+social_settings      key/value: niche, tags (JSON), own_followers.
+social_competitor_relevance  (video_id, niche_hash) -> score 0-3, topic.
+social_competitor_labels     (video_id, label_hash) -> move, format, text_overlay.
+social_competitor_comments   (video_id, cid) -> text, likes, replies, tag; social_comment_reads: last read per video.
+social_competitor_saves      The saved board: video_id, note.
+social_competitor_runs       One row per analysis job run, started before any work.
 social_reviews       One row per Claude review run (also failed ones, with error): generated_at, trigger,
                      window, video_count, newest_video_id, model, tokens, stats_json, result_json.
 health_days          The Health store: (date = Garmin calendarDate, metric) -> value JSON (the card value,

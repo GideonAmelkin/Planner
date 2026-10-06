@@ -74,13 +74,25 @@ The Social tab shows the user's TikTok account from TikTokAnalyzer's database
 (`~/Documents/Social/TikTokAnalyzer/data/tiktok.db` on RT100, override `TIKTOK_DB_PATH`).
 That tracker's 06:15 cron writes the db and then rewrites the "Tik Tok" Google Sheet from it;
 the Planner is a second, read-only reader of the same file and never writes it, so the sheet
-and the tab always show the same rows. Three stacked cards: **Next Video
-Hooks & Ideas** (a Claude Opus 5 review of the last 30 days of posts: top performers with the
-backend's own numbers and the model's "why it worked", patterns, 6 to 8 next hooks; rows in
-`social_reviews`; one run per 30 minutes and twelve per day because `/api/` is public; a 07:15
-scheduler refreshes once a day when new videos arrived; needs `ANTHROPIC_API_KEY` in the server
-`.env`), **TikTok Data** (every sheet column, search and a Drive button in the card header, sort, click a row for the transcript)
-and an empty **Competitors** card.
+and the tab always show the same rows. Three stacked cards: **Summary** (a Claude Opus 5 review
+of the last 30 days of posts: top performers with the backend's own numbers and each opening
+line's move, then 10 hooks to consider, prompt v7, which also sees the competitors' on-niche
+winners and may borrow their moves, never their words; rows in `social_reviews`; five manual
+refreshes a day because `/api/` is public; a 07:15 scheduler refreshes once a day when new videos
+arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (every sheet column,
+search and a Drive button in the card header, sort, click a row for the transcript) and
+**Competitors** (since 2026-10-05, plan `~/.claude/plans/i-have-a-list-lively-crab.md`): the
+watchlist lives in `social_competitors` (seeded with five handles, add / remove on the card, at
+most 15), the TikTok tracker reads it from `GET /api/social/competitors/handles` and writes
+`research.db` (its `research.py competitors` 09:30 and `discover-weekly` Sunday 11:00, signed out
+by default), the Mac hook job extracts competitor hooks; the Planner reads `research.db`
+read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
+minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 in a
+collapsed Adjacent strip, 2-3 shown), labels hook move and format, reads the top comments of
+on-niche outliers signed out and tags them. Per account: top outliers by the tracker's own
+multiple rule (ported to JS, pinned by a Python fixture), saves and shares per 1k, sound,
+Rising (under 7 days), Ideas from comments, All-time hits (Popular sort), follower band vs the
+user; plus Proposed (discovery, Approve / Dismiss) and Saved (star + note).
 
 The Health tab (since 2026-09-27) is the dashboard the Garmin phone app shows on its home
 screen, rebuilt over a local store that the backend fills from Garmin: Today's Activity (one
