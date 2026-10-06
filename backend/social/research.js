@@ -92,6 +92,28 @@ function hookLine(hook) {
   return onscreenAtStart(hook);
 }
 
+// The card's opening line: { line, more }. `line` is what shows; `more` is what a "..." reveals.
+// Speech: the 0-3 s words, and as `more` the rest of that sentence from the 3-8 s words (up to its
+// first . ? or !, or all of them), nothing when the 0-3 s words already end the sentence. No speech:
+// the on-screen text at 0 s. Neither: the caption's first CAPTION_WORDS words, the rest as `more`.
+const CAPTION_WORDS = 12;
+const ENDS_SENTENCE = /[.?!]["')\]]?$/;
+function openingLine(hook, caption) {
+  const spoken = ((hook && hook.hook_transcript) || '').trim();
+  if (spoken) {
+    if (ENDS_SENTENCE.test(spoken)) return { line: spoken, more: null };
+    const setup = ((hook.setup_transcript) || '').trim();
+    if (!setup) return { line: spoken, more: null };
+    const m = setup.match(/^.*?[.?!]["')\]]?(?=\s|$)/);
+    return { line: spoken, more: (m ? m[0] : setup).trim() };
+  }
+  const onscreen = hook ? onscreenAtStart(hook) : '';
+  if (onscreen) return { line: onscreen, more: null };
+  const words = String(caption || '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  if (words.length <= CAPTION_WORDS) return { line: words.join(' '), more: null };
+  return { line: words.slice(0, CAPTION_WORDS).join(' '), more: words.slice(CAPTION_WORDS).join(' ') };
+}
+
 function onscreenAtStart(hook) {
   try {
     const entries = JSON.parse(hook.onscreen_text_json || '[]');
@@ -118,4 +140,4 @@ function onscreenAll(hook) {
   }
 }
 
-module.exports = { DB_PATH, stat, load, hookLine, onscreenAtStart, onscreenAll, visuals };
+module.exports = { DB_PATH, stat, load, hookLine, openingLine, onscreenAtStart, onscreenAll, visuals };

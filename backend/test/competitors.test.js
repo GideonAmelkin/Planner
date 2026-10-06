@@ -140,3 +140,17 @@ test('coverFromHtml prefers the 240 px zoom cover', () => {
   assert.equal(coverFromHtml(page({ cover: 'big' })), 'big');
   assert.equal(coverFromHtml('<html></html>'), null);
 });
+
+test('openingLine: first 3 s plus the rest of the cut sentence, on-screen text, caption fallback', () => {
+  const { openingLine } = require('../social/research');
+  assert.deepEqual(openingLine({ hook_transcript: 'You said you wanted', setup_transcript: 'the truth. So here it is' }, ''),
+    { line: 'You said you wanted', more: 'the truth.' });
+  assert.deepEqual(openingLine({ hook_transcript: 'I just want to see', setup_transcript: 'you win bro' }, ''),
+    { line: 'I just want to see', more: 'you win bro' });
+  assert.deepEqual(openingLine({ hook_transcript: 'Done here.', setup_transcript: 'Next.' }, ''), { line: 'Done here.', more: null });
+  assert.deepEqual(openingLine({ hook_transcript: '', onscreen_text_json: JSON.stringify([{ t: 0, text: 'Read this' }]) }, 'cap'),
+    { line: 'Read this', more: null });
+  const cap = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen';
+  assert.deepEqual(openingLine(null, cap), { line: 'one two three four five six seven eight nine ten eleven twelve', more: 'thirteen fourteen' });
+  assert.deepEqual(openingLine(null, 'short caption'), { line: 'short caption', more: null });
+});

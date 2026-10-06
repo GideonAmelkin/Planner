@@ -188,7 +188,7 @@ function videoView(v, ctx) {
     views_per_day: perDay,
     first_seen_views: v.first_seen_views,
     first_seen_age_h: v.first_seen_age_h,
-    hook: research.hookLine(hook),
+    ...(({ line, more }) => ({ hook: line, hook_more: more }))(research.openingLine(hook, v.caption)),
     hook_state: !hook ? 'pending' : (hook.error ? (hook.cause || 'failed') : 'ok'),
     caption: v.caption || '',
     duration: v.duration,
