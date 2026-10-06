@@ -12,3 +12,15 @@ export const getReview = () => api.get('/social/review', okOr404).then((r) => r.
 export const generateReview = () => api.post('/social/review/generate', {}, {
   validateStatus: (s) => s === 202 || s === 409 || s === 429 || s === 503,
 }).then((r) => ({ status: r.status, ...r.data }));
+
+// Competitors card.
+export const getCompetitors = () => api.get('/social/competitors').then((r) => r.data);
+// action: add | remove | approve | dismiss. 400 bad handle, 409 at the account cap.
+export const changeCompetitor = (handle, action) => api.post('/social/competitors/handles', { handle, action }, {
+  validateStatus: (s) => s === 200 || s === 400 || s === 409,
+}).then((r) => ({ status: r.status, ...r.data }));
+export const putCompetitorSettings = (body) => api.put('/social/competitors/settings', body, {
+  validateStatus: (s) => s === 200 || s === 400,
+}).then((r) => ({ status: r.status, ...r.data }));
+export const saveCompetitorVideo = (id, note) => api.put(`/social/competitors/saves/${id}`, { note }).then((r) => r.data);
+export const unsaveCompetitorVideo = (id) => api.delete(`/social/competitors/saves/${id}`).then((r) => r.data);

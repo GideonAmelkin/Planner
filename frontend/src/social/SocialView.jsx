@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import AgendaRail from '../shared/AgendaRail';
-import SocialCard from './SocialCard';
 import ReviewSection from './ReviewSection';
 import DataSection from './DataSection';
+import CompetitorsSection from './CompetitorsSection';
 import { getSocialVideos } from './api';
 import { COLORS } from '../shared/styles';
 import { useViewDate } from '../shared/today';
@@ -10,7 +10,7 @@ import { useViewDate } from '../shared/today';
 const MAX_WIDTH = 1500;
 
 // The Social tab: three stacked cards. The review reads the recent videos; the data card is every column of the tracker's videos table (the
-// same rows the Google Sheet holds); competitors are not chosen yet.
+// same rows the Google Sheet holds); the competitors card reads the tracker's research.db.
 export default function SocialView() {
   const date = useViewDate();
   const [data, setData] = useState(null);
@@ -34,7 +34,7 @@ export default function SocialView() {
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ReviewSection videos={data && data.videos} />
           <DataSection data={data} loading={loading} error={error} />
-          <SocialCard title="Competitors" empty emptyText="No competitors selected yet." />
+          <CompetitorsSection />
           <div style={{ fontSize: 11, color: COLORS.faint }}>
             TikTok data is read from the tracker's database on this server (TikTokAnalyzer, <code>data/tiktok.db</code>), the same file its daily run writes to the Google Sheet.
           </div>
