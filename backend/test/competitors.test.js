@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 process.env.PLANNER_DB_PATH = path.join(os.tmpdir(), `planner-comp-test-${process.pid}.db`);
 process.env.RESEARCH_DB_PATH = path.join(os.tmpdir(), `research-comp-test-${process.pid}.db`);
+process.env.SOCIAL_THUMB_DIR = path.join(os.tmpdir(), `thumbs-comp-test-${process.pid}`);
 delete process.env.ANTHROPIC_API_KEY;
 
 const test = require('node:test');
@@ -17,6 +18,7 @@ const { localISO } = require('../lib/dates');
 const fixture = require('./fixtures-competitors-multiples.json');
 
 test.after(() => {
+  fs.rmSync(process.env.SOCIAL_THUMB_DIR, { recursive: true, force: true });
   for (const p of [process.env.PLANNER_DB_PATH, process.env.RESEARCH_DB_PATH]) {
     for (const suffix of ['', '-wal', '-shm']) fs.rmSync(p + suffix, { force: true });
   }
@@ -109,4 +111,24 @@ test('payload: on-niche outliers only, adjacent strip, off-niche counted, saves 
   const winners = await comp.winnersForReview(3);
   assert.equal(winners.length, 1);
   assert.equal(winners[0].opening_line, 'line 7200000000000000001');
+});
+
+test('thumb route: 400 bad id, 404 not cached, 200 with a long cache once cached', async () => {
+  const { createApp } = require('../app');
+  const server = createApp().listen(0);
+  const base = `http://127.0.0.1:${server.address().port}/api/social/thumb`;
+  try {
+    assert.equal((await fetch(`${base}/not-an-id`)).status, 400);
+    assert.equal((await fetch(`${base}/7200000000000000001`)).status, 404);
+    fs.mkdirSync(process.env.SOCIAL_THUMB_DIR, { recursive: true });
+    fs.writeFileSync(path.join(process.env.SOCIAL_THUMB_DIR, '7200000000000000001.jpg'), Buffer.alloc(600, 1));
+    const ok = await fetch(`${base}/7200000000000000001`);
+    assert.equal(ok.status, 200);
+    assert.match(ok.headers.get('cache-control'), /immutable/);
+    const p = await comp.payload();
+    const row = p.accounts.find((a) => a.handle === 'scottygange').outliers[0];
+    assert.equal(row.has_thumb, true);
+  } finally {
+    server.close();
+  }
 });

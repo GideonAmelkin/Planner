@@ -23,7 +23,7 @@ if [ $# -eq 0 ]; then
 fi
 
 protected() {
-  case "$1" in backend/.env|backend/planner.db*|backend/garmin-state*|backend/garmin/.venv*|backend/workout-state*) return 0;; esac
+  case "$1" in backend/.env|backend/planner.db*|backend/garmin-state*|backend/garmin/.venv*|backend/workout-state*|backend/social-state*) return 0;; esac
   return 1
 }
 

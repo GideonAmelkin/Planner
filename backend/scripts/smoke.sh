@@ -58,6 +58,7 @@ check competitors          200 GET  /social/competitors
 check competitors-handles  200 GET  /social/competitors/handles
 check competitors-bad      400 POST /social/competitors/handles '{"handle":"not a handle!","action":"add"}'
 check competitors-badsave  400 PUT  /social/competitors/saves/not-an-id '{}'
+check competitor-thumb-bad 400 GET  /social/thumb/not-an-id
 
 check task-create 200 POST  /tasks "{\"date\":\"$TODAY\",\"text\":\"SMOKE-TEST task\",\"priority\":\"C\"}"; TID=$(id)
 check task-patch    200 PATCH "/tasks/$TID" '{"text":"SMOKE-TEST task edited","status":"completed"}'

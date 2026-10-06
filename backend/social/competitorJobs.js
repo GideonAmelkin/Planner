@@ -16,6 +16,7 @@ const { run, get, all } = require('../db');
 const { localISO } = require('../lib/dates');
 const research = require('./research');
 const comp = require('./competitors');
+const thumbs = require('./thumbs');
 const social = require('./service');
 
 const MODEL = 'claude-haiku-4-5';
@@ -295,6 +296,29 @@ async function retagStep(data, totals) {
   }
 }
 
+// -- 3b. covers ------------------------------------------------------------------------
+
+const THUMB_CAP = 80;
+// Every video the card can show (outliers, rising, all-time hits, adjacent, saved) without a cached
+// cover, fetched signed out, 2-4 s apart; the first refusal ends the step until the next run.
+async function thumbStep(totals) {
+  const p = await comp.payload();
+  if (!p.available) return;
+  const cached = thumbs.cachedIds();
+  const seen = new Set();
+  const todo = [];
+  const want = (v) => { if (v && !seen.has(v.video_id) && !cached.has(v.video_id)) { seen.add(v.video_id); todo.push(v); } };
+  for (const a of p.accounts) for (const k of ['outliers', 'rising', 'popular', 'adjacent']) a[k].forEach(want);
+  p.saved.forEach(want);
+  for (const [n, v] of todo.slice(0, THUMB_CAP).entries()) {
+    if (n) await sleep(2000 + Math.floor(Math.random() * 2000));
+    let status;
+    try { status = await thumbs.fetchCover(v.video_id, v.url); } catch (err) { status = `refused ${err.message}`; }
+    if (status === 'ok') { totals.thumbs += 1; continue; }
+    if (status.startsWith('refused')) { console.warn(`[social] cover ${v.video_id}: ${status}; stopping covers this run`); break; }
+  }
+}
+
 // -- 4. own follower count -----------------------------------------------------------------
 
 async function ownFollowersStep() {
@@ -323,7 +347,7 @@ function add(totals, usage) {
 async function runJob() {
   if (running || !hasKey()) return null;
   running = true;
-  const totals = { scored: 0, labeled: 0, comment_videos: 0, tagged: 0, input_tokens: 0, output_tokens: 0 };
+  const totals = { scored: 0, labeled: 0, comment_videos: 0, tagged: 0, input_tokens: 0, output_tokens: 0, thumbs: 0 };
   const startedAt = now();
   const { lastID } = await run('INSERT INTO social_competitor_runs (started_at) VALUES (?)', [startedAt]);
   let error = null;
@@ -336,6 +360,7 @@ async function runJob() {
       await labelStep(data, watch, totals);
       await commentStep(totals);
       await retagStep(data, totals);
+      await thumbStep(totals);
     }
   } catch (err) {
     error = err.message || String(err);
@@ -344,11 +369,11 @@ async function runJob() {
     running = false;
   }
   await run(`UPDATE social_competitor_runs SET finished_at = ?, scored = ?, labeled = ?, comment_videos = ?, tagged = ?,
-    input_tokens = ?, output_tokens = ?, error = ? WHERE id = ?`,
-  [now(), totals.scored, totals.labeled, totals.comment_videos, totals.tagged, totals.input_tokens, totals.output_tokens, error, lastID]);
-  if (totals.scored || totals.labeled || totals.comment_videos || error) {
+    input_tokens = ?, output_tokens = ?, thumbs = ?, error = ? WHERE id = ?`,
+  [now(), totals.scored, totals.labeled, totals.comment_videos, totals.tagged, totals.input_tokens, totals.output_tokens, totals.thumbs, error, lastID]);
+  if (totals.scored || totals.labeled || totals.comment_videos || totals.thumbs || error) {
     console.log(`[social] competitor job: ${totals.scored} scored, ${totals.labeled} labeled, ${totals.comment_videos} comment reads, `
-      + `${totals.tagged} tagged, ${totals.input_tokens} in / ${totals.output_tokens} out${error ? `, error ${error}` : ''}`);
+      + `${totals.tagged} tagged, ${totals.thumbs} covers, ${totals.input_tokens} in / ${totals.output_tokens} out${error ? `, error ${error}` : ''}`);
   }
   return { ...totals, error };
 }

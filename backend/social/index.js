@@ -5,6 +5,7 @@ const social = require('./service');
 const review = require('./review');
 const comp = require('./competitors');
 const compJobs = require('./competitorJobs');
+const thumbs = require('./thumbs');
 const { asyncHandler } = require('../lib/http');
 
 const router = Router();
@@ -71,6 +72,15 @@ router.put('/social/competitors/settings', asyncHandler(async (req, res) => {
   }
   res.json({ niche: await comp.niche() });
 }));
+
+// A competitor video's cover from the server's cache (filled by the competitor job). Covers never
+// change, so the browser may keep them for 30 days.
+router.get('/social/thumb/:id', (req, res) => {
+  if (!thumbs.isVideoId(req.params.id)) return res.status(400).json({ error: 'invalid video id' });
+  if (!thumbs.has(req.params.id)) return res.status(404).json({ error: 'no cover cached' });
+  res.set('Cache-Control', 'public, max-age=2592000, immutable');
+  return res.sendFile(thumbs.fileFor(req.params.id));
+});
 
 router.put('/social/competitors/saves/:id', asyncHandler(async (req, res) => {
   if (!isVideoId(req.params.id)) return res.status(400).json({ error: 'invalid video id' });

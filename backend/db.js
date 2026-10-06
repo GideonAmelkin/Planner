@@ -283,8 +283,10 @@ db.serialize(() => {
     tagged INTEGER,
     input_tokens INTEGER,
     output_tokens INTEGER,
-    error TEXT
+    error TEXT,
+    thumbs INTEGER
   )`);
+  db.run('ALTER TABLE social_competitor_runs ADD COLUMN thumbs INTEGER', () => {});
 
   db.run(`CREATE TABLE IF NOT EXISTS pull_forward_runs (
     date TEXT PRIMARY KEY,

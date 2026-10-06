@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const { run, get, all } = require('../db');
 const { localISO } = require('../lib/dates');
 const research = require('./research');
+const thumbs = require('./thumbs');
 
 const WINDOW_DAYS = 90;
 const MIN_AGE_DAYS = 7;
@@ -207,6 +208,7 @@ function videoView(v, ctx) {
     move: label ? label.move : null,
     format: label ? label.format : null,
     text_overlay: label ? Boolean(label.text_overlay) : null,
+    has_thumb: Boolean(ctx.thumbs && ctx.thumbs.has(v.video_id)),
     saved: Boolean(save),
     note: save ? save.note : null,
   };
@@ -230,6 +232,7 @@ async function payload() {
   const today = localISO();
   const start = isoDaysAgo(WINDOW_DAYS, today);
   const p = await plannerRows(nh);
+  const cached = thumbs.cachedIds();
   const byHandle = new Map();
   for (const v of data.videos) {
     const h = cleanHandle(v.handle);
@@ -242,7 +245,7 @@ async function payload() {
   for (const handle of list.watch) {
     const vids = byHandle.get(handle) || [];
     const multiples = multiplesFor(vids, today);
-    const ctx = { data, p, multiples };
+    const ctx = { data, p, multiples, thumbs: cached };
     const a = ledger.get(handle) || {};
     const views = vids.map((v) => videoView(v, ctx));
     all_.push(...views);

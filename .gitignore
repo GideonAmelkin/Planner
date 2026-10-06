@@ -13,6 +13,7 @@
 # secrets / env
 backend/garmin-state/
 backend/garmin/.venv/
+backend/social-state/
 .env
 .env.local
 .env.*.local
