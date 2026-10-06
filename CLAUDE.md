@@ -86,16 +86,16 @@ watchlist lives in `social_competitors` (seeded with five handles, add / remove 
 most 15), the TikTok tracker reads it from `GET /api/social/competitors/handles` and writes
 `research.db` (the accounts' videos come from a signed-out yt-dlp listing on the Mac in the hook
 job, because TikTok refuses the server's signed-out browser on profile grids; `research.py
-competitors` 09:30 probes follower counts, `discover-weekly` Sunday 11:00 reads niche hashtag pages
-signed out), the Mac hook job extracts hooks for card-eligible videos only (2x outliers, Rising,
-Popular top 10, discovery candidates); the Planner reads `research.db`
+competitors` 09:30 probes follower counts; nothing in the feature signs in to TikTok), the Mac hook
+job extracts hooks for card-eligible videos only (2x outliers, Rising, Popular top 10); the Planner reads `research.db`
 read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
 minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 in a
 collapsed Adjacent strip, 2-3 shown), labels hook move and format, reads the top comments of
 on-niche outliers signed out and tags them. Per account: top outliers by the tracker's own
 multiple rule (ported to JS, pinned by a Python fixture), saves and shares per 1k, sound,
 Rising (under 7 days), Ideas from comments, All-time hits (Popular sort), follower band vs the
-user; plus Proposed (discovery, Approve / Dismiss) and Saved (star + note).
+user; plus Saved (star + note). The user adds every account by hand; there is no discovery or
+proposal step (removed 2026-10-06).
 
 The Health tab (since 2026-09-27) is the dashboard the Garmin phone app shows on its home
 screen, rebuilt over a local store that the backend fills from Garmin: Today's Activity (one

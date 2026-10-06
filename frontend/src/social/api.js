@@ -15,7 +15,7 @@ export const generateReview = () => api.post('/social/review/generate', {}, {
 
 // Competitors card.
 export const getCompetitors = () => api.get('/social/competitors').then((r) => r.data);
-// action: add | remove | approve | dismiss. 400 bad handle, 409 at the account cap.
+// action: add | remove. 400 bad handle, 409 at the account cap.
 export const changeCompetitor = (handle, action) => api.post('/social/competitors/handles', { handle, action }, {
   validateStatus: (s) => s === 200 || s === 400 || s === 409,
 }).then((r) => ({ status: r.status, ...r.data }));

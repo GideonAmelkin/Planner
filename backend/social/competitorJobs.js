@@ -96,8 +96,8 @@ function videoInput(v, hook) {
   };
 }
 
-// Videos the card can show: watched accounts' videos in the window or on Popular, and
-// discovery candidates; only once their hook row exists (the Mac has processed them).
+// Videos the card can show: watched accounts' videos in the window or on Popular, only once
+// their hook row exists (the Mac has processed them).
 function candidates(data, watch) {
   const start = comp.isoDaysAgo(comp.WINDOW_DAYS);
   const status = new Map(data.accounts.map((a) => [a.handle, a.status]));
@@ -106,7 +106,6 @@ function candidates(data, watch) {
     const s = status.get(h);
     if (!data.hookById.has(v.video_id)) return false;
     if (s === 'watch' && watch.has(h)) return (v.date_posted && v.date_posted >= start) || v.in_popular;
-    if (s === 'proposed') return Boolean(v.discovered_tag);
     return false;
   });
 }

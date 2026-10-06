@@ -194,31 +194,6 @@ function AccountPanel({ a, onToggleSave, onRemove }) {
   );
 }
 
-function ProposedPanel({ proposed, onDecide }) {
-  if (!proposed.length) return <div style={muted}>No proposals yet. Discovery reads the niche hashtags every Sunday.</div>;
-  return proposed.map((p) => (
-    <div key={p.handle} style={{ padding: '10px 0', borderBottom: `1px solid ${COLORS.hairline}` }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-        <div style={{ fontSize: 13 }}>
-          <a href={`https://www.tiktok.com/@${p.handle}`} target="_blank" rel="noreferrer" style={tableLink}>@{p.handle}</a>
-          <span style={{ color: COLORS.muted }}> {'·'} {compact(p.followers)} followers {'·'} {p.band} {'·'} {p.tags.map((t) => `#${t}`).join(' ')}</span>
-        </div>
-        <span style={{ display: 'flex', gap: 6 }}>
-          <button type="button" onClick={() => onDecide(p.handle, 'approve')} style={outlineButton(COLORS.accent, { small: true })}>Approve</button>
-          <button type="button" onClick={() => onDecide(p.handle, 'dismiss')} style={outlineButton(COLORS.muted, { small: true })}>Dismiss</button>
-        </span>
-      </div>
-      {p.videos.map((v) => (
-        <div key={v.video_id} style={{ fontSize: 13, padding: '4px 0 0' }}>
-          <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, color: COLORS.ink, fontWeight: 500 }}>{v.hook || v.caption}</a>
-          {v.move ? <em style={{ color: COLORS.muted, fontSize: 12, marginLeft: 6 }}>{v.move}</em> : null}
-          <span style={{ color: COLORS.muted }}> {'·'} {compact(v.views)} views, {num(v.views_per_follower, 1)}x followers</span>
-        </div>
-      ))}
-    </div>
-  ));
-}
-
 function SavedPanel({ saved, onToggleSave, onNote }) {
   if (!saved.length) return <div style={muted}>Nothing saved. Use the star on any row.</div>;
   return saved.map((v) => (
@@ -240,14 +215,14 @@ function SavedPanel({ saved, onToggleSave, onNote }) {
   ));
 }
 
-// The Competitors card: one account at a time behind pills, plus Proposed (discovery) and Saved.
+// The Competitors card: one account at a time behind pills, plus Saved. The user adds every account.
 export default function CompetitorsSection() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [pick, setPick] = useState(readPick());
   const [notice, setNotice] = useState(null);
   const [handle, setHandle] = useState('');
-  const [editing, setEditing] = useState(null);   // null | 'niche' | 'tags'
+  const [editing, setEditing] = useState(false);   // the niche editor is open
   const [draft, setDraft] = useState('');
 
   const load = useCallback(() => getCompetitors().then((d) => { setData(d); setError(null); }).catch((e) => setError(e.message)), []);
@@ -264,26 +239,24 @@ export default function CompetitorsSection() {
     choose(r.handle);
     load();
   };
-  const decide = async (h, action) => { const r = await changeCompetitor(h, action); if (r.status !== 200) setNotice(r.error); load(); };
-  const remove = (h) => decide(h, 'remove');
+  const remove = async (h) => { const r = await changeCompetitor(h, 'remove'); if (r.status !== 200) setNotice(r.error); load(); };
   const toggleSave = async (v) => { if (v.saved) await unsaveCompetitorVideo(v.video_id); else await saveCompetitorVideo(v.video_id, null); load(); };
   const saveNote = async (v, note) => { if ((v.note || '') !== note) { await saveCompetitorVideo(v.video_id, note); load(); } };
-  const startEdit = (what) => {
-    if (editing === what) { setEditing(null); return; }
-    setEditing(what);
-    setDraft(what === 'niche' ? data.niche : data.tags.map((t) => `#${t}`).join(' '));
+  const startEdit = () => {
+    if (editing) { setEditing(false); return; }
+    setEditing(true);
+    setDraft(data.niche);
   };
   const saveEdit = async () => {
-    const r = await putCompetitorSettings(editing === 'niche' ? { niche: draft } : { tags: draft });
+    const r = await putCompetitorSettings({ niche: draft });
     if (r.status !== 200) { setNotice(r.error); return; }
-    setEditing(null);
+    setEditing(false);
     load();
   };
 
   const actions = data ? (
     <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <button type="button" onClick={() => startEdit('niche')} style={outlineButton(COLORS.muted, { small: true })}>Niche</button>
-      <button type="button" onClick={() => startEdit('tags')} style={outlineButton(COLORS.muted, { small: true })}>Tags</button>
+      <button type="button" onClick={startEdit} style={outlineButton(COLORS.muted, { small: true })}>Niche</button>
       <form onSubmit={add} style={{ display: 'flex', gap: 6 }}>
         <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle" aria-label="Add a TikTok handle"
           style={{ width: 120, border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '4px 8px', fontSize: 12 }} />
@@ -297,7 +270,7 @@ export default function CompetitorsSection() {
 
   const accounts = data.accounts || [];
   const handles = accounts.map((a) => a.handle);
-  const current = pick === 'proposed' || pick === 'saved' ? pick : (handles.includes(pick) ? pick : handles[0] || 'proposed');
+  const current = pick === 'saved' ? pick : (handles.includes(pick) ? pick : handles[0] || 'saved');
   const account = accounts.find((a) => a.handle === current);
   const moves = data.winning.moves.map(([m, n]) => `${m} ${n}`).join(', ');
   const formats = data.winning.formats.map(([f, n]) => `${f} ${n}`).join(', ');
@@ -308,12 +281,12 @@ export default function CompetitorsSection() {
       {notice ? <div style={{ fontSize: 13, color: COLORS.danger, marginBottom: 8 }}>{notice}</div> : null}
       {editing ? (
         <div style={{ marginBottom: 12 }}>
-          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={editing === 'niche' ? 3 : 2}
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}
             style={{ width: '100%', boxSizing: 'border-box', border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: 8, fontSize: 13, fontFamily: 'inherit' }} />
           <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
             <button type="button" onClick={saveEdit} style={outlineButton(COLORS.accent, { small: true })}>Save</button>
-            <button type="button" onClick={() => setEditing(null)} style={outlineButton(COLORS.muted, { small: true })}>Cancel</button>
-            <span style={{ fontSize: 11, color: COLORS.muted, alignSelf: 'center' }}>{editing === 'niche' ? 'Changing the niche rescores every video.' : 'Discovery reads these hashtags every Sunday.'}</span>
+            <button type="button" onClick={() => setEditing(false)} style={outlineButton(COLORS.muted, { small: true })}>Cancel</button>
+            <span style={{ fontSize: 11, color: COLORS.muted, alignSelf: 'center' }}>Changing the niche rescores every video.</span>
           </div>
         </div>
       ) : null}
@@ -334,13 +307,11 @@ export default function CompetitorsSection() {
             @{a.handle}{a.band ? <span style={{ fontWeight: 400, color: COLORS.muted }}> {a.band}</span> : null}
           </Pill>
         ))}
-        <Pill active={current === 'proposed'} onClick={() => choose('proposed')}>Proposed ({data.proposed.length})</Pill>
         <Pill active={current === 'saved'} onClick={() => choose('saved')}>Saved ({data.saved.length})</Pill>
       </div>
 
       {!data.available ? <div style={muted}>The tracker's research database is not on this server yet.</div> : null}
       {data.available && account ? <AccountPanel a={account} onToggleSave={toggleSave} onRemove={remove} /> : null}
-      {data.available && current === 'proposed' ? <ProposedPanel proposed={data.proposed} onDecide={decide} /> : null}
       {data.available && current === 'saved' ? <SavedPanel saved={data.saved} onToggleSave={toggleSave} onNote={saveNote} /> : null}
 
       <div style={{ fontSize: 11, color: COLORS.faint, marginTop: 16 }}>

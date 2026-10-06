@@ -22,8 +22,6 @@ const DEFAULT_OWN_FOLLOWERS = 5006;   // read from the own video page 2026-10-05
 
 const DEFAULT_NICHE = 'Motivation and positivity: daily encouragement, mindset, gratitude, talking to camera. '
   + 'Plus self-improvement challenges: personal growth journeys, 30-day challenges, discipline, documenting progress.';
-const DEFAULT_TAGS = ['motivation', 'dailymotivation', 'positivity', 'mindset', 'gratitude', 'selfimprovement',
-  'discipline', 'growthmindset', '30daychallenge', 'consistency', 'levelup', 'glowup'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isoDaysAgo = (days, today = localISO()) => localISO(new Date(Date.parse(`${today}T12:00:00`) - days * DAY_MS));
@@ -110,10 +108,6 @@ async function setSetting(key, value) {
 }
 
 async function niche() { return setting('niche', DEFAULT_NICHE); }
-async function tags() {
-  const raw = await setting('tags', null);
-  try { return raw ? JSON.parse(raw) : DEFAULT_TAGS; } catch (_) { return DEFAULT_TAGS; }
-}
 async function ownFollowers() { return Number(await setting('own_followers', DEFAULT_OWN_FOLLOWERS)) || DEFAULT_OWN_FOLLOWERS; }
 const nicheHash = (text) => hash(text);
 
@@ -122,22 +116,22 @@ const nicheHash = (text) => hash(text);
 async function listing() {
   const rows = await all('SELECT handle, status FROM social_competitors ORDER BY handle');
   const by = (s) => rows.filter((r) => r.status === s).map((r) => r.handle);
-  return { watch: by('watch'), removed: by('removed'), dismissed: by('dismissed'), tags: await tags() };
+  return { watch: by('watch'), removed: by('removed') };
 }
 
-// add | remove | approve | dismiss. Returns {status, body}.
+// add | remove. Returns {status, body}.
 async function changeHandle(action, raw) {
   const h = cleanHandle(raw);
   if (!isHandle(h)) return { status: 400, body: { error: 'not a TikTok handle' } };
   const now = new Date().toISOString();
-  if (action === 'add' || action === 'approve') {
+  if (action === 'add') {
     const watching = (await get("SELECT COUNT(*) AS n FROM social_competitors WHERE status = 'watch'")).n;
     const existing = await get('SELECT status FROM social_competitors WHERE handle = ?', [h]);
     if (!(existing && existing.status === 'watch') && watching >= MAX_WATCH) {
       return { status: 409, body: { error: `at most ${MAX_WATCH} accounts` } };
     }
   }
-  const status = { add: 'watch', approve: 'watch', remove: 'removed', dismiss: 'dismissed' }[action];
+  const status = { add: 'watch', remove: 'removed' }[action];
   if (!status) return { status: 400, body: { error: 'unknown action' } };
   await run(`INSERT INTO social_competitors (handle, status, added_at, updated_at) VALUES (?, ?, ?, ?)
     ON CONFLICT(handle) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at`, [h, status, now, now]);
@@ -230,10 +224,9 @@ async function payload() {
     updated_at: data ? data.mtime : null,
     own_followers: own,
     niche: nicheText,
-    tags: list.tags,
     watchlist: list.watch,
   };
-  if (!data) return { ...base, accounts: [], proposed: [], saved: [], winning: { moves: [], formats: [] }, rising_sounds: [] };
+  if (!data) return { ...base, accounts: [], saved: [], winning: { moves: [], formats: [] }, rising_sounds: [] };
   const today = localISO();
   const start = isoDaysAgo(WINDOW_DAYS, today);
   const p = await plannerRows(nh);
@@ -295,23 +288,6 @@ async function payload() {
   }
   accounts.sort((x, y) => (BAND_ORDER[x.band] ?? 3) - (BAND_ORDER[y.band] ?? 3) || x.handle.localeCompare(y.handle));
 
-  // Proposed by discovery: their candidate videos, on-niche only.
-  const proposed = [];
-  for (const a of data.accounts.filter((x) => x.status === 'proposed' && !list.dismissed.includes(x.handle) && !list.watch.includes(x.handle))) {
-    const ctx = { data, p, multiples: new Map() };
-    const vids = (byHandle.get(a.handle) || []).filter((v) => v.discovered_tag).map((v) => videoView(v, ctx));
-    const onNiche = vids.filter((v) => v.score !== null && v.score >= 2);
-    let disc = {};
-    try { disc = JSON.parse(a.discovery_json || '{}'); } catch (_) { /* ignore */ }
-    if (!onNiche.length) continue;
-    proposed.push({
-      handle: a.handle, followers: a.followers, band: band(a.followers, own), tags: disc.tags || [],
-      best_ratio: disc.best_ratio || null, found_at: disc.found_at || null,
-      videos: onNiche.map((v) => ({ ...v, views_per_follower: a.followers ? round(v.views / a.followers, 1) : null })),
-    });
-  }
-  proposed.sort((x, y) => (BAND_ORDER[x.band] ?? 3) - (BAND_ORDER[y.band] ?? 3) || (y.best_ratio || 0) - (x.best_ratio || 0));
-
   // Winning moves and formats across every account's on-niche outliers.
   const tally = (key) => {
     const counts = new Map();
@@ -339,7 +315,6 @@ async function payload() {
   return {
     ...base,
     accounts,
-    proposed,
     saved,
     winning: { moves: tally('move'), formats: tally('format') },
     rising_sounds: risingSounds,
@@ -367,7 +342,7 @@ async function unsaveVideo(videoId) {
 }
 
 module.exports = {
-  WINDOW_DAYS, OUTLIER_MIN, LABEL_HASH, DEFAULT_NICHE, DEFAULT_TAGS, MAX_WATCH,
-  multiplesFor, band, median, cleanHandle, isHandle, nicheHash, niche, tags, ownFollowers, setSetting,
+  WINDOW_DAYS, OUTLIER_MIN, LABEL_HASH, DEFAULT_NICHE, MAX_WATCH,
+  multiplesFor, band, median, cleanHandle, isHandle, nicheHash, niche, ownFollowers, setSetting,
   listing, changeHandle, payload, winnersForReview, saveVideo, unsaveVideo, isoDaysAgo,
 };

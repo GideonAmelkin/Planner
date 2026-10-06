@@ -49,7 +49,7 @@ async function columns(db, table) {
 }
 
 // Everything the card needs, cached by mtime: accounts, every video of every account that
-// is watched, proposed or removed, their hook rows and snapshots. null when the file is absent
+// is watched or removed, their hook rows and snapshots. null when the file is absent
 // or predates the competitor columns.
 async function load() {
   const st = stat();
@@ -60,7 +60,7 @@ async function load() {
   if (!acols.has('status')) return null;
   const accounts = await all(db, 'SELECT * FROM accounts ORDER BY handle');
   const videos = await all(db, `SELECT v.* FROM research_videos v JOIN accounts a ON a.handle = lower(v.handle)
-    WHERE a.status IN ('watch', 'proposed', 'removed')`);
+    WHERE a.status IN ('watch', 'removed')`);
   const ids = new Set(videos.map((v) => v.video_id));
   const hooks = (await all(db, `SELECT video_id, whisper_model, hook_transcript, setup_transcript, full_transcript,
     onscreen_text_json, visual_json, duration, error, cause, attempts FROM hooks`)).filter((h) => ids.has(h.video_id));
