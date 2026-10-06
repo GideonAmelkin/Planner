@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink, blockLabel } from './SocialTable';
+import { API_BASE } from '../shared/api';
 import { getCompetitors, changeCompetitor, putCompetitorSettings, saveCompetitorVideo, unsaveCompetitorVideo } from './api';
-import { monthDay, shortDate, dateTime, multipleText } from './format';
+import { leaderboardRows, sortRows, TYPE_LABEL, TEXT_COLUMNS } from './competitorRows';
+import { monthDay, dateTime, multipleText } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
 import { num } from '../shared/format';
 
@@ -23,11 +25,6 @@ const secs = (d) => (d ? `${Math.round(d)} s` : null);
 
 function readPick() { try { return localStorage.getItem(PICK_KEY); } catch (_) { return null; } }
 function writePick(v) { try { localStorage.setItem(PICK_KEY, v); } catch (_) { /* ignore */ } }
-
-// "Confession, talking head, text overlay, 45 s"
-function recipe(v) {
-  return [v.format, v.text_overlay ? 'text overlay' : null, secs(v.duration)].filter(Boolean).join(', ');
-}
 
 function soundText(s) {
   if (!s) return '-';
@@ -52,70 +49,150 @@ function Star({ on, onClick }) {
   );
 }
 
-// Hook line linked to the video, ending in its move in italics; the recipe underneath.
-function HookCell({ v }) {
-  return (
-    <td style={td}>
-      <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>
-        {v.hook || v.caption || '(no opening line)'}
-      </a>
-      {v.move ? <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 12, marginLeft: 6 }}>{v.move}</em> : null}
-      {recipe(v) ? <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>{recipe(v)}</div> : null}
-    </td>
-  );
-}
+const SORT_KEY = 'planner.social.competitorSort';
+const COLS_KEY = 'planner.social.competitorCols';
+const ADJ_KEY = 'planner.social.competitorAdjacent';
+// [key, header, numeric, shown by default]
+const COLUMNS = [
+  ['account', 'Account', false, true],
+  ['posted', 'Posted', false, true],
+  ['move', 'Move', false, true],
+  ['format', 'Format', false, true],
+  ['sound', 'Sound', false, false],
+  ['multiple', 'Multiple', true, true],
+  ['saves', 'Saves/1k', true, true],
+  ['shares', 'Shares/1k', true, true],
+  ['views', 'Views', true, true],
+  ['type', 'Type', false, true],
+];
 
-const SORTS = {
-  multiple: (v) => v.multiple || 0,
-  saves_per_k: (v) => v.saves_per_k || 0,
-  shares_per_k: (v) => v.shares_per_k || 0,
-  views: (v) => v.views || 0,
+function readJson(key, fallback) {
+  try { const raw = localStorage.getItem(key); return raw ? { ...fallback, ...JSON.parse(raw) } : fallback; } catch (_) { return fallback; }
+}
+function writeJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* ignore */ } }
+
+const TYPE_STYLE = {
+  outlier: { background: COLORS.page, color: COLORS.muted },
+  rising: { background: '#E7F5EC', color: '#2E7D4F' },
+  popular: { background: COLORS.todayCell, color: COLORS.calloutText },
+  adjacent: { background: COLORS.page, color: COLORS.faint },
 };
 
-function OutlierTable({ rows, onToggleSave, showHandle = false }) {
-  const [sort, setSort] = useState('multiple');
-  const sorted = useMemo(() => [...rows].sort((a, b) => SORTS[sort](b) - SORTS[sort](a)), [rows, sort]);
-  const head = (key, label, title) => (
-    <th style={{ ...thNum, cursor: 'pointer', color: sort === key ? COLORS.accent : undefined }} title={title} onClick={() => setSort(key)}>{label}</th>
-  );
+// The video's cover from the server's cache, 9:16, linking to the video; a neutral tile when the
+// cover is not cached yet.
+function Cover({ v, width = 34 }) {
+  const box = { display: 'block', width, aspectRatio: '9 / 16', borderRadius: 5, overflow: 'hidden', background: COLORS.hairline, flex: 'none' };
   return (
-    <div style={tableWrap}>
-      <table style={{ ...table, minWidth: 760 }}>
-        <thead>
-          <tr style={headRow}>
-            <th style={th}>Posted</th>
-            {showHandle ? <th style={th}>Account</th> : null}
-            <th style={{ ...th, width: '40%' }}>Opening line</th>
-            <th style={th}>Sound</th>
-            {head('multiple', 'Multiple', 'Views relative to the account\'s own last 20 posts; 1.0x is normal')}
-            {head('saves_per_k', 'Saves/1k')}
-            {head('shares_per_k', 'Shares/1k')}
-            {head('views', 'Views')}
-            <th style={th} />
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((v) => (
-            <tr key={v.video_id}>
-              <td style={{ ...td, whiteSpace: 'nowrap' }}>{monthDay(v.date_posted)}</td>
-              {showHandle ? <td style={{ ...td, whiteSpace: 'nowrap' }}>@{v.handle}</td> : null}
-              <HookCell v={v} />
-              <td style={{ ...td, fontSize: 12, color: COLORS.muted, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v.sound ? `${v.sound.title || ''} ${v.sound.author ? `by ${v.sound.author}` : ''}` : ''}>{soundText(v.sound)}</td>
-              <td style={{ ...tdNum, fontWeight: 600 }}>{multipleText(v.multiple, v.gap)}</td>
-              <td style={tdNum}>{perK(v.saves_per_k)}</td>
-              <td style={tdNum}>{perK(v.shares_per_k)}</td>
-              <td style={tdNum} title={v.views_per_day !== null ? `${num(v.views_per_day)} views a day lately` : ''}>{compact(v.views)}</td>
-              <td style={{ ...td, textAlign: 'center' }}><Star on={v.saved} onClick={() => onToggleSave(v)} /></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <a href={v.url} target="_blank" rel="noreferrer" style={box} title="Open on TikTok">
+      {v.has_thumb
+        ? <img src={`${API_BASE}/social/thumb/${v.video_id}`} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 9, color: COLORS.muted }}>{v.multiple ? `${num(v.multiple, 0)}x` : ''}</span>}
+    </a>
   );
 }
 
-function AccountPanel({ a, onToggleSave, onRemove }) {
-  const [openAdjacent, setOpenAdjacent] = useState(false);
+function MultipleCell({ v }) {
+  if (v.multiple !== null && v.multiple !== undefined) return <span style={{ fontWeight: 600 }}>{multipleText(v.multiple, v.gap)}</span>;
+  if (v.early_multiple) return <span style={{ color: '#2E7D4F' }} title="Under 7 days old: views so far against the account's usual views">{num(v.early_multiple, 1)}x early</span>;
+  return '-';
+}
+
+const CELL = {
+  account: (v) => <span style={{ color: COLORS.accent, fontWeight: 600 }}>@{v.handle}</span>,
+  posted: (v) => monthDay(v.date_posted),
+  move: (v) => <em style={{ color: COLORS.muted }}>{v.move || ''}</em>,
+  format: (v) => <span style={{ color: COLORS.muted }}>{[v.format, v.text_overlay ? 'text overlay' : null, secs(v.duration)].filter(Boolean).join(', ')}</span>,
+  sound: (v) => <span style={{ color: COLORS.muted }} title={v.sound ? `${v.sound.title || ''}${v.sound.author ? ` by ${v.sound.author}` : ''}` : ''}>{soundText(v.sound)}</span>,
+  multiple: (v) => <MultipleCell v={v} />,
+  saves: (v) => perK(v.saves_per_k),
+  shares: (v) => perK(v.shares_per_k),
+  views: (v) => <span title={v.views_per_day !== null && v.views_per_day !== undefined ? `${num(v.views_per_day)} views a day lately` : ''}>{compact(v.views)}</span>,
+  type: (v) => <span style={{ ...TYPE_STYLE[v.type], fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 5, whiteSpace: 'nowrap' }}>{TYPE_LABEL[v.type]}</span>,
+};
+
+// The leaderboard: one sortable table, a cover on every row; sort and visible columns are remembered.
+function Leaderboard({ rows, onToggleSave, onNote, notes = false }) {
+  const [sort, setSort] = useState(() => readJson(SORT_KEY, { key: 'multiple', dir: -1 }));
+  const [cols, setCols] = useState(() => readJson(COLS_KEY, Object.fromEntries(COLUMNS.map(([k, , , on]) => [k, on]))));
+  const sorted = useMemo(() => sortRows(rows, sort.key, sort.dir), [rows, sort]);
+  const shown = COLUMNS.filter(([k]) => cols[k]);
+  const pickSort = (key) => {
+    const next = sort.key === key ? { key, dir: -sort.dir } : { key, dir: TEXT_COLUMNS.includes(key) ? 1 : -1 };
+    setSort(next);
+    writeJson(SORT_KEY, next);
+  };
+  const toggleCol = (key) => { const next = { ...cols, [key]: !cols[key] }; setCols(next); writeJson(COLS_KEY, next); };
+  return (
+    <>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 14px', fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>
+        {COLUMNS.map(([k, label]) => (
+          <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+            <input type="checkbox" id={`competitor-col-${k}`} checked={Boolean(cols[k])} onChange={() => toggleCol(k)} />{label}
+          </label>
+        ))}
+      </div>
+      {sorted.length ? (
+        <div style={tableWrap}>
+          <table style={{ ...table, minWidth: 860 }}>
+            <thead>
+              <tr style={headRow}>
+                <th style={th} />
+                <th style={{ ...th, minWidth: 220 }}>Opening line</th>
+                {shown.map(([k, label, numeric]) => (
+                  <th key={k} onClick={() => pickSort(k)} style={{ ...(numeric ? thNum : th), cursor: 'pointer', color: sort.key === k ? COLORS.accent : undefined }}>
+                    {label}{sort.key === k ? (sort.dir < 0 ? ' ↓' : ' ↑') : ''}
+                  </th>
+                ))}
+                {notes ? <th style={th}>Note</th> : null}
+                <th style={th} />
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((v) => (
+                <tr key={v.video_id}>
+                  <td style={{ ...td, width: 34 }}><Cover v={v} /></td>
+                  <td style={{ ...td, maxWidth: 380 }}>
+                    <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>{v.hook || v.caption || '(no opening line)'}</a>
+                  </td>
+                  {shown.map(([k, , numeric]) => <td key={k} style={numeric ? tdNum : { ...td, whiteSpace: k === 'format' || k === 'sound' ? 'normal' : 'nowrap' }}>{CELL[k](v)}</td>)}
+                  {notes ? (
+                    <td style={td}>
+                      <input defaultValue={v.note || ''} placeholder="Note" aria-label="Note" id={`competitor-note-${v.video_id}`} onBlur={(e) => onNote(v, e.target.value)}
+                        style={{ width: 180, border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '4px 8px', fontSize: 12 }} />
+                    </td>
+                  ) : null}
+                  <td style={{ ...td, textAlign: 'center' }}><Star on={v.saved} onClick={() => onToggleSave(v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <div style={muted}>No videos here yet.</div>}
+    </>
+  );
+}
+
+// Ideas from comments for the scope, each next to the cover of the video it came from.
+function Ideas({ ideas, byId }) {
+  if (!ideas.length) return null;
+  return (
+    <>
+      <div style={blockLabel}>Ideas from comments</div>
+      {ideas.map((c, i) => {
+        const v = byId.get(c.video_id);
+        return (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 72px minmax(0, 1fr)', gap: 10, alignItems: 'start', fontSize: 13, padding: '5px 0' }}>
+            {v ? <Cover v={v} width={24} /> : <span />}
+            <span style={{ color: COLORS.muted }}>{c.tag}</span>
+            <span style={{ minWidth: 0 }}>"{c.text}" <span style={{ color: COLORS.muted }}>{compact(c.likes)} likes{v ? ` · @${v.handle}` : ''}</span></span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function AccountLine({ a, onRemove }) {
   const stats = [
     a.followers ? `${compact(a.followers)} followers` : null,
     a.band,
@@ -123,10 +200,9 @@ function AccountPanel({ a, onToggleSave, onRemove }) {
     a.median_views_90d !== null ? `median ${compact(a.median_views_90d)} views` : null,
     a.off_niche_hidden ? `${a.off_niche_hidden} off-niche hidden` : null,
   ].filter(Boolean).join(' · ');
-  const waiting = !a.deep_walked_at;
   const pending = [a.hooks_pending ? `${a.hooks_pending} waiting for a hook read` : null, a.unscored ? `${a.unscored} waiting for a niche score` : null].filter(Boolean).join(', ');
   return (
-    <div>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ fontSize: 13 }}>
           <a href={`https://www.tiktok.com/@${a.handle}`} target="_blank" rel="noreferrer" style={tableLink}>@{a.handle}</a>
@@ -134,92 +210,19 @@ function AccountPanel({ a, onToggleSave, onRemove }) {
         </div>
         <button type="button" onClick={() => onRemove(a.handle)} style={outlineButton(COLORS.muted, { small: true })}>Remove</button>
       </div>
-      {waiting ? <div style={{ ...muted, marginTop: 8 }}>Waiting for the first crawl (one new account a day, 09:30).</div> : null}
-      {a.last_cut_at && (!a.last_walk_at || a.last_cut_at >= a.last_walk_at) ? <div style={{ fontSize: 12, color: COLORS.warn, marginTop: 6 }}>TikTok cut the last profile load ({dateTime(a.last_cut_at)}); retried tomorrow.</div> : null}
-      {pending ? <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 6 }}>{pending}.</div> : null}
-
-      <div style={blockLabel}>Top outliers, last 90 days</div>
-      {a.outliers.length ? <OutlierTable rows={a.outliers} onToggleSave={onToggleSave} /> : <div style={muted}>None yet.</div>}
-
-      {a.rising.length ? (
-        <>
-          <div style={blockLabel}>Rising (under 7 days, early)</div>
-          {a.rising.slice(0, 4).map((v) => (
-            <div key={v.video_id} style={{ fontSize: 13, padding: '4px 0' }}>
-              <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, color: COLORS.ink, fontWeight: 500 }}>{v.hook || v.caption}</a>
-              <span style={{ color: COLORS.muted }}> {'·'} {compact(v.views)} views in {num(v.age_days, 1)} days{v.early_multiple ? ` (${num(v.early_multiple, 1)}x their usual already)` : ''}</span>
-            </div>
-          ))}
-        </>
-      ) : null}
-
-      {a.ideas.length ? (
-        <>
-          <div style={blockLabel}>Ideas from comments</div>
-          {a.ideas.map((c, i) => (
-            <div key={i} style={{ fontSize: 13, padding: '4px 0', display: 'flex', gap: 8 }}>
-              <span style={{ color: COLORS.muted, whiteSpace: 'nowrap', minWidth: 64 }}>{c.tag}</span>
-              <span style={{ minWidth: 0 }}>"{c.text}" <span style={{ color: COLORS.muted }}>{compact(c.likes)} likes</span></span>
-            </div>
-          ))}
-        </>
-      ) : null}
-
-      {a.popular.length ? (
-        <>
-          <div style={blockLabel}>All-time hits</div>
-          {a.popular.map((v) => (
-            <div key={v.video_id} style={{ fontSize: 13, padding: '4px 0', display: 'flex', gap: 8, alignItems: 'baseline' }}>
-              <span style={{ color: COLORS.muted, whiteSpace: 'nowrap', minWidth: 64 }}>{shortDate(v.date_posted).replace(/^\w+, /, '')}</span>
-              <span style={{ minWidth: 0, flex: 1 }}>
-                <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, color: COLORS.ink, fontWeight: 500 }}>{v.hook || v.caption}</a>
-                {v.move ? <em style={{ color: COLORS.muted, fontSize: 12, marginLeft: 6 }}>{v.move}</em> : null}
-              </span>
-              <span style={{ color: COLORS.muted, whiteSpace: 'nowrap' }}>{compact(v.views)}</span>
-              <Star on={v.saved} onClick={() => onToggleSave(v)} />
-            </div>
-          ))}
-        </>
-      ) : null}
-
-      {a.adjacent.length ? (
-        <>
-          <button type="button" onClick={() => setOpenAdjacent(!openAdjacent)} style={{ ...blockLabel, display: 'block', border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>
-            {openAdjacent ? '▾' : '▸'} Adjacent ({a.adjacent.length})
-          </button>
-          {openAdjacent ? <OutlierTable rows={a.adjacent} onToggleSave={onToggleSave} /> : null}
-        </>
-      ) : null}
+      {!a.deep_walked_at ? <div style={{ ...muted, marginTop: 6 }}>Waiting for the first listing (the Mac lists new accounts at 06:30, 12:15 and 18:15).</div> : null}
+      {pending ? <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 4 }}>{pending}.</div> : null}
     </div>
   );
 }
 
-function SavedPanel({ saved, onToggleSave, onNote }) {
-  if (!saved.length) return <div style={muted}>Nothing saved. Use the star on any row.</div>;
-  return saved.map((v) => (
-    <div key={v.video_id} style={{ padding: '8px 0', borderBottom: `1px solid ${COLORS.hairline}`, display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
-      <div style={{ minWidth: 0, fontSize: 13 }}>
-        <div>
-          <span style={{ color: COLORS.muted }}>@{v.handle} {'·'} {monthDay(v.date_posted)} {'·'} </span>
-          <a href={v.url} target="_blank" rel="noreferrer" style={{ ...tableLink, color: COLORS.ink, fontWeight: 500 }}>{v.hook || v.caption}</a>
-          {v.move ? <em style={{ color: COLORS.muted, fontSize: 12, marginLeft: 6 }}>{v.move}</em> : null}
-        </div>
-        <div style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>
-          {[recipe(v), v.sound ? `sound: ${soundText(v.sound)}` : null, v.multiple !== null ? multipleText(v.multiple, v.gap) : null].filter(Boolean).join(' · ')}
-        </div>
-        <input defaultValue={v.note || ''} placeholder="Note" onBlur={(e) => onNote(v, e.target.value)}
-          style={{ marginTop: 6, width: '100%', boxSizing: 'border-box', border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '5px 8px', fontSize: 13 }} />
-      </div>
-      <Star on onClick={() => onToggleSave(v)} />
-    </div>
-  ));
-}
-
-// The Competitors card: one account at a time behind pills, plus Saved. The user adds every account.
+// The Competitors card: one leaderboard over every account's videos (or one account, or Saved), with
+// covers, then the comment ideas. The user adds every account.
 export default function CompetitorsSection() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [pick, setPick] = useState(readPick());
+  const [pick, setPick] = useState(readPick() || 'all');
+  const [adjacent, setAdjacent] = useState(() => readJson(ADJ_KEY, { on: false }).on);
   const [notice, setNotice] = useState(null);
   const [handle, setHandle] = useState('');
   const [editing, setEditing] = useState(false);   // the niche editor is open
@@ -270,11 +273,16 @@ export default function CompetitorsSection() {
 
   const accounts = data.accounts || [];
   const handles = accounts.map((a) => a.handle);
-  const current = pick === 'saved' ? pick : (handles.includes(pick) ? pick : handles[0] || 'saved');
+  const current = pick === 'saved' || pick === 'all' || handles.includes(pick) ? pick : 'all';
   const account = accounts.find((a) => a.handle === current);
   const moves = data.winning.moves.map(([m, n]) => `${m} ${n}`).join(', ');
   const formats = data.winning.formats.map(([f, n]) => `${f} ${n}`).join(', ');
   const run = data.last_run;
+  const rows = leaderboardRows(accounts, current, adjacent);
+  const adjacentCount = new Set(accounts.filter((a) => current === 'all' || a.handle === current).flatMap((a) => a.adjacent.map((v) => v.video_id))).size;
+  const byId = new Map(leaderboardRows(accounts, 'all', true).map((v) => [v.video_id, v]));
+  const ideas = accounts.filter((a) => current === 'all' || a.handle === current).flatMap((a) => a.ideas)
+    .sort((x, y) => (y.likes || 0) - (x.likes || 0)).slice(0, current === 'all' ? 8 : 5);
 
   return (
     <SocialCard title="Competitors" actions={actions}>
@@ -301,7 +309,8 @@ export default function CompetitorsSection() {
         </div>
       ) : null}
 
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <Pill active={current === 'all'} onClick={() => choose('all')}>All</Pill>
         {accounts.map((a) => (
           <Pill key={a.handle} active={current === a.handle} onClick={() => choose(a.handle)} title={a.band ? `${a.band} your size` : ''}>
             @{a.handle}{a.band ? <span style={{ fontWeight: 400, color: COLORS.muted }}> {a.band}</span> : null}
@@ -311,8 +320,22 @@ export default function CompetitorsSection() {
       </div>
 
       {!data.available ? <div style={muted}>The tracker's research database is not on this server yet.</div> : null}
-      {data.available && account ? <AccountPanel a={account} onToggleSave={toggleSave} onRemove={remove} /> : null}
-      {data.available && current === 'saved' ? <SavedPanel saved={data.saved} onToggleSave={toggleSave} onNote={saveNote} /> : null}
+      {data.available && account ? <AccountLine a={account} onRemove={remove} /> : null}
+      {data.available && current === 'saved' ? (
+        <Leaderboard rows={data.saved.map((v) => ({ ...v, type: v.multiple !== null ? 'outlier' : 'popular' }))} onToggleSave={toggleSave} onNote={saveNote} notes />
+      ) : null}
+      {data.available && current !== 'saved' ? (
+        <>
+          {adjacentCount ? (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>
+              <input type="checkbox" id="competitor-adjacent" checked={adjacent} onChange={() => { setAdjacent(!adjacent); writeJson(ADJ_KEY, { on: !adjacent }); }} />
+              Show adjacent ({adjacentCount})
+            </label>
+          ) : null}
+          <Leaderboard rows={rows} onToggleSave={toggleSave} onNote={saveNote} />
+          <Ideas ideas={ideas} byId={byId} />
+        </>
+      ) : null}
 
       <div style={{ fontSize: 11, color: COLORS.faint, marginTop: 16 }}>
         Crawled {data.updated_at ? dateTime(data.updated_at) : 'never'}{run && run.finished_at ? `, analyzed ${dateTime(run.finished_at)}` : ''}{run && run.error ? ` (last analysis failed: ${run.error})` : ''}. Your followers: {compact(data.own_followers)}.
