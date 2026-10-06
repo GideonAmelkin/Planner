@@ -12,7 +12,7 @@ const PICK_KEY = 'planner.social.competitorPick';
 const muted = { color: COLORS.muted, fontSize: 13 };
 
 // 562300 -> '562K', 1234567 -> '1.2M'
-const compact = (v) => {
+export const compact = (v) => {
   if (v === null || v === undefined) return '-';
   const n = Number(v);
   if (n >= 1e6) return `${num(n / 1e6, n >= 1e7 ? 0 : 1)}M`;
@@ -20,8 +20,8 @@ const compact = (v) => {
   if (n >= 1e3) return `${num(n / 1e3, 1)}K`;
   return num(n);
 };
-const perK = (v) => (v === null || v === undefined ? '-' : num(v, 1));
-const secs = (d) => (d ? `${Math.round(d)} s` : null);
+export const perK = (v) => (v === null || v === undefined ? '-' : num(v, 1));
+export const secs = (d) => (d ? `${Math.round(d)} s` : null);
 
 function readPick() { try { return localStorage.getItem(PICK_KEY); } catch (_) { return null; } }
 function writePick(v) { try { localStorage.setItem(PICK_KEY, v); } catch (_) { /* ignore */ } }
@@ -31,7 +31,7 @@ function soundText(s) {
   return s.original ? 'original' : (s.title || 'sound');
 }
 
-function Pill({ active, onClick, children, title }) {
+export function Pill({ active, onClick, children, title }) {
   return (
     <button type="button" onClick={onClick} title={title} style={{
       border: `1px solid ${active ? COLORS.accent : COLORS.hairline}`, background: active ? COLORS.todayCell : COLORS.paper,
@@ -51,7 +51,7 @@ function Star({ on, onClick }) {
 
 const SORT_KEY = 'planner.social.competitorSort';
 const COLS_KEY = 'planner.social.competitorCols';
-const ADJ_KEY = 'planner.social.competitorAdjacent';
+export const ADJ_KEY = 'planner.social.competitorAdjacent';
 // [key, header, numeric, shown by default]
 const COLUMNS = [
   ['account', 'Account', false, true],
@@ -71,7 +71,7 @@ function readJson(key, fallback) {
 }
 function writeJson(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) { /* ignore */ } }
 
-const TYPE_STYLE = {
+export const TYPE_STYLE = {
   outlier: { background: COLORS.page, color: COLORS.muted },
   rising: { background: '#E7F5EC', color: '#2E7D4F' },
   popular: { background: COLORS.todayCell, color: COLORS.calloutText },
@@ -80,7 +80,7 @@ const TYPE_STYLE = {
 
 // The video's cover from the server's cache, 9:16, linking to the video; a neutral tile when the
 // cover is not cached yet.
-function Cover({ v, width = 34 }) {
+export function Cover({ v, width = 34 }) {
   const box = { display: 'block', width, aspectRatio: '9 / 16', borderRadius: 5, overflow: 'hidden', background: COLORS.hairline, flex: 'none' };
   return (
     <a href={v.url} target="_blank" rel="noreferrer" style={box} title="Open on TikTok">
@@ -292,7 +292,7 @@ export default function CompetitorsSection() {
       {data.available && current !== 'saved' ? (
         <>
           {adjacentCount ? (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>
+            <label title="Videos scored as a nearby topic, not core to your niche (motivation, positivity, self-improvement challenges). Hidden by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>
               <input type="checkbox" id="competitor-adjacent" checked={adjacent} onChange={() => { setAdjacent(!adjacent); writeJson(ADJ_KEY, { on: !adjacent }); }} />
               Show adjacent ({adjacentCount})
             </label>

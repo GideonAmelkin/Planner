@@ -3,6 +3,7 @@ import AgendaRail from '../shared/AgendaRail';
 import ReviewSection from './ReviewSection';
 import DataSection from './DataSection';
 import CompetitorsSection from './CompetitorsSection';
+import CompetitorScatter from './CompetitorScatter';
 import { getSocialVideos } from './api';
 import { COLORS } from '../shared/styles';
 import { useViewDate } from '../shared/today';
@@ -35,6 +36,7 @@ export default function SocialView() {
           <ReviewSection videos={data && data.videos} />
           <DataSection data={data} loading={loading} error={error} />
           <CompetitorsSection />
+          <CompetitorScatter />
           <div style={{ fontSize: 11, color: COLORS.faint }}>
             TikTok data is read from the tracker's database on this server (TikTokAnalyzer, <code>data/tiktok.db</code>), the same file its daily run writes to the Google Sheet.
           </div>

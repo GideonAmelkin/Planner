@@ -1,0 +1,149 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import SocialCard from './SocialCard';
+import { getCompetitors } from './api';
+import { leaderboardRows, TYPE_LABEL } from './competitorRows';
+import { compact, perK, secs, Pill, Cover, ADJ_KEY, TYPE_STYLE } from './CompetitorsSection';
+import { monthDay } from './format';
+import { COLORS } from '../shared/styles';
+import { API_BASE } from '../shared/api';
+import { num } from '../shared/format';
+
+const PICK_KEY = 'planner.social.scatterPick';
+const NARROW = '(max-width: 760px)';
+const Y_TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+
+function readKey(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } }
+function writeKey(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* ignore */ } }
+function readAdjacent() { try { return Boolean(JSON.parse(localStorage.getItem(ADJ_KEY) || '{}').on); } catch (_) { return false; } }
+
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW);
+    const on = () => setNarrow(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return narrow;
+}
+
+const median = (a) => {
+  const s = a.filter((x) => x !== null && x !== undefined).sort((x, y) => x - y);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+};
+// The y value: the multiple, or the early multiple for a rising video still under the age gate.
+const mult = (v) => v.multiple ?? v.early_multiple ?? null;
+const multText = (m) => (m === null ? '-' : `${m >= 100 ? num(Math.round(m)) : num(m, 1)}x`);
+
+// The Scatter section: every Leaderboard video as its cover, placed by how far it beat its
+// account's usual views (up, log scale) and how often viewers saved it (right). Clicking a cover
+// shows it in the panel.
+export default function CompetitorScatter() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [pick, setPick] = useState(() => readKey(PICK_KEY, 'all'));
+  const [selected, setSelected] = useState(null);
+  const narrow = useNarrow();
+
+  useEffect(() => {
+    let live = true;
+    getCompetitors().then((d) => { if (live) setData(d); }).catch((e) => { if (live) setError(e.message); });
+    return () => { live = false; };
+  }, []);
+
+  const accounts = useMemo(() => (data && data.accounts) || [], [data]);
+  const scope = pick === 'all' || accounts.some((a) => a.handle === pick) ? pick : 'all';
+  const points = useMemo(() => leaderboardRows(accounts, scope, readAdjacent()).filter((v) => mult(v) !== null),
+    [accounts, scope]);
+
+  if (error) return <SocialCard title="Scatter"><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
+  if (!data) return <SocialCard title="Scatter"><div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div></SocialCard>;
+
+  const choose = (v) => { setPick(v); writeKey(PICK_KEY, v); setSelected(null); };
+  const xs = points.map((v) => v.saves_per_k || 0);
+  const ys = points.map((v) => Math.log10(Math.max(1, mult(v))));
+  const xMax = Math.max(10, Math.ceil(Math.max(0, ...xs) / 10) * 10);
+  const yMax = Math.max(1, Math.ceil(Math.max(0, ...ys) * 2) / 2);
+  const X = (x) => (Math.min(x, xMax) / xMax) * 100;
+  const Y = (y) => (Math.min(y, yMax) / yMax) * 100;
+  const xMed = median(xs);
+  const yMed = median(ys);
+  const yTicks = Y_TICKS.filter((t) => Math.log10(t) <= yMax);
+  const xTicks = Array.from({ length: 6 }, (_, i) => Math.round((xMax * i) / 5));
+  const on = points.find((v) => v.video_id === selected) || [...points].sort((a, b) => mult(b) - mult(a))[0];
+  const height = narrow ? 380 : 520;
+  const axis = { position: 'absolute', fontSize: 11, color: COLORS.muted, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };
+  const quad = { position: 'absolute', fontSize: 10.5, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: COLORS.faint };
+
+  return (
+    <SocialCard title="Scatter">
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+        <Pill active={scope === 'all'} onClick={() => choose('all')}>All</Pill>
+        {accounts.map((a) => (
+          <Pill key={a.handle} active={scope === a.handle} onClick={() => choose(a.handle)}>@{a.handle}</Pill>
+        ))}
+      </div>
+      <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 14 }}>
+        Up: beat the account's usual views by more. Right: more saves per 1,000 views. Click a cover to read it.
+      </div>
+      {!points.length ? <div style={{ color: COLORS.muted, fontSize: 13 }}>Nothing to plot yet.</div> : (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
+          <div style={{ flex: '1 1 340px', padding: '28px 18px 40px 46px', minWidth: 0, boxSizing: 'border-box' }}>
+            <div role="img" aria-label="Competitor videos by multiple and saves per thousand views"
+              style={{ position: 'relative', height, borderLeft: `1px solid ${COLORS.hairline}`, borderBottom: `1px solid ${COLORS.hairline}` }}>
+              {yTicks.map((t) => (
+                <React.Fragment key={t}>
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${Y(Math.log10(t))}%`, height: 1, background: COLORS.hairline }} />
+                  <span style={{ ...axis, left: -44, width: 38, textAlign: 'right', bottom: `calc(${Y(Math.log10(t))}% - 7px)` }}>{num(t)}x</span>
+                </React.Fragment>
+              ))}
+              {xTicks.map((t) => <span key={t} style={{ ...axis, bottom: -22, left: `calc(${X(t)}% - 8px)` }}>{t}</span>)}
+              <span style={{ ...axis, right: 0, bottom: -36, whiteSpace: 'normal', textAlign: 'right' }}>saves per 1k views</span>
+              {xMed !== null ? <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${X(xMed)}%`, borderLeft: `1px dashed ${COLORS.faint}` }} /> : null}
+              {yMed !== null ? <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${Y(yMed)}%`, borderTop: `1px dashed ${COLORS.faint}` }} /> : null}
+              <span style={{ ...quad, left: 8, top: 6 }}>Viral</span>
+              <span style={{ ...quad, right: 6, top: 6 }}>Viral and saveable</span>
+              <span style={{ ...quad, right: 6, bottom: 6 }}>Saveable</span>
+              {points.map((v) => {
+                const active = on && on.video_id === v.video_id;
+                return (
+                  <button key={v.video_id} type="button" onClick={() => setSelected(v.video_id)} aria-label={v.hook || v.caption || 'video'}
+                    style={{
+                      position: 'absolute', left: `${X(v.saves_per_k || 0)}%`, bottom: `${Y(Math.log10(Math.max(1, mult(v))))}%`,
+                      transform: 'translate(-50%, 50%)', width: active ? 40 : 30, padding: 0, cursor: 'pointer', zIndex: active ? 5 : 1,
+                      border: `2px solid ${active ? COLORS.accent : COLORS.paper}`, borderRadius: 6, background: COLORS.hairline,
+                      boxShadow: '0 1px 4px rgba(0,0,0,.25)', overflow: 'hidden', lineHeight: 0,
+                    }}>
+                    {v.has_thumb
+                      ? <img src={`${API_BASE}/social/thumb/${v.video_id}`} alt="" loading="lazy" style={{ width: '100%', aspectRatio: '9 / 16', objectFit: 'cover', display: 'block' }} />
+                      : <span style={{ display: 'block', width: '100%', aspectRatio: '9 / 16' }} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {on ? (
+            <div style={{ flex: '1 1 220px', maxWidth: 320, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, fontSize: 13 }}>
+              <Cover v={on} width={120} />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ color: COLORS.accent, fontWeight: 600 }}>@{on.handle}</span>
+                <span style={{ ...TYPE_STYLE[on.type], fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 5 }}>{TYPE_LABEL[on.type]}</span>
+                <span style={{ color: COLORS.muted }}>{monthDay(on.date_posted)}</span>
+              </div>
+              <a href={on.url} target="_blank" rel="noreferrer" style={{ fontWeight: 500, color: COLORS.ink, textDecoration: 'none', fontSize: 14 }}>{on.hook || on.caption || '(no opening line)'}</a>
+              {on.move ? <em style={{ color: COLORS.muted }}>{on.move}</em> : null}
+              <span style={{ fontSize: 12, color: COLORS.muted }}>{[on.format, on.text_overlay ? 'text overlay' : null, secs(on.duration)].filter(Boolean).join(', ')}</span>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: COLORS.muted }}>
+                <span>multiple <b style={{ color: COLORS.ink }}>{multText(mult(on))}{on.multiple === null || on.multiple === undefined ? ' early' : ''}</b></span>
+                <span>saves/1k <b style={{ color: COLORS.ink }}>{perK(on.saves_per_k)}</b></span>
+                <span>views <b style={{ color: COLORS.ink }}>{compact(on.views)}</b></span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </SocialCard>
+  );
+}
