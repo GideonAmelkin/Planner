@@ -207,6 +207,85 @@ db.serialize(() => {
   )`);
   db.run(`CREATE INDEX IF NOT EXISTS idx_social_reviews_at ON social_reviews(generated_at)`);
 
+  // Competitors card (social/competitors*.js). The watchlist lives here; the TikTok
+  // tracker reads it from GET /api/social/competitors/handles and writes research.db.
+  // status: watch | removed | dismissed (a proposed account the user said no to).
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitors (
+    handle TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    added_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+  db.run(`INSERT OR IGNORE INTO social_competitors (handle, status, added_at, updated_at)
+    SELECT h, 'watch', datetime('now'), datetime('now') FROM (
+      SELECT 'austingeorgas' AS h UNION ALL SELECT 'farzyspeaks' UNION ALL SELECT 'zancarver'
+      UNION ALL SELECT 'rickyireland' UNION ALL SELECT 'scottygange')
+    WHERE NOT EXISTS (SELECT 1 FROM social_competitors)`);
+  // Small settings: the niche definition, the discovery hashtags, the own follower count.
+  db.run(`CREATE TABLE IF NOT EXISTS social_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at TEXT
+  )`);
+  // Haiku's niche score per video and niche text (niche_hash): 3 core, 2 in niche, 1 adjacent, 0 off.
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitor_relevance (
+    video_id TEXT NOT NULL,
+    niche_hash TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    topic TEXT,
+    model TEXT,
+    scored_at TEXT NOT NULL,
+    PRIMARY KEY (video_id, niche_hash)
+  )`);
+  // Hook move + format per video and prompt version (label_hash).
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitor_labels (
+    video_id TEXT NOT NULL,
+    label_hash TEXT NOT NULL,
+    move TEXT,
+    format TEXT,
+    text_overlay INTEGER,
+    model TEXT,
+    labeled_at TEXT NOT NULL,
+    PRIMARY KEY (video_id, label_hash)
+  )`);
+  // Top comments of on-niche outliers (read unsigned from TikTok's comment list), tagged by Haiku.
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitor_comments (
+    video_id TEXT NOT NULL,
+    cid TEXT NOT NULL,
+    text TEXT,
+    likes INTEGER,
+    replies INTEGER,
+    created_at INTEGER,
+    read_at TEXT NOT NULL,
+    tag TEXT,
+    PRIMARY KEY (video_id, cid)
+  )`);
+  db.run(`CREATE TABLE IF NOT EXISTS social_comment_reads (
+    video_id TEXT PRIMARY KEY,
+    read_at TEXT NOT NULL,
+    status TEXT,
+    kept INTEGER
+  )`);
+  // The saved board: bookmarked competitor videos with a note.
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitor_saves (
+    video_id TEXT PRIMARY KEY,
+    note TEXT,
+    saved_at TEXT NOT NULL
+  )`);
+  // One row per analysis job run (relevance, labels, comments), started before any work.
+  db.run(`CREATE TABLE IF NOT EXISTS social_competitor_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at TEXT NOT NULL,
+    finished_at TEXT,
+    scored INTEGER,
+    labeled INTEGER,
+    comment_videos INTEGER,
+    tagged INTEGER,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    error TEXT
+  )`);
+
   db.run(`CREATE TABLE IF NOT EXISTS pull_forward_runs (
     date TEXT PRIMARY KEY,
     trigger TEXT,
