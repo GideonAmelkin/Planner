@@ -5,9 +5,10 @@ export const TYPE_ORDER = ['outlier', 'rising', 'popular', 'adjacent'];
 export const TYPE_LABEL = { outlier: 'outlier', rising: 'rising', popular: 'all-time hit', adjacent: 'adjacent' };
 const LIST_FOR = { outlier: 'outliers', rising: 'rising', popular: 'popular', adjacent: 'adjacent' };
 
-// accounts: the payload's accounts; scope: 'all' or a handle; withAdjacent adds the adjacent list.
-export function leaderboardRows(accounts, scope, withAdjacent) {
-  const types = withAdjacent ? TYPE_ORDER : TYPE_ORDER.filter((t) => t !== 'adjacent');
+// accounts: the payload's accounts; scope: 'all' or a handle. Adjacent videos (niche score 1) are
+// always included, tagged in the Type column.
+export function leaderboardRows(accounts, scope) {
+  const types = TYPE_ORDER;
   const rows = new Map();
   for (const a of accounts || []) {
     if (scope !== 'all' && a.handle !== scope) continue;

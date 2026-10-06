@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
 import { getCompetitors } from './api';
 import { leaderboardRows, TYPE_LABEL } from './competitorRows';
-import { compact, perK, secs, Pill, Cover, ADJ_KEY, TYPE_STYLE } from './CompetitorsSection';
+import { compact, perK, secs, Pill, Cover, TYPE_STYLE } from './CompetitorsSection';
 import { monthDay } from './format';
 import { COLORS } from '../shared/styles';
 import { API_BASE } from '../shared/api';
@@ -14,7 +14,6 @@ const Y_TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 
 function readKey(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } }
 function writeKey(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* ignore */ } }
-function readAdjacent() { try { return Boolean(JSON.parse(localStorage.getItem(ADJ_KEY) || '{}').on); } catch (_) { return false; } }
 
 function useNarrow() {
   const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
@@ -55,7 +54,7 @@ export default function CompetitorScatter() {
 
   const accounts = useMemo(() => (data && data.accounts) || [], [data]);
   const scope = pick === 'all' || accounts.some((a) => a.handle === pick) ? pick : 'all';
-  const points = useMemo(() => leaderboardRows(accounts, scope, readAdjacent()).filter((v) => mult(v) !== null),
+  const points = useMemo(() => leaderboardRows(accounts, scope).filter((v) => mult(v) !== null),
     [accounts, scope]);
 
   if (error) return <SocialCard title="Scatter"><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;

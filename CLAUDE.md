@@ -94,7 +94,7 @@ minutes when something changed) scores niche relevance 0-3 (0 hidden and counted
 formats / rising-sound lines were removed on 2026-10-06 at the user's request). Since 2026-10-06 the card is one Leaderboard (the
 user picked it from ten layouts, https://claude.ai/artifact/SpJ6aLKFFbQMfA6FzwKwbf): every
 outlier, rising video and all-time hit in one sortable table with its cover, scoped to All, one
-account or Saved, adjacent rows behind a checkbox (adjacent = niche score 1 of 3, a nearby topic).
+account or Saved; adjacent videos (niche score 1 of 3, a nearby topic) are always listed, tagged in Type.
 The TikTok Data card keeps its six tiles visible and folds only its table behind a chevron (closed
 by default, `planner.social.dataOpen`; no search box; Drive matches Refresh). A fifth card, Scatter,
 plots the same videos as covers by multiple (log, up) against saves per 1k (right). Outliers use the

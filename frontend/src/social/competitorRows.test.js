@@ -6,15 +6,14 @@ const accounts = [
   { handle: 'b', outliers: [v('5', { handle: 'b', multiple: 12 })], rising: [], popular: [], adjacent: [] },
 ];
 
-test('one row per video, type by priority, adjacent only when asked', () => {
-  const rows = leaderboardRows(accounts, 'all', false);
-  expect(rows.map((r) => [r.video_id, r.type])).toEqual([['1', 'outlier'], ['2', 'rising'], ['3', 'popular'], ['5', 'outlier']]);
-  expect(leaderboardRows(accounts, 'all', true).map((r) => r.video_id)).toContain('4');
-  expect(leaderboardRows(accounts, 'b', false).map((r) => r.video_id)).toEqual(['5']);
+test('one row per video, type by priority, adjacent always included', () => {
+  const rows = leaderboardRows(accounts, 'all');
+  expect(rows.map((r) => [r.video_id, r.type])).toEqual([['1', 'outlier'], ['2', 'rising'], ['3', 'popular'], ['4', 'adjacent'], ['5', 'outlier']]);
+  expect(leaderboardRows(accounts, 'b').map((r) => r.video_id)).toEqual(['5']);
 });
 
 test('multiple sort uses the early multiple for rising rows', () => {
-  const rows = sortRows(leaderboardRows(accounts, 'all', false), 'multiple', -1);
-  expect(rows.map((r) => r.video_id)).toEqual(['5', '2', '1', '3']);
+  const rows = sortRows(leaderboardRows(accounts, 'all'), 'multiple', -1);
+  expect(rows.map((r) => r.video_id)).toEqual(['5', '2', '1', '4', '3']);
   expect(sortRows(rows, 'views', -1)[0].video_id).toBe('3');
 });

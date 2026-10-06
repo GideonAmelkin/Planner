@@ -51,7 +51,6 @@ function Star({ on, onClick }) {
 
 const SORT_KEY = 'planner.social.competitorSort';
 const COLS_KEY = 'planner.social.competitorCols';
-export const ADJ_KEY = 'planner.social.competitorAdjacent';
 // [key, header, numeric, shown by default]
 const COLUMNS = [
   ['account', 'Account', false, true],
@@ -107,7 +106,7 @@ const CELL = {
   saves: (v) => perK(v.saves_per_k),
   shares: (v) => perK(v.shares_per_k),
   views: (v) => <span title={v.views_per_day !== null && v.views_per_day !== undefined ? `${num(v.views_per_day)} views a day lately` : ''}>{compact(v.views)}</span>,
-  type: (v) => <span style={{ ...TYPE_STYLE[v.type], fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 5, whiteSpace: 'nowrap' }}>{TYPE_LABEL[v.type]}</span>,
+  type: (v) => <span title={v.type === 'adjacent' ? 'A nearby topic, not core to your niche (niche score 1 of 3)' : undefined} style={{ ...TYPE_STYLE[v.type], fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, textTransform: 'uppercase', padding: '1px 6px', borderRadius: 5, whiteSpace: 'nowrap' }}>{TYPE_LABEL[v.type]}</span>,
 };
 
 // The leaderboard: one sortable table, a cover on every row; sort and visible columns are remembered.
@@ -202,7 +201,6 @@ export default function CompetitorsSection() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [pick, setPick] = useState(readPick() || 'all');
-  const [adjacent, setAdjacent] = useState(() => readJson(ADJ_KEY, { on: false }).on);
   const [notice, setNotice] = useState(null);
   const [handle, setHandle] = useState('');
   const [editing, setEditing] = useState(false);   // the niche editor is open
@@ -256,8 +254,7 @@ export default function CompetitorsSection() {
   const current = pick === 'saved' || pick === 'all' || handles.includes(pick) ? pick : 'all';
   const account = accounts.find((a) => a.handle === current);
   const run = data.last_run;
-  const rows = leaderboardRows(accounts, current, adjacent);
-  const adjacentCount = new Set(accounts.filter((a) => current === 'all' || a.handle === current).flatMap((a) => a.adjacent.map((v) => v.video_id))).size;
+  const rows = leaderboardRows(accounts, current);
 
   return (
     <SocialCard title="Competitors" actions={actions}>
@@ -289,17 +286,7 @@ export default function CompetitorsSection() {
       {data.available && current === 'saved' ? (
         <Leaderboard rows={data.saved.map((v) => ({ ...v, type: v.multiple !== null ? 'outlier' : 'popular' }))} onToggleSave={toggleSave} onNote={saveNote} notes />
       ) : null}
-      {data.available && current !== 'saved' ? (
-        <>
-          {adjacentCount ? (
-            <label title="Videos scored as a nearby topic, not core to your niche (motivation, positivity, self-improvement challenges). Hidden by default." style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.muted, marginBottom: 8 }}>
-              <input type="checkbox" id="competitor-adjacent" checked={adjacent} onChange={() => { setAdjacent(!adjacent); writeJson(ADJ_KEY, { on: !adjacent }); }} />
-              Show adjacent ({adjacentCount})
-            </label>
-          ) : null}
-          <Leaderboard rows={rows} onToggleSave={toggleSave} onNote={saveNote} />
-        </>
-      ) : null}
+      {data.available && current !== 'saved' ? <Leaderboard rows={rows} onToggleSave={toggleSave} onNote={saveNote} /> : null}
 
       <div style={{ fontSize: 11, color: COLORS.faint, marginTop: 16 }}>
         Crawled {data.updated_at ? dateTime(data.updated_at) : 'never'}{run && run.finished_at ? `, analyzed ${dateTime(run.finished_at)}` : ''}{run && run.error ? ` (last analysis failed: ${run.error})` : ''}. Your followers: {compact(data.own_followers)}.
