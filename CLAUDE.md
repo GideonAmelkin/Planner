@@ -84,8 +84,11 @@ search and a Drive button in the card header, sort, click a row for the transcri
 **Competitors** (since 2026-10-05, plan `~/.claude/plans/i-have-a-list-lively-crab.md`): the
 watchlist lives in `social_competitors` (seeded with five handles, add / remove on the card, at
 most 15), the TikTok tracker reads it from `GET /api/social/competitors/handles` and writes
-`research.db` (its `research.py competitors` 09:30 and `discover-weekly` Sunday 11:00, signed out
-by default), the Mac hook job extracts competitor hooks; the Planner reads `research.db`
+`research.db` (the accounts' videos come from a signed-out yt-dlp listing on the Mac in the hook
+job, because TikTok refuses the server's signed-out browser on profile grids; `research.py
+competitors` 09:30 probes follower counts, `discover-weekly` Sunday 11:00 reads niche hashtag pages
+signed out), the Mac hook job extracts hooks for card-eligible videos only (2x outliers, Rising,
+Popular top 10, discovery candidates); the Planner reads `research.db`
 read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
 minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 in a
 collapsed Adjacent strip, 2-3 shown), labels hook move and format, reads the top comments of

@@ -273,7 +273,10 @@ async function payload() {
       deep_walked_at: a.deep_walked_at || null,
       last_cut_at: a.last_cut_at || null,
       last_popular_at: a.last_popular_at || null,
-      hooks_pending: inWindow.filter((v) => v.hook_state === 'pending').length,
+      // Only videos that can reach the card get a hook read (the tracker's pending_hooks): outliers
+      // at OUTLIER_MIN or more, and young posts already at their account's usual views.
+      hooks_pending: inWindow.filter((v) => v.hook_state === 'pending' && ((v.multiple !== null && v.multiple >= OUTLIER_MIN)
+        || (v.multiple === null && baselineNow && v.age_days !== null && v.age_days < MIN_AGE_DAYS && v.views >= baselineNow))).length,
       unscored: inWindow.filter((v) => v.hook_state !== 'pending' && v.score === null).length,
       off_niche_hidden: inWindow.filter((v) => v.score === 0).length,
       outliers,
