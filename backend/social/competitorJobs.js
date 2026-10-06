@@ -192,9 +192,21 @@ async function commentPage(videoId, cursor) {
   return { status: 'ok', comments: body.comments || [] };
 }
 
-const TAG_SYSTEM = `You sort comments under a TikTok video for a creator looking for video ideas.
-Tag each comment: question (asks something), request (asks the creator to make or show something), objection
-(disagrees or pushes back), joke, praise, other. Use the comment id given.`;
+// Bump TAG_VERSION when the tag prompt changes: the next run clears every stored tag and retags.
+const TAG_VERSION = 'tags-v2';
+const TAG_SYSTEM = (niche) => `You sort comments under a TikTok video for a creator who mines comments for their NEXT video ideas.
+The creator's niche: ${niche}
+You get the video's opening line and its comments. Tag each comment by what it could become, not by its grammar:
+- question: a sincere question about the video's topic that the creator could answer in a whole video
+  ("How do you stay consistent when nobody watches?"). Not jokes phrased as questions, not rhetorical questions,
+  not questions about the song, the outfit, the location or the creator's personal life.
+- request: asks the creator to make, explain or show something on the topic ("Do one about mornings").
+- objection: sincere disagreement or pushback on the video's point that a reply video could address
+  ("It's okay to be sad sometimes"). Not sarcasm or one-line quips.
+- joke: wordplay, sarcasm, memes, quips, references ("Fun is getting expensive", "Are you a Lannister?").
+- praise: thanks, agreement, compliments.
+- other: anything else (song or product questions, remarks about looks, off-topic, spam).
+When unsure between question/request/objection and joke/other, choose joke or other. Use the comment id given.`;
 
 const TAG_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['tags'],
@@ -251,13 +263,36 @@ async function commentStep(totals) {
     totals.comment_videos += 1;
     const untagged = await all('SELECT cid, text FROM social_competitor_comments WHERE video_id = ? AND tag IS NULL', [video.video_id]);
     if (untagged.length) {
-      const { result, usage } = await callJson(TAG_SYSTEM, { video_hook: video.hook, comments: untagged.map((c) => ({ cid: c.cid, text: c.text })) }, TAG_SCHEMA, 3000);
-      add(totals, usage);
-      for (const t of result.tags || []) {
-        await run('UPDATE social_competitor_comments SET tag = ? WHERE video_id = ? AND cid = ?', [t.tag, video.video_id, t.cid]);
-        totals.tagged += 1;
-      }
+      totals.tagged += await tagVideo(video.video_id, video.hook, untagged, totals);
     }
+  }
+}
+
+async function tagVideo(videoId, hook, comments, totals) {
+  const niche = await comp.niche();
+  const { result, usage } = await callJson(TAG_SYSTEM(niche), { video_hook: hook, comments: comments.map((c) => ({ cid: c.cid, text: c.text })) }, TAG_SCHEMA, 3000);
+  add(totals, usage);
+  let n = 0;
+  for (const t of result.tags || []) {
+    await run('UPDATE social_competitor_comments SET tag = ? WHERE video_id = ? AND cid = ?', [t.tag, videoId, t.cid]);
+    n += 1;
+  }
+  return n;
+}
+
+// A new TAG_VERSION clears every stored tag once; then up to RETAG_VIDEO_CAP videos with untagged
+// comments are tagged per run (comments read earlier keep their text, only the tag is redone).
+const RETAG_VIDEO_CAP = 40;
+async function retagStep(data, totals) {
+  const stored = await get("SELECT value FROM social_settings WHERE key = 'comment_tag_version'");
+  if (!stored || stored.value !== TAG_VERSION) {
+    await run('UPDATE social_competitor_comments SET tag = NULL');
+    await comp.setSetting('comment_tag_version', TAG_VERSION);
+  }
+  const videos = await all('SELECT DISTINCT video_id FROM social_competitor_comments WHERE tag IS NULL LIMIT ?', [RETAG_VIDEO_CAP]);
+  for (const { video_id: videoId } of videos) {
+    const comments = await all('SELECT cid, text FROM social_competitor_comments WHERE video_id = ? AND tag IS NULL', [videoId]);
+    totals.tagged += await tagVideo(videoId, research.hookLine(data.hookById.get(videoId)), comments, totals);
   }
 }
 
@@ -301,6 +336,7 @@ async function runJob() {
       await scoreStep(data, watch, totals);
       await labelStep(data, watch, totals);
       await commentStep(totals);
+      await retagStep(data, totals);
     }
   } catch (err) {
     error = err.message || String(err);
@@ -328,7 +364,10 @@ async function sweep() {
   const leftover = last && (last.scored >= SCORE_CAP || last.labeled >= LABEL_CAP || last.comment_videos >= COMMENT_VIDEO_CAP);
   const newDay = !last || localISO(new Date(last.finished_at)) !== localISO();
   const settingsChanged = await get('SELECT 1 FROM social_settings WHERE updated_at > ? AND key = \'niche\'', [last ? last.finished_at : '']);
-  if (lastSeenMtime === st.mtimeMs && !leftover && !newDay && !settingsChanged) return;
+  const tagVersion = await get("SELECT value FROM social_settings WHERE key = 'comment_tag_version'");
+  const untagged = await get('SELECT 1 FROM social_competitor_comments WHERE tag IS NULL LIMIT 1');
+  const retag = (!tagVersion || tagVersion.value !== TAG_VERSION) || Boolean(untagged);
+  if (lastSeenMtime === st.mtimeMs && !leftover && !newDay && !settingsChanged && !retag) return;
   lastSeenMtime = st.mtimeMs;
   await runJob();
 }
