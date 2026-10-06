@@ -1,6 +1,6 @@
 // The Competitors card: what GET /api/social/competitors returns. Pure computation over
 // research.db (read-only, research.js) joined with the Planner's own rows (watchlist, niche
-// scores, labels, comments, saves). The outlier multiple uses the tracker's exact rule
+// scores, labels, saves). The outlier multiple uses the tracker's exact rule
 // (tiktok_analyzer/selection.py multiples_for): views / median views of the 20 aged posts
 // published immediately before it, at least 10 of them, videos under 7 days old unscored.
 const crypto = require('crypto');
@@ -17,7 +17,6 @@ const GAP_DAYS = 60;
 const OUTLIER_MIN = 2.0;        // an outlier on the card beats its own baseline at least 2x
 const TOP_OUTLIERS = 8;
 const POPULAR_SHOWN = 6;
-const RISING_SOUND_DAYS = 14;
 const MAX_WATCH = 15;
 const DEFAULT_OWN_FOLLOWERS = 5006;   // read from the own video page 2026-10-05; refreshed by the job
 
@@ -88,10 +87,6 @@ function band(followers, own) {
   return '100x+';
 }
 
-// Sound titles and artist names can carry private-use and specials characters (U+FFF0..FFFF) that
-// render as boxes; keep letters, digits, marks, punctuation, symbols and spaces.
-const printable = (s) => String(s || '').replace(/[^\p{L}\p{N}\p{M}\p{P}\p{S}\p{Zs}]/gu, '').replace(/\s+/g, ' ').trim() || null;
-
 const BAND_ORDER = { Near: 0, '10x': 1, '100x+': 2 };
 const perK = (n, views) => (views ? round((Number(n) || 0) / views * 1000, 1) : null);
 
@@ -142,17 +137,14 @@ async function changeHandle(action, raw) {
 // -- planner-side joins -----------------------------------------------------------
 
 async function plannerRows(nh) {
-  const [scores, labels, comments, saves] = await Promise.all([
+  const [scores, labels, saves] = await Promise.all([
     all('SELECT video_id, score, topic FROM social_competitor_relevance WHERE niche_hash = ?', [nh]),
     all('SELECT video_id, move, format, text_overlay FROM social_competitor_labels WHERE label_hash = ?', [LABEL_HASH]),
-    all(`SELECT video_id, cid, text, likes, tag FROM social_competitor_comments
-      WHERE tag IN ('question', 'request', 'objection') ORDER BY likes DESC`),
     all('SELECT video_id, note, saved_at FROM social_competitor_saves'),
   ]);
   return {
     scores: new Map(scores.map((r) => [r.video_id, r])),
     labels: new Map(labels.map((r) => [r.video_id, r])),
-    comments,
     saves: new Map(saves.map((r) => [r.video_id, r])),
   };
 }
@@ -228,7 +220,7 @@ async function payload() {
     niche: nicheText,
     watchlist: list.watch,
   };
-  if (!data) return { ...base, accounts: [], saved: [], winning: { moves: [], formats: [] }, rising_sounds: [] };
+  if (!data) return { ...base, accounts: [], saved: [] };
   const today = localISO();
   const start = isoDaysAgo(WINDOW_DAYS, today);
   const p = await plannerRows(nh);
@@ -258,9 +250,6 @@ async function payload() {
     const rising = inWindow.filter((v) => shown(v) && v.age_days !== null && v.age_days < MIN_AGE_DAYS)
       .map((v) => ({ ...v, early_multiple: baselineNow ? round(v.views / baselineNow, 1) : null }))
       .sort((x, y) => (y.early_multiple || 0) - (x.early_multiple || 0));
-    const outlierIds = new Set(outliers.map((o) => o.video_id));
-    const ideas = p.comments.filter((c) => outlierIds.has(c.video_id)).slice(0, 5)
-      .map((c) => ({ text: c.text, likes: c.likes, tag: c.tag, video_id: c.video_id }));
     const followers = a.followers || (vids.find((v) => v.author_followers) || {}).author_followers || null;
     accounts.push({
       handle,
@@ -286,30 +275,9 @@ async function payload() {
       popular: views.filter((v) => v.in_popular && v.score !== null && v.score >= 2)
         .sort((x, y) => x.in_popular - y.in_popular).slice(0, POPULAR_SHOWN),
       popular_hidden: views.filter((v) => v.in_popular && v.score === 0).length,
-      ideas,
     });
   }
   accounts.sort((x, y) => (BAND_ORDER[x.band] ?? 3) - (BAND_ORDER[y.band] ?? 3) || x.handle.localeCompare(y.handle));
-
-  // Winning moves and formats across every account's on-niche outliers.
-  const tally = (key) => {
-    const counts = new Map();
-    for (const a of accounts) for (const o of a.outliers) if (o[key]) counts.set(o[key], (counts.get(o[key]) || 0) + 1);
-    return [...counts.entries()].sort((x, y) => y[1] - x[1]).slice(0, 5);
-  };
-
-  // A non-original sound on two or more accounts' posts in the last 14 days.
-  const soundCut = isoDaysAgo(RISING_SOUND_DAYS, today);
-  const sounds = new Map();
-  for (const v of data.videos) {
-    if (!v.music_id || v.music_original || !v.date_posted || v.date_posted < soundCut) continue;
-    if (!sounds.has(v.music_id)) sounds.set(v.music_id, { id: v.music_id, title: printable(v.music_title), author: printable(v.music_author), handles: new Set(), videos: 0 });
-    const s = sounds.get(v.music_id);
-    s.handles.add(cleanHandle(v.handle));
-    s.videos += 1;
-  }
-  const risingSounds = [...sounds.values()].filter((s) => s.handles.size >= 2)
-    .map((s) => ({ ...s, handles: [...s.handles] })).sort((x, y) => y.handles.length - x.handles.length);
 
   const savedIds = new Set(p.saves.keys());
   const saved = all_.filter((v) => savedIds.has(v.video_id))
@@ -319,8 +287,6 @@ async function payload() {
     ...base,
     accounts,
     saved,
-    winning: { moves: tally('move'), formats: tally('format') },
-    rising_sounds: risingSounds,
     last_run: await get('SELECT * FROM social_competitor_runs ORDER BY id DESC LIMIT 1'),
   };
 }

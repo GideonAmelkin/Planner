@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
-import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink, blockLabel } from './SocialTable';
+import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { API_BASE } from '../shared/api';
 import { getCompetitors, changeCompetitor, putCompetitorSettings, saveCompetitorVideo, unsaveCompetitorVideo } from './api';
 import { leaderboardRows, sortRows, TYPE_LABEL, TEXT_COLUMNS } from './competitorRows';
@@ -172,26 +172,6 @@ function Leaderboard({ rows, onToggleSave, onNote, notes = false }) {
   );
 }
 
-// Ideas from comments for the scope, each next to the cover of the video it came from.
-function Ideas({ ideas, byId }) {
-  if (!ideas.length) return null;
-  return (
-    <>
-      <div style={blockLabel}>Ideas from comments</div>
-      {ideas.map((c, i) => {
-        const v = byId.get(c.video_id);
-        return (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 72px minmax(0, 1fr)', gap: 10, alignItems: 'start', fontSize: 13, padding: '5px 0' }}>
-            {v ? <Cover v={v} width={24} /> : <span />}
-            <span style={{ color: COLORS.muted }}>{c.tag}</span>
-            <span style={{ minWidth: 0 }}>"{c.text}" <span style={{ color: COLORS.muted }}>{compact(c.likes)} likes{v ? ` · @${v.handle}` : ''}</span></span>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 function AccountLine({ a, onRemove }) {
   const stats = [
     a.followers ? `${compact(a.followers)} followers` : null,
@@ -217,7 +197,7 @@ function AccountLine({ a, onRemove }) {
 }
 
 // The Competitors card: one leaderboard over every account's videos (or one account, or Saved), with
-// covers, then the comment ideas. The user adds every account.
+// covers. The user adds every account.
 export default function CompetitorsSection() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -275,14 +255,9 @@ export default function CompetitorsSection() {
   const handles = accounts.map((a) => a.handle);
   const current = pick === 'saved' || pick === 'all' || handles.includes(pick) ? pick : 'all';
   const account = accounts.find((a) => a.handle === current);
-  const moves = data.winning.moves.map(([m, n]) => `${m} ${n}`).join(', ');
-  const formats = data.winning.formats.map(([f, n]) => `${f} ${n}`).join(', ');
   const run = data.last_run;
   const rows = leaderboardRows(accounts, current, adjacent);
   const adjacentCount = new Set(accounts.filter((a) => current === 'all' || a.handle === current).flatMap((a) => a.adjacent.map((v) => v.video_id))).size;
-  const byId = new Map(leaderboardRows(accounts, 'all', true).map((v) => [v.video_id, v]));
-  const ideas = accounts.filter((a) => current === 'all' || a.handle === current).flatMap((a) => a.ideas)
-    .sort((x, y) => (y.likes || 0) - (x.likes || 0)).slice(0, current === 'all' ? 8 : 5);
 
   return (
     <SocialCard title="Competitors" actions={actions}>
@@ -296,16 +271,6 @@ export default function CompetitorsSection() {
             <button type="button" onClick={() => setEditing(false)} style={outlineButton(COLORS.muted, { small: true })}>Cancel</button>
             <span style={{ fontSize: 11, color: COLORS.muted, alignSelf: 'center' }}>Changing the niche rescores every video.</span>
           </div>
-        </div>
-      ) : null}
-
-      {moves || formats || data.rising_sounds.length ? (
-        <div style={{ fontSize: 13, marginBottom: 12, display: 'grid', gap: 4 }}>
-          {moves ? <div><span style={{ color: COLORS.muted }}>Winning moves: </span>{moves}</div> : null}
-          {formats ? <div><span style={{ color: COLORS.muted }}>Formats: </span>{formats}</div> : null}
-          {data.rising_sounds.slice(0, 3).map((s) => (
-            <div key={s.id}><span style={{ color: COLORS.muted }}>Rising sound: </span>{s.title || 'untitled'}{s.author ? ` by ${s.author}` : ''} <span style={{ color: COLORS.muted }}>({s.handles.map((h) => `@${h}`).join(', ')})</span></div>
-          ))}
         </div>
       ) : null}
 
@@ -333,7 +298,6 @@ export default function CompetitorsSection() {
             </label>
           ) : null}
           <Leaderboard rows={rows} onToggleSave={toggleSave} onNote={saveNote} />
-          <Ideas ideas={ideas} byId={byId} />
         </>
       ) : null}
 
