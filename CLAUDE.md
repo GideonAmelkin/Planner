@@ -89,12 +89,13 @@ job, because TikTok refuses the server's signed-out browser on profile grids; `r
 competitors` 09:30 probes follower counts; nothing in the feature signs in to TikTok), the Mac hook
 job extracts hooks for card-eligible videos only (2x outliers, Rising, Popular top 10); the Planner reads `research.db`
 read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
-minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 in a
-collapsed Adjacent strip, 2-3 shown), labels hook move and format, reads the top comments of
-on-niche outliers signed out and tags them. Since 2026-10-06 the card is one Leaderboard (the
+minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 adjacent,
+2-3 shown), labels hook move and format and caches covers (comment ideas and the winning-moves /
+formats / rising-sound lines were removed on 2026-10-06 at the user's request). Since 2026-10-06 the card is one Leaderboard (the
 user picked it from ten layouts, https://claude.ai/artifact/SpJ6aLKFFbQMfA6FzwKwbf): every
 outlier, rising video and all-time hit in one sortable table with its cover, scoped to All, one
-account or Saved, adjacent rows behind a checkbox, comment ideas underneath. Outliers use the
+account or Saved, adjacent rows behind a checkbox. The TikTok Data card folds behind a chevron
+(closed by default, remembered in localStorage `planner.social.dataOpen`). Outliers use the
 tracker's own multiple rule (ported to JS, pinned by a Python fixture). Covers are cached on the
 server once per video (`backend/social-state/thumbs/`, server-only data like `planner.db`). The user adds every account by hand; there is no discovery or
 proposal step (removed 2026-10-06).
