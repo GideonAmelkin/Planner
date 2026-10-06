@@ -1,5 +1,5 @@
 // Competitor video covers for the Competitors card, cached on the server's disk once per video.
-// A cover is read signed out: one GET of the public video page for itemStruct.video.cover, then
+// A cover is read signed out: one GET of the public video page for itemStruct.video.zoomCover (240 px), then
 // the image. TikTok's cover URLs are signed and expire, so the card never links to them directly;
 // it asks GET /api/social/thumb/:id, which serves this cache. Covers do not change, so a cached
 // file is never refetched. The folder is server-only data (gitignored, refused by push.sh).
@@ -31,7 +31,10 @@ function coverFromHtml(html) {
   try { data = JSON.parse(m[1]); } catch (_) { return null; }
   const item = (((data.__DEFAULT_SCOPE__ || {})['webapp.video-detail'] || {}).itemInfo || {}).itemStruct || {};
   const video = item.video || {};
-  return video.cover || video.originCover || null;
+  // zoomCover holds TikTok's own resized covers keyed by width; 240 px is plenty for a 34 px cell on a
+  // retina screen (the plain cover is 1080x1920, about 250 KB).
+  const zoom = video.zoomCover || {};
+  return zoom['240'] || zoom['480'] || video.cover || video.originCover || null;
 }
 
 // Fetch and store one cover. Returns 'ok' | 'no cover' | 'refused <why>'. A refusal (HTTP error,

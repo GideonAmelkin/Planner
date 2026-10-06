@@ -132,3 +132,11 @@ test('thumb route: 400 bad id, 404 not cached, 200 with a long cache once cached
     server.close();
   }
 });
+
+test('coverFromHtml prefers the 240 px zoom cover', () => {
+  const { coverFromHtml } = require('../social/thumbs');
+  const page = (video) => `<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify({ __DEFAULT_SCOPE__: { 'webapp.video-detail': { itemInfo: { itemStruct: { video } } } } })}</script>`;
+  assert.equal(coverFromHtml(page({ cover: 'big', zoomCover: { 240: 'small', 480: 'mid' } })), 'small');
+  assert.equal(coverFromHtml(page({ cover: 'big' })), 'big');
+  assert.equal(coverFromHtml('<html></html>'), null);
+});
