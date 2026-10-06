@@ -1,4 +1,4 @@
-// The "Next Video Hooks & Ideas" review: Claude reads the creator's recent videos
+// The Summary card review: Claude reads the creator's recent videos
 // (metrics, the tracker's baseline multiple, transcript, caption) and explains what
 // made the winners work, then proposes the next hooks. The numbers the model sees
 // are computed here and stored next to its text, so the page shows the same figures.
@@ -11,10 +11,11 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { run, get, all } = require('../db');
 const { localISO } = require('../lib/dates');
 const social = require('./service');
+const competitors = require('./competitors');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 8000;   // adaptive thinking counts against this; 2500 was hit once
-const PROMPT_VERSION = 'v6';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const PROMPT_VERSION = 'v7';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 // The card's Refresh button: at most DAILY_CAP manual runs per local day (the 07:15 scheduled run
 // does not count); the button greys out once they are used. No per-run gap.
 const DAILY_CAP = 5;
@@ -36,7 +37,9 @@ You receive the creator's recent videos: post date, caption, the first spoken li
 views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
 divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
 You also receive "series": where the creator is today in their current run of daily posts (day number, posts so far,
-days left if it is a 30-day challenge), and the account's all-time best posts for what this audience has responded to.
+days left if it is a 30-day challenge), the account's all-time best posts for what this audience has responded to, and
+"competitor_winners": opening lines from accounts in the same niche that beat their own baseline (multiple), with the
+move, the format and the account's size relative to this creator (Near, 10x, 100x+).
 
 Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
 situation before anything about the creator. Coin your own move when none fits.
@@ -53,7 +56,9 @@ Do two things:
    - anchored in today's position in the series where it helps (the day number, the days left, what has changed);
    - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
      "let me tell you", "what nobody tells you"; never start with a count of days unless it is today's day number;
-   - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
+   - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines;
+   - you may borrow a MOVE that wins for competitors (prefer accounts near this creator's size), never their words:
+     no competitor line copied or paraphrased.
    Shape examples (shape only, do not copy or paraphrase): "It's working. Just not the way I thought it would." /
    "I almost skipped today. That's exactly why I didn't." / "You're probably like me. You thought this stuff was soft."
 
@@ -186,9 +191,10 @@ function computeStats(window) {
   };
 }
 
-function buildInput(window, stats, best) {
+function buildInput(window, stats, best, winners = []) {
   const byId = new Map(window.videos.map((v) => [v.video_id, v]));
   return {
+    competitor_winners: winners,
     period: { basis: stats.basis, start: stats.start, end: stats.end, videos: stats.count, medians: stats.medians },
     series: stats.series,
     top_performers: stats.top,
@@ -269,7 +275,8 @@ async function generate(trigger) {
     if (!window || !window.videos.length) throw new Error('no videos in the tracker database');
     const stats = computeStats(window);
     const best = await social.allTimeBest(10);
-    const { result, usage, model } = await callModel(buildInput(window, stats, best));
+    const winners = await competitors.winnersForReview(3).catch((e) => { console.warn('[social] competitor winners:', e.message); return []; });
+    const { result, usage, model } = await callModel(buildInput(window, stats, best, winners));
     await run(
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
         input_tokens, output_tokens, duration_ms, stats_json, result_json, error)
