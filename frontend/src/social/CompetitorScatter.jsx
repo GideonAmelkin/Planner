@@ -10,7 +10,6 @@ import { num } from '../shared/format';
 
 const PICK_KEY = 'planner.social.scatterPick';
 const NARROW = '(max-width: 760px)';
-const MULT_TICKS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 
 function readKey(key, fallback) { try { return localStorage.getItem(key) || fallback; } catch (_) { return fallback; } }
 function writeKey(key, value) { try { localStorage.setItem(key, value); } catch (_) { /* ignore */ } }
@@ -36,9 +35,9 @@ const median = (a) => {
 const mult = (v) => v.multiple ?? v.early_multiple ?? null;
 const multText = (m) => (m === null ? '-' : `${m >= 100 ? num(Math.round(m)) : num(m, 1)}x`);
 
-// The Scatter section: every Leaderboard video as its cover, placed by how far it beat its
-// account's usual views (right, log scale) and how often viewers saved it (up). Clicking a cover
-// shows it in the panel.
+// The Scatter section: every Leaderboard video as its cover, placed by its views (right) and its
+// saves (up), both raw counts on log scales, so the most viewed and most saved videos meet in the top
+// right. Clicking a cover shows it in the panel, which keeps the multiple and saves per 1k.
 export default function CompetitorScatter() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -54,24 +53,28 @@ export default function CompetitorScatter() {
 
   const accounts = useMemo(() => (data && data.accounts) || [], [data]);
   const scope = pick === 'all' || accounts.some((a) => a.handle === pick) ? pick : 'all';
-  const points = useMemo(() => leaderboardRows(accounts, scope).filter((v) => mult(v) !== null),
+  const points = useMemo(() => leaderboardRows(accounts, scope).filter((v) => v.views),
     [accounts, scope]);
 
   if (error) return <SocialCard title="Scatter"><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
   if (!data) return <SocialCard title="Scatter"><div style={{ color: COLORS.muted, fontSize: 13 }}>Loading...</div></SocialCard>;
 
   const choose = (v) => { setPick(v); writeKey(PICK_KEY, v); setSelected(null); };
-  // x: the multiple (how viral), log scale. y: saves per 1,000 views, linear.
-  const xs = points.map((v) => Math.log10(Math.max(1, mult(v))));
-  const ys = points.map((v) => v.saves_per_k || 0);
-  const xMax = Math.max(1, Math.ceil(Math.max(0, ...xs) * 2) / 2);
-  const yMax = Math.max(10, Math.ceil(Math.max(0, ...ys) / 10) * 10);
-  const X = (x) => (Math.min(x, xMax) / xMax) * 100;
-  const Y = (y) => (Math.min(y, yMax) / yMax) * 100;
+  // x: views, y: saves, both raw counts on log scales (saves rise with views, so the most viewed and
+  // most saved videos meet in the top right). Each axis spans whole powers of ten around the data.
+  const lg = (n) => Math.log10(Math.max(1, Number(n) || 0));
+  const xs = points.map((v) => lg(v.views));
+  const ys = points.map((v) => lg(v.saves));
+  const span = (vals) => [Math.floor(Math.min(...vals)), Math.max(Math.floor(Math.min(...vals)) + 1, Math.ceil(Math.max(...vals)))];
+  const [xLo, xHi] = span(xs);
+  const [yLo, yHi] = span(ys);
+  const X = (x) => ((Math.min(Math.max(x, xLo), xHi) - xLo) / (xHi - xLo)) * 100;
+  const Y = (y) => ((Math.min(Math.max(y, yLo), yHi) - yLo) / (yHi - yLo)) * 100;
   const xMed = median(xs);
   const yMed = median(ys);
-  const xTicks = MULT_TICKS.filter((t) => Math.log10(t) <= xMax);
-  const yTicks = Array.from({ length: 6 }, (_, i) => Math.round((yMax * i) / 5));
+  const powers = (lo, hi) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  const xTicks = powers(xLo, xHi);
+  const yTicks = powers(yLo, yHi);
   const on = points.find((v) => v.video_id === selected) || [...points].sort((a, b) => mult(b) - mult(a))[0];
   const height = narrow ? 380 : 520;
   const axis = { position: 'absolute', fontSize: 11, color: COLORS.muted, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };
@@ -86,7 +89,7 @@ export default function CompetitorScatter() {
         ))}
       </div>
       <div style={{ fontSize: 12, color: COLORS.muted, marginBottom: 14 }}>
-        Right: beat the account's usual views by more. Up: more saves per 1,000 views. Click a cover to read it.
+        Right: more views. Up: more saves. Click a cover to read it.
       </div>
       {!points.length ? <div style={{ color: COLORS.muted, fontSize: 13 }}>Nothing to plot yet.</div> : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'flex-start' }}>
@@ -95,29 +98,29 @@ export default function CompetitorScatter() {
               style={{ position: 'relative', height, borderLeft: `1px solid ${COLORS.hairline}`, borderBottom: `1px solid ${COLORS.hairline}` }}>
               {xTicks.map((t) => (
                 <React.Fragment key={t}>
-                  <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${X(Math.log10(t))}%`, width: 1, background: COLORS.hairline }} />
-                  <span style={{ ...axis, bottom: -22, left: `${X(Math.log10(t))}%`, transform: 'translateX(-50%)' }}>{num(t)}x</span>
+                  <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${X(t)}%`, width: 1, background: COLORS.hairline }} />
+                  <span style={{ ...axis, bottom: -22, left: `${X(t)}%`, transform: 'translateX(-50%)' }}>{compact(10 ** t)}</span>
                 </React.Fragment>
               ))}
               {yTicks.map((t) => (
                 <React.Fragment key={t}>
-                  {t ? <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${Y(t)}%`, height: 1, background: COLORS.hairline }} /> : null}
-                  <span style={{ ...axis, left: -44, width: 38, textAlign: 'right', bottom: `calc(${Y(t)}% - 7px)` }}>{t}</span>
+                  <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${Y(t)}%`, height: 1, background: COLORS.hairline }} />
+                  <span style={{ ...axis, left: -44, width: 38, textAlign: 'right', bottom: `calc(${Y(t)}% - 7px)` }}>{compact(10 ** t)}</span>
                 </React.Fragment>
               ))}
-              <span style={{ ...axis, right: 0, bottom: -36, whiteSpace: 'normal', textAlign: 'right' }}>multiple (viral)</span>
-              <span style={{ ...axis, left: -44, top: -24 }}>saves per 1k</span>
+              <span style={{ ...axis, right: 0, bottom: -36, whiteSpace: 'normal', textAlign: 'right' }}>views</span>
+              <span style={{ ...axis, left: -44, top: -24 }}>saves</span>
               {xMed !== null ? <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${X(xMed)}%`, borderLeft: `1px dashed ${COLORS.faint}` }} /> : null}
               {yMed !== null ? <div style={{ position: 'absolute', left: 0, right: 0, bottom: `${Y(yMed)}%`, borderTop: `1px dashed ${COLORS.faint}` }} /> : null}
-              <span style={{ ...quad, left: 8, top: 6 }}>Saveable</span>
-              <span style={{ ...quad, right: 6, top: 6 }}>Viral and saveable</span>
-              <span style={{ ...quad, right: 6, bottom: 6 }}>Viral</span>
+              <span style={{ ...quad, left: 8, top: 6 }}>Saved, fewer views</span>
+              <span style={{ ...quad, right: 6, top: 6 }}>Most viewed and saved</span>
+              <span style={{ ...quad, right: 6, bottom: 6 }}>Viewed, rarely saved</span>
               {points.map((v) => {
                 const active = on && on.video_id === v.video_id;
                 return (
                   <button key={v.video_id} type="button" onClick={() => setSelected(v.video_id)} aria-label={v.hook || v.caption || 'video'}
                     style={{
-                      position: 'absolute', left: `${X(Math.log10(Math.max(1, mult(v))))}%`, bottom: `${Y(v.saves_per_k || 0)}%`,
+                      position: 'absolute', left: `${X(lg(v.views))}%`, bottom: `${Y(lg(v.saves))}%`,
                       transform: 'translate(-50%, 50%)', width: active ? 40 : 30, padding: 0, cursor: 'pointer', zIndex: active ? 5 : 1,
                       border: `2px solid ${active ? COLORS.accent : COLORS.paper}`, borderRadius: 6, background: COLORS.hairline,
                       boxShadow: '0 1px 4px rgba(0,0,0,.25)', overflow: 'hidden', lineHeight: 0,
