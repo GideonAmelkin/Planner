@@ -91,10 +91,12 @@ job extracts hooks for card-eligible videos only (2x outliers, Rising, Popular t
 read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
 minutes when something changed) scores niche relevance 0-3 (0 hidden and counted, 1 in a
 collapsed Adjacent strip, 2-3 shown), labels hook move and format, reads the top comments of
-on-niche outliers signed out and tags them. Per account: top outliers by the tracker's own
-multiple rule (ported to JS, pinned by a Python fixture), saves and shares per 1k, sound,
-Rising (under 7 days), Ideas from comments, All-time hits (Popular sort), follower band vs the
-user; plus Saved (star + note). The user adds every account by hand; there is no discovery or
+on-niche outliers signed out and tags them. Since 2026-10-06 the card is one Leaderboard (the
+user picked it from ten layouts, https://claude.ai/artifact/SpJ6aLKFFbQMfA6FzwKwbf): every
+outlier, rising video and all-time hit in one sortable table with its cover, scoped to All, one
+account or Saved, adjacent rows behind a checkbox, comment ideas underneath. Outliers use the
+tracker's own multiple rule (ported to JS, pinned by a Python fixture). Covers are cached on the
+server once per video (`backend/social-state/thumbs/`, server-only data like `planner.db`). The user adds every account by hand; there is no discovery or
 proposal step (removed 2026-10-06).
 
 The Health tab (since 2026-09-27) is the dashboard the Garmin phone app shows on its home
