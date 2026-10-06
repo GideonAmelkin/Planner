@@ -41,11 +41,16 @@ function compare(a, b, key, kind, dir) {
 
 // Every column of the tracker's videos table, searchable and sortable; a click on a row
 // opens the full caption, hook and transcript (fetched then).
+const OPEN_KEY = 'planner.social.dataOpen';
+
 export default function DataSection({ data, loading, error }) {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState({ key: 'date_posted', dir: 'desc' });
   const [shown, setShown] = useState(PAGE);
   const [open, setOpen] = useState(null);
+  // The card folds behind a chevron, closed by default; remembered per browser.
+  const [cardOpen, setCardOpen] = useState(() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch (_) { return false; } });
+  const toggleCard = () => setCardOpen((o) => { try { localStorage.setItem(OPEN_KEY, o ? '0' : '1'); } catch (_) { /* ignore */ } return !o; });
   const [detail, setDetail] = useState({});   // video_id -> row with script | { error }
 
   const videos = useMemo(() => (data && data.videos) || [], [data]);
@@ -81,11 +86,11 @@ export default function DataSection({ data, loading, error }) {
     <a href={SHEET_URL} target="_blank" rel="noreferrer" style={{ ...outlineButton(COLORS.ink), textDecoration: 'none', display: 'inline-block' }}>Drive</a>
   );
 
-  if (error) return <SocialCard title="TikTok Data" actions={actions}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
-  if (loading && !data) return <SocialCard title="TikTok Data" actions={actions}><div style={{ color: COLORS.muted, fontSize: 13 }}>Loading videos...</div></SocialCard>;
+  if (error) return <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
+  if (loading && !data) return <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions}><div style={{ color: COLORS.muted, fontSize: 13 }}>Loading videos...</div></SocialCard>;
   if (data && data.available === false) {
     return (
-      <SocialCard title="TikTok Data" actions={actions}>
+      <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions}>
         <div style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 560 }}>
           <div style={{ fontWeight: 600, marginBottom: 6 }}>The TikTok tracker database is not on this server.</div>
           <div>The Planner reads <code>TikTokAnalyzer/data/tiktok.db</code> in place (or the path in <code>TIKTOK_DB_PATH</code>). The Google Sheet is written from that same file by the tracker's daily run.</div>
@@ -110,7 +115,7 @@ export default function DataSection({ data, loading, error }) {
   );
 
   return (
-    <SocialCard title="TikTok Data" actions={header}>
+    <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={header}>
       {summary ? (
         <div style={tileGrid(130)}>
           <SocialTile label="Videos" value={num(summary.videos)} />
