@@ -76,8 +76,10 @@ That tracker's 06:15 cron writes the db and then rewrites the "Tik Tok" Google S
 the Planner is a second, read-only reader of the same file and never writes it, so the sheet
 and the tab always show the same rows. Three stacked cards: **Summary** (a Claude Opus 5 review
 of the last 30 days of posts: top performers with the backend's own numbers and each opening
-line's move, then 10 hooks to consider, prompt v7, which also sees the competitors' on-niche
-winners and may borrow their moves, never their words; rows in `social_reviews`; five manual
+line's move (prompt v8, the model only names moves); then Hooks to consider, which since
+2026-10-08 are not written by the model: the competitors' real on-niche outlier opening lines,
+top 10 by multiple, at most 3 per account, spoken or on-screen lines only, read live from the
+competitor research on every load; rows in `social_reviews`; five manual
 refreshes a day because `/api/` is public; a 07:15 scheduler refreshes once a day when new videos
 arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (every sheet column,
 search and a Drive button in the card header, sort, click a row for the transcript) and
