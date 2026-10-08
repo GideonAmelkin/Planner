@@ -189,6 +189,8 @@ function videoView(v, ctx) {
     first_seen_views: v.first_seen_views,
     first_seen_age_h: v.first_seen_age_h,
     ...(({ line, more }) => ({ hook: line, hook_more: more }))(research.openingLine(hook, v.caption)),
+    // which rule openingLine used: the spoken 0-3 s words, the on-screen text at 0 s, or the caption
+    hook_source: hook && (hook.hook_transcript || '').trim() ? 'spoken' : (hook && research.onscreenAtStart(hook) ? 'onscreen' : 'caption'),
     hook_state: !hook ? 'pending' : (hook.error ? (hook.cause || 'failed') : 'ok'),
     caption: v.caption || '',
     duration: v.duration,
@@ -291,14 +293,37 @@ async function payload() {
   };
 }
 
-// Top on-niche outliers per account for the Summary review (review.js v7).
-async function winnersForReview(perAccount = 3) {
+// The Summary card's Hooks to consider: real opening lines from the competitors' on-niche
+// outliers, the top `limit` by multiple with at most `perAccount` from one account. Only lines
+// the creator said or put on screen at 0 s, never the caption fallback.
+const HOOK_WORDS = 20;
+function hookLine(o) {
+  const words = [o.hook, o.hook_more].filter(Boolean).join(' ').split(/\s+/).filter(Boolean);
+  return words.length > HOOK_WORDS ? `${words.slice(0, HOOK_WORDS).join(' ')}...` : words.join(' ');
+}
+
+function pickHooks(accounts, limit = 10, perAccount = 3) {
+  const all_ = accounts.flatMap((a) => (a.outliers || [])
+    .filter((o) => o.hook_state === 'ok' && o.hook && o.hook_source !== 'caption')
+    .map((o) => ({ ...o, band: a.band })))
+    .sort((x, y) => y.multiple - x.multiple);
+  const perHandle = new Map();
+  const picked = [];
+  for (const o of all_) {
+    if (picked.length >= limit) break;
+    if ((perHandle.get(o.handle) || 0) >= perAccount) continue;
+    perHandle.set(o.handle, (perHandle.get(o.handle) || 0) + 1);
+    picked.push(o);
+  }
+  return picked.map((o) => ({
+    video_id: o.video_id, url: o.url, handle: o.handle, band: o.band, line: hookLine(o),
+    move: o.move, multiple: o.multiple, views: o.views,
+  }));
+}
+
+async function hooksToConsider(limit = 10, perAccount = 3) {
   const p = await payload();
-  if (!p.available) return [];
-  return p.accounts.flatMap((a) => a.outliers.slice(0, perAccount).map((o) => ({
-    handle: a.handle, follower_band: a.band, opening_line: o.hook, move: o.move, format: o.format,
-    multiple_vs_own_baseline: o.multiple, saves_per_1k_views: o.saves_per_k, date_posted: o.date_posted,
-  }))).filter((w) => w.opening_line);
+  return p.available ? pickHooks(p.accounts, limit, perAccount) : [];
 }
 
 async function saveVideo(videoId, note) {
@@ -313,5 +338,5 @@ async function unsaveVideo(videoId) {
 module.exports = {
   WINDOW_DAYS, OUTLIER_MIN, LABEL_HASH, DEFAULT_NICHE, MAX_WATCH,
   multiplesFor, band, median, cleanHandle, isHandle, nicheHash, niche, ownFollowers, setSetting,
-  listing, changeHandle, payload, winnersForReview, saveVideo, unsaveVideo, isoDaysAgo,
+  listing, changeHandle, payload, pickHooks, hooksToConsider, saveVideo, unsaveVideo, isoDaysAgo,
 };

@@ -108,9 +108,25 @@ test('payload: on-niche outliers only, adjacent strip, off-niche counted, saves 
   assert.equal(a.band, '100x+');
   assert.equal(p.saved.length, 1);
   assert.equal(p.saved[0].note, 'study the pacing');
-  const winners = await comp.winnersForReview(3);
-  assert.equal(winners.length, 1);
-  assert.equal(winners[0].opening_line, 'line 7200000000000000001');
+  const hooks = await comp.hooksToConsider();
+  assert.equal(hooks.length, 1);
+  assert.equal(hooks[0].line, 'line 7200000000000000001');
+  assert.equal(hooks[0].handle, 'scottygange');
+});
+
+test('pickHooks: top by multiple, per-account cap, no caption fallbacks, 20-word cap', () => {
+  const o = (handle, id, multiple, extra = {}) => ({ handle, video_id: id, url: `u${id}`, multiple, views: 1, move: 'Verdict', hook: `line ${id}`, hook_more: null, hook_state: 'ok', hook_source: 'spoken', ...extra });
+  const accounts = [
+    { handle: 'a', band: '100x+', outliers: [o('a', 'a1', 90), o('a', 'a2', 80), o('a', 'a3', 70), o('a', 'a4', 60)] },
+    { handle: 'b', band: 'Near', outliers: [o('b', 'b1', 75, { hook_more: Array(30).fill('w').join(' ') }), o('b', 'b2', 85, { hook_state: 'pending' }),
+      o('b', 'b3', 95, { hook_source: 'caption' }), o('b', 'b4', 3, { hook_source: 'onscreen' })] },
+  ];
+  const got = comp.pickHooks(accounts, 10, 3);
+  assert.deepEqual(got.map((h) => h.video_id), ['a1', 'a2', 'b1', 'a3', 'b4']);
+  assert.equal(got[2].band, 'Near');
+  assert.equal(got[2].line.split(' ').length, 20);
+  assert.ok(got[2].line.endsWith('...'));
+  assert.deepEqual(comp.pickHooks(accounts, 2, 3).map((h) => h.video_id), ['a1', 'a2']);
 });
 
 test('thumb route: 400 bad id, 404 not cached, 200 with a long cache once cached', async () => {

@@ -1,7 +1,9 @@
 // The Summary card review: Claude reads the creator's recent videos
 // (metrics, the tracker's baseline multiple, transcript, caption) and explains what
-// made the winners work, then proposes the next hooks. The numbers the model sees
+// made the winners work by naming each opening line's move. The numbers the model sees
 // are computed here and stored next to its text, so the page shows the same figures.
+// Hooks to consider are not written by the model: they are the competitors' real winning
+// opening lines (competitors.hooksToConsider), read live on every GET.
 //
 // The Planner API has no auth and nginx exposes /api/ publicly, so every run is
 // capped from the social_reviews table: five manual runs per local day.
@@ -15,7 +17,7 @@ const competitors = require('./competitors');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 8000;   // adaptive thinking counts against this; 2500 was hit once
-const PROMPT_VERSION = 'v7';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const PROMPT_VERSION = 'v8';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 // The card's Refresh button: at most DAILY_CAP manual runs per local day (the 07:15 scheduled run
 // does not count); the button greys out once they are used. No per-run gap.
 const DAILY_CAP = 5;
@@ -29,46 +31,25 @@ let lastError = null;
 
 const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 
-// Suggested hook moves. The model names each hook's move in one or two words and may coin its own.
+// Suggested hook moves. The model names each opening line's move in one or two words and may coin its own.
 const HOOK_TYPES = ['Verdict', 'Relatable', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
 
-const SYSTEM = `You write TikTok hooks for one creator, in their own voice, from their own data.
+const SYSTEM = `You classify the opening lines of one TikTok creator's recent videos.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
 views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
 divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
-You also receive "series": where the creator is today in their current run of daily posts (day number, posts so far,
-days left if it is a 30-day challenge), the account's all-time best posts for what this audience has responded to, and
-"competitor_winners": opening lines from accounts in the same niche that beat their own baseline (multiple), with the
-move, the format and the account's size relative to this creator (Near, 10x, 100x+).
 
 Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
 situation before anything about the creator. Coin your own move when none fits.
 
-Do two things:
-1. hook_types: name the move of the opening line of EVERY video in the window. Notice which moves the top-ranked
-   and highest-multiple videos share; write toward those.
-2. hooks: 10 hooks to consider for the next videos, across 4 or 5 moves, at least 2 per move, returned grouped
-   (all hooks of one move consecutive), the moves ordered by how well that move has performed for this creator.
-   Relatable must be one of the moves, and the moves of the top three performers must be included.
-   Each hook is the first three seconds as the creator would say them on camera:
-   - one or two short sentences, at most 12 words in total; at least four of the ten are 8 words or fewer;
-   - open a loop and do not close it: the line promises, it never explains;
-   - anchored in today's position in the series where it helps (the day number, the days left, what has changed);
-   - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
-     "let me tell you", "what nobody tells you"; never start with a count of days unless it is today's day number;
-   - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines;
-   - you may borrow a MOVE that wins for competitors (prefer accounts near this creator's size), never their words:
-     no competitor line copied or paraphrased.
-   Shape examples (shape only, do not copy or paraphrase): "It's working. Just not the way I thought it would." /
-   "I almost skipped today. That's exactly why I didn't." / "You're probably like me. You thought this stuff was soft."
+hook_types: name the move of the opening line of EVERY video in the window.
 
-Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
-periods. Ids only in id fields.`;
+Rules: no explanations, no preamble, no markdown. Never use em dashes or en dashes. Ids only in id fields.`;
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['hook_types', 'hooks'],
+  required: ['hook_types'],
   properties: {
     hook_types: {
       type: 'array',
@@ -79,19 +60,6 @@ const SCHEMA = {
         required: ['video_id', 'type'],
         properties: {
           video_id: { type: 'string' },
-          type: { type: 'string', description: 'One or two words naming the move.' },
-        },
-      },
-    },
-    hooks: {
-      type: 'array',
-      description: '10 hooks to consider, grouped by move, at least 2 per move, 4 or 5 moves.',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['hook', 'type'],
-        properties: {
-          hook: { type: 'string', description: 'The first three seconds, spoken: one or two short sentences, at most 12 words.' },
           type: { type: 'string', description: 'One or two words naming the move.' },
         },
       },
@@ -191,12 +159,10 @@ function computeStats(window) {
   };
 }
 
-function buildInput(window, stats, best, winners = []) {
+function buildInput(window, stats) {
   const byId = new Map(window.videos.map((v) => [v.video_id, v]));
   return {
-    competitor_winners: winners,
     period: { basis: stats.basis, start: stats.start, end: stats.end, videos: stats.count, medians: stats.medians },
-    series: stats.series,
     top_performers: stats.top,
     videos: stats.videos.map((v) => ({
       video_id: v.video_id,
@@ -209,10 +175,6 @@ function buildInput(window, stats, best, winners = []) {
       caption: v.caption,
       opening_line: v.hook,
       transcript: (byId.get(v.video_id) || {}).script || '',
-    })),
-    all_time_best_by_multiple: best.map((b) => ({
-      video_id: b.video_id, date_posted: b.date_posted, views: b.views, likes: b.likes, comments: b.comments,
-      saves: b.saves, shares: b.shares, multiple: b.multiple, opening_line: b.hook_summary || '', caption: b.caption || '',
     })),
   };
 }
@@ -274,9 +236,7 @@ async function generate(trigger) {
     window = await social.recentWindow();
     if (!window || !window.videos.length) throw new Error('no videos in the tracker database');
     const stats = computeStats(window);
-    const best = await social.allTimeBest(10);
-    const winners = await competitors.winnersForReview(3).catch((e) => { console.warn('[social] competitor winners:', e.message); return []; });
-    const { result, usage, model } = await callModel(buildInput(window, stats, best, winners));
+    const { result, usage, model } = await callModel(buildInput(window, stats));
     await run(
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
         input_tokens, output_tokens, duration_ms, stats_json, result_json, error)
@@ -330,13 +290,14 @@ async function current() {
   const row = await latestRow(true);
   const latestAny = await latestRow(false);
   const t = await throttle();
+  const competitorHooks = await competitors.hooksToConsider().catch((e) => { console.warn('[social] competitor hooks:', e.message); return []; });
   const base = {
     running,
     has_key: hasKey(),
     last_error: latestAny && latestAny.error ? { at: latestAny.generated_at, message: latestAny.error } : (lastError ? { message: lastError } : null),
     throttle: t ? { reason: t.reason, next_allowed_at: t.next_allowed_at, used: t.used, cap: t.cap } : null,
   };
-  if (!row) return { available: false, ...base };
+  if (!row) return { available: false, ...base, competitor_hooks: competitorHooks };
   const stats = JSON.parse(row.stats_json);
   const rowsNow = await social.rows();
   return {
@@ -350,6 +311,7 @@ async function current() {
     usage: { input_tokens: row.input_tokens, output_tokens: row.output_tokens, duration_ms: row.duration_ms },
     stats,
     review: JSON.parse(row.result_json),
+    competitor_hooks: competitorHooks,
     stale: { new_videos: newVideosSince(row, stats, rowsNow) },
   };
 }
