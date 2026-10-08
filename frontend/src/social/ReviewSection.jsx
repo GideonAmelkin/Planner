@@ -12,8 +12,9 @@ export const HEADER_BUTTON_MIN = 72;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
 // "Summary": the latest Claude review of the recent videos: Top performers (the backend's own numbers, each opening line tagged
-// with its hook type) and Hooks to consider (opening lines tagged with their type). The
-// server generates a review each morning when new videos arrive; the card only reads.
+// with its hook type) and Hooks to consider (the competitors' real winning opening lines, read live from the
+// competitor research, each with its move, account and multiple). The server generates a review each
+// morning when new videos arrive; the card only reads.
 export default function ReviewSection({ videos }) {
   const [rev, setRev] = useState(null);
   const [error, setError] = useState(null);
@@ -61,12 +62,13 @@ export default function ReviewSection({ videos }) {
   const muted = { color: COLORS.muted, fontSize: 13 };
   const running = Boolean(rev && rev.running);
   const capped = Boolean(rev && rev.throttle);   // the day's refreshes are used up
-  const buttonTitle = running ? 'A new set is being written' : capped ? `${rev.throttle.cap} refreshes used today; more tomorrow` : 'Ask for a new set of hooks';
+  const buttonTitle = running ? 'A new set is being written' : capped ? `${rev.throttle.cap} refreshes used today; more tomorrow` : 'Re-read your recent videos';
   const refreshButton = (
     <button type="button" onClick={refresh} disabled={running || capped} title={buttonTitle} style={{ ...outlineButton(COLORS.accent, { disabled: running || capped }), minWidth: HEADER_BUTTON_MIN }}>
       {running ? 'Refreshing...' : 'Refresh'}
     </button>
   );
+  const hookList = <CompetitorHooks hooks={(rev && rev.competitor_hooks) || []} />;
   const noticeLine = notice ? <div style={{ ...muted, marginTop: 8 }}>{notice}</div> : null;
 
   if (error) return <SocialCard title={title}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
@@ -82,6 +84,7 @@ export default function ReviewSection({ videos }) {
         <div style={muted}>{rev.running ? 'Reviewing your recent videos...' : 'No review yet. One is generated each morning from the tracker\'s new videos.'}</div>
         {noticeLine}
         {failed}
+        {hookList}
       </SocialCard>
     );
   }
@@ -90,8 +93,6 @@ export default function ReviewSection({ videos }) {
   const byId = new Map(stats.videos.map((v) => [v.video_id, v]));
   const typeOf = new Map((review.hook_types || []).map((t) => [t.video_id, t.type]));
   const top = (stats.top || []).map((id) => byId.get(id)).filter(Boolean);
-  // Reviews made before the typed-hooks prompt carry `recommendations`; show their hook lines untyped.
-  const hooks = review.hooks || (review.recommendations || []).map((r) => ({ hook: r.hook, type: null }));
   const typeTag = (type) => (type ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> ({type})</span> : null);
 
   return (
@@ -130,21 +131,31 @@ export default function ReviewSection({ videos }) {
         </table>
       </div>
 
-      {hooks.length ? (
-        <>
-          <div style={blockLabel}>Hooks to consider</div>
-          <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-            {hooks.map((h, i) => (
-              <li key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
-                <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-                <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0 }}>
-                  "{h.hook}"{h.type ? <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>{h.type}</em> : null}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </>
-      ) : null}
+      {hookList}
     </SocialCard>
+  );
+}
+
+// Hooks to consider: competitors' outlier opening lines in their own words, linked to the video,
+// then the move, account and multiple in muted italics.
+function CompetitorHooks({ hooks }) {
+  if (!hooks.length) return null;
+  return (
+    <>
+      <div style={blockLabel}>Hooks to consider</div>
+      <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+        {hooks.map((h, i) => (
+          <li key={h.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
+            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
+              <a href={h.url || TIKTOK_URL(h.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 600, color: COLORS.ink }}>"{h.line}"</a>
+              <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
+                {[h.move, `@${h.handle}`, multipleText(h.multiple, false)].filter(Boolean).join(' \u00b7 ')}
+              </em>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </>
   );
 }
