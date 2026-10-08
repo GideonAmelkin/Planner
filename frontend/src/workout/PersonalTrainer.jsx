@@ -33,19 +33,19 @@ const WORKOUTS_OPEN_KEY = 'plannerWorkoutLogOpen';
 const readFlag = (key) => { try { return localStorage.getItem(key) === '1'; } catch (_) { return false; } };
 const writeFlag = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (_) { /* ignore */ } };
 
-// A dropdown row: chevron, title, a count chip; the body shows while open.
+// A dropdown box: chevron, title, a count chip; the body shows inside the same box while open.
 function Dropdown({ title, count, open, onToggle, children }) {
   return (
-    <div style={{ minWidth: 0 }}>
+    <div style={{ minWidth: 0, border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.6)', borderRadius: 14, overflow: 'hidden' }}>
       <button type="button" onClick={onToggle} aria-expanded={open} style={{
-        display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: `1px solid ${COLORS.hairline}`, background: 'rgba(255,255,255,.6)',
-        borderRadius: 14, padding: '11px 14px', font: 'inherit', fontSize: 14, fontWeight: 600, color: COLORS.ink, cursor: 'pointer', textAlign: 'left',
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%', border: 'none', background: 'transparent',
+        padding: '11px 14px', font: 'inherit', fontSize: 14, fontWeight: 600, color: COLORS.ink, cursor: 'pointer', textAlign: 'left',
       }}>
         <span style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .2s', color: COLORS.muted }}><Icon name="right" size={16} /></span>
         {title}
         {count ? <Chip>{count}</Chip> : null}
       </button>
-      {open ? <div style={{ marginTop: 10, minWidth: 0 }}>{children}</div> : null}
+      {open ? <div style={{ padding: '0 14px 14px', minWidth: 0 }}>{children}</div> : null}
     </div>
   );
 }
