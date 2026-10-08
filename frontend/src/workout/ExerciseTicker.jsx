@@ -57,13 +57,13 @@ export default function ExerciseTicker({ history, allHistory, unit, muscle, onCl
 
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-        {g ? (
+      {g ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
           <button type="button" onClick={onClearMuscle} style={{ border: 'none', background: 'transparent', padding: 0, cursor: 'pointer', font: 'inherit' }}>
             <Chip color={g.color} style={{ fontSize: 12, padding: '4px 11px' }}>Showing {g.label} · show all ✕</Chip>
           </button>
-        ) : <span style={muted}>Click a row for its rep-max table, records and history. Click a header to sort.</span>}
-      </div>
+        </div>
+      ) : null}
       <div style={tableWrap}>
         <table style={{ ...table, minWidth: 760 }}>
           <thead>
