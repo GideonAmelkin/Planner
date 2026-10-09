@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
-import { tableLink } from './SocialTable';
 import { getReview, generateReview } from './api';
 import { dateTime, multipleText } from './format';
 import { Cover } from './CompetitorsSection';
@@ -13,8 +12,8 @@ export const HEADER_BUTTON_MIN = 72;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
 // "Video Recommendations" (layout 8 of https://claude.ai/artifact/JvcMs8PTectBkTGoWv4cuV, 2026-10-08):
-// two tabs. Hooks To Consider: the competitors' real winning opening lines, read live from the competitor
-// research, each with its cover, move, account and multiple. Top Videos: your own last 30 days (TopVideos.jsx),
+// two tabs. Hooks To Consider: hook suggestions in your voice the Claude review writes, one per reference
+// (a competitor outlier whose topic and move it borrows), each with the reference's cover as the link. Top Videos: your own last 30 days (TopVideos.jsx),
 // each opening line tagged with the move the Claude review named. Refresh re-runs that review; the server
 // also runs it each morning when new videos arrive. The open tab is remembered per browser.
 const TAB_KEY = 'planner.social.recTab';
@@ -81,7 +80,7 @@ export default function ReviewSection({ videos }) {
   const hookList = (
     <>
       {tabStrip}
-      {tab === 'top' ? <TopVideos videos={videos} moves={moves} /> : <CompetitorHooks hooks={(rev && rev.competitor_hooks) || []} />}
+      {tab === 'top' ? <TopVideos videos={videos} moves={moves} /> : <HookSuggestions rev={rev} />}
     </>
   );
   const noticeLine = notice ? <div style={{ ...muted, marginTop: 8 }}>{notice}</div> : null;
@@ -103,33 +102,40 @@ export default function ReviewSection({ videos }) {
   );
 }
 
-// The tab strip, and the hook rows: number, cover, the line in the competitor's own words linked to
-// the video, then move, account and multiple in muted italics.
+// The tab strip, and the hook rows: number, the reference video's cover (opens it), your suggested hook,
+// then its move and the reference's account and multiple in muted italics.
 const tabRow = { display: 'flex', gap: 4, borderBottom: `1px solid ${COLORS.hairline}`, margin: '10px 0 4px', flexWrap: 'wrap' };
 const tabStyle = (on) => ({
   font: 'inherit', fontSize: 13, fontWeight: 600, color: on ? COLORS.ink : COLORS.muted, background: 'none', border: 'none',
   borderBottom: `2px solid ${on ? COLORS.accent : 'transparent'}`, padding: '8px 10px', marginBottom: -1, cursor: 'pointer',
 });
 
-function CompetitorHooks({ hooks }) {
+// The latest review's hooks joined to the references stored with it. Reviews before prompt v9 have none.
+function HookSuggestions({ rev }) {
+  const refs = new Map((((rev && rev.stats) || {}).references || []).map((r) => [r.video_id, r]));
+  const rows = (((rev && rev.review) || {}).hooks || []).map((h) => ({ ...h, ref: refs.get(h.ref_video_id) })).filter((h) => h.ref);
+  if (!rows.length) {
+    return <div style={{ color: COLORS.muted, fontSize: 13, padding: '8px 0' }}>{rev && rev.running ? 'Writing hook suggestions...' : 'No hook suggestions yet. Refresh to write them from the competitors\' winning videos.'}</div>;
+  }
   return (
-    <>
-      {!hooks.length ? <div style={{ color: COLORS.muted, fontSize: 13, padding: '8px 0' }}>No competitor hooks yet.</div> : (
-        <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-          {hooks.map((h, i) => (
-            <li key={h.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 30px minmax(0, 1fr)', gap: 10, padding: '7px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
-              <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-              <Cover v={{ ...h, url: h.url || TIKTOK_URL(h.video_id) }} width={30} />
-              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
-                <a href={h.url || TIKTOK_URL(h.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 600, color: COLORS.ink }}>"{h.line}"</a>
-                <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
-                  {[h.move, `@${h.handle}`, multipleText(h.multiple, false)].filter(Boolean).join(' \u00b7 ')}
-                </em>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
-    </>
+    <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+      {rows.map((h, i) => {
+        const url = h.ref.url || TIKTOK_URL(h.ref.video_id);
+        return (
+          <li key={h.ref.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 30px minmax(0, 1fr)', gap: 10, padding: '7px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
+            <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
+            <span title={`Reference: @${h.ref.handle}, ${multipleText(h.ref.multiple, false)}${h.ref.line ? `: "${h.ref.line}"` : ''}`}>
+              <Cover v={{ ...h.ref, url }} width={30} />
+            </span>
+            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
+              "{h.hook}"
+              <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
+                {[h.move, `from @${h.ref.handle}`, multipleText(h.ref.multiple, false)].filter(Boolean).join(' \u00b7 ')}
+              </em>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
