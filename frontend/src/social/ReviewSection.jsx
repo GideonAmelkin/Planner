@@ -4,6 +4,7 @@ import { tableLink } from './SocialTable';
 import { getReview, generateReview } from './api';
 import { dateTime, multipleText } from './format';
 import { Cover } from './CompetitorsSection';
+import TopVideos from './TopVideos';
 import { COLORS, outlineButton } from '../shared/styles';
 
 const POLL_MS = 3000;
@@ -12,13 +13,19 @@ export const HEADER_BUTTON_MIN = 72;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
 // "Video Recommendations" (layout 8 of https://claude.ai/artifact/JvcMs8PTectBkTGoWv4cuV, 2026-10-08):
-// a tab strip with one tab, Hooks To Consider: the competitors' real winning opening lines, read live
-// from the competitor research, each with its cover, move, account and multiple. Refresh re-runs the
-// Claude review of your own videos; the server also runs it each morning when new videos arrive.
-export default function ReviewSection() {
+// two tabs. Hooks To Consider: the competitors' real winning opening lines, read live from the competitor
+// research, each with its cover, move, account and multiple. Top Videos: your own last 30 days (TopVideos.jsx),
+// each opening line tagged with the move the Claude review named. Refresh re-runs that review; the server
+// also runs it each morning when new videos arrive. The open tab is remembered per browser.
+const TAB_KEY = 'planner.social.recTab';
+const TABS = [{ key: 'hooks', label: 'Hooks To Consider' }, { key: 'top', label: 'Top Videos' }];
+
+export default function ReviewSection({ videos }) {
   const [rev, setRev] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [tab, setTab] = useState(() => { try { return localStorage.getItem(TAB_KEY) === 'top' ? 'top' : 'hooks'; } catch (_) { return 'hooks'; } });
+  const pickTab = (key) => { setTab(key); try { localStorage.setItem(TAB_KEY, key); } catch (_) { /* ignore */ } };
   const timer = useRef(null);
 
   const load = useCallback(async () => {
@@ -63,7 +70,20 @@ export default function ReviewSection() {
       {running ? 'Refreshing...' : 'Refresh'}
     </button>
   );
-  const hookList = <CompetitorHooks hooks={(rev && rev.competitor_hooks) || []} />;
+  const moves = new Map(((rev && rev.review && rev.review.hook_types) || []).map((t) => [t.video_id, t.type]));
+  const tabStrip = (
+    <div role="tablist" style={tabRow}>
+      {TABS.map((t) => (
+        <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => pickTab(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>
+      ))}
+    </div>
+  );
+  const hookList = (
+    <>
+      {tabStrip}
+      {tab === 'top' ? <TopVideos videos={videos} moves={moves} /> : <CompetitorHooks hooks={(rev && rev.competitor_hooks) || []} />}
+    </>
+  );
   const noticeLine = notice ? <div style={{ ...muted, marginTop: 8 }}>{notice}</div> : null;
 
   if (error) return <SocialCard title={title}><div style={{ color: COLORS.danger, fontSize: 13 }}>Error: {error}</div></SocialCard>;
@@ -83,17 +103,17 @@ export default function ReviewSection() {
   );
 }
 
-// The tab strip (one tab today, room for more) and the hook rows: number, cover, the line in the
-// competitor's own words linked to the video, then move, account and multiple in muted italics.
-const tabStrip = { display: 'flex', gap: 4, borderBottom: `1px solid ${COLORS.hairline}`, margin: '10px 0 4px' };
-const tabOn = { fontSize: 13, fontWeight: 600, color: COLORS.ink, padding: '8px 10px', borderBottom: `2px solid ${COLORS.accent}`, marginBottom: -1 };
+// The tab strip, and the hook rows: number, cover, the line in the competitor's own words linked to
+// the video, then move, account and multiple in muted italics.
+const tabRow = { display: 'flex', gap: 4, borderBottom: `1px solid ${COLORS.hairline}`, margin: '10px 0 4px', flexWrap: 'wrap' };
+const tabStyle = (on) => ({
+  font: 'inherit', fontSize: 13, fontWeight: 600, color: on ? COLORS.ink : COLORS.muted, background: 'none', border: 'none',
+  borderBottom: `2px solid ${on ? COLORS.accent : 'transparent'}`, padding: '8px 10px', marginBottom: -1, cursor: 'pointer',
+});
 
 function CompetitorHooks({ hooks }) {
   return (
     <>
-      <div role="tablist" style={tabStrip}>
-        <span role="tab" aria-selected="true" style={tabOn}>Hooks To Consider</span>
-      </div>
       {!hooks.length ? <div style={{ color: COLORS.muted, fontSize: 13, padding: '8px 0' }}>No competitor hooks yet.</div> : (
         <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
           {hooks.map((h, i) => (
