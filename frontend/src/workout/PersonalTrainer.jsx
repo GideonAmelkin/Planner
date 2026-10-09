@@ -156,13 +156,13 @@ export default function PersonalTrainer({ data, date, rangeKey, customFrom, cust
       </div>
 
       <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
+        {workoutsDropdown}
         {latest ? (
           <Dropdown title="Exercises" count={`${history.length} lift${history.length === 1 ? '' : 's'}`} open={exercisesOpen} onToggle={toggleExercises}>
             <ExerciseTicker history={cards} allHistory={exerciseHistory(all)} unit={unit} muscle={muscle} onClearMuscle={() => onMuscle(null)}
               openIds={openIds} onToggle={toggle} sessionsById={sessionsById} metric={metric} setMetric={setMetric} />
           </Dropdown>
         ) : null}
-        {workoutsDropdown}
       </div>
     </WorkoutCard>
   );
