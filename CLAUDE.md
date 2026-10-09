@@ -75,12 +75,12 @@ The Social tab shows the user's TikTok account from TikTokAnalyzer's database
 That tracker's 06:15 cron writes the db and then rewrites the "Tik Tok" Google Sheet from it;
 the Planner is a second, read-only reader of the same file and never writes it, so the sheet
 and the tab always show the same rows. Three stacked cards: **Video Recommendations** (titled Summary until 2026-10-08; a Claude Opus 5 review
-of the last 30 days of posts (prompt v8, the model only names each opening line's move; since 2026-10-08
-layout 8 the card has two tabs: Hooks To Consider, each row with the video's cover, and Top Videos, your ten most viewed
-last-30-day videos with covers, sortable, a row opens its transcript, each opening line tagged with that move), where the hooks since
-2026-10-08 are not written by the model: the competitors' real on-niche outlier opening lines,
-top 10 by multiple, at most 3 per account, spoken or on-screen lines only, read live from the
-competitor research on every load; rows in `social_reviews`; five manual
+of the last 30 days of posts, prompt v9 since 2026-10-08, two tabs. Hooks To Consider: ten hook
+suggestions in the user's voice, one per reference video (the competitors' on-niche outliers, top 10 by
+multiple, at most 3 per account), each borrowing the reference's topic and move, never its words (a hook
+sharing 4+ consecutive words with its reference is dropped in code), shown with the reference's cover as
+the link; the references are stored with the review. Top Videos: the user's ten most viewed of the last 30
+days with covers, sortable, a row opens its transcript, each opening line tagged with its move); rows in `social_reviews`; five manual
 refreshes a day because `/api/` is public; a 07:15 scheduler refreshes once a day when new videos
 arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (a line chart of views per video over the last 30 days above the tiles, visible folded or open; every sheet column,
 search and a Drive button in the card header, sort, click a row for the transcript) and
