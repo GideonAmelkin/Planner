@@ -173,7 +173,8 @@ async function labelStep(data, watch, totals) {
 
 const THUMB_CAP = 80;
 // Every video the card can show (outliers, rising, all-time hits, adjacent, saved) without a cached
-// cover, fetched signed out, 2-4 s apart; the first refusal ends the step until the next run.
+// cover, plus your own videos of the last 30 days (Video Recommendations' Top Videos tab), fetched
+// signed out, 2-4 s apart; the first refusal ends the step until the next run.
 async function thumbStep(totals) {
   const p = await comp.payload();
   if (!p.available) return;
@@ -183,6 +184,8 @@ async function thumbStep(totals) {
   const want = (v) => { if (v && !seen.has(v.video_id) && !cached.has(v.video_id)) { seen.add(v.video_id); todo.push(v); } };
   for (const a of p.accounts) for (const k of ['outliers', 'rising', 'popular', 'adjacent']) a[k].forEach(want);
   p.saved.forEach(want);
+  const ownStart = comp.isoDaysAgo(30);
+  ((await social.rows()) || []).filter((r) => r.url && r.date_posted && r.date_posted >= ownStart).forEach(want);
   for (const [n, v] of todo.slice(0, THUMB_CAP).entries()) {
     if (n) await sleep(2000 + Math.floor(Math.random() * 2000));
     let status;
