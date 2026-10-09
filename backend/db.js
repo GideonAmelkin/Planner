@@ -272,6 +272,13 @@ db.serialize(() => {
     note TEXT,
     saved_at TEXT NOT NULL
   )`);
+  // Hooks To Consider: references the user checked off on the Video Recommendations card. A checked
+  // reference is never offered again; the day's count caps the replacements it triggers.
+  db.run(`CREATE TABLE IF NOT EXISTS social_hook_checks (
+    ref_video_id TEXT PRIMARY KEY,
+    hook TEXT,
+    checked_at TEXT NOT NULL
+  )`);
   // One row per analysis job run (relevance, labels, comments), started before any work.
   db.run(`CREATE TABLE IF NOT EXISTS social_competitor_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

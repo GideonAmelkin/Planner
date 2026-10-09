@@ -34,7 +34,7 @@ const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 // Suggested hook moves. The model names each opening line's move in one or two words and may coin its own.
 const HOOK_TYPES = ['Verdict', 'Relatable', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
 
-const SYSTEM = `You write TikTok hooks for one creator, in their own voice, from their own data.
+const INPUT = `You write TikTok hooks for one creator, in their own voice, from their own data.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
 views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
 divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
@@ -43,12 +43,9 @@ best posts, and "references": videos from accounts in the same niche that beat t
 opening line, move, topic, caption and the start of its transcript.
 
 Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
-situation before anything about the creator. Coin your own move when none fits.
+situation before anything about the creator. Coin your own move when none fits.`;
 
-Do two things:
-1. hook_types: name the move of the opening line of EVERY one of the creator's videos in the window.
-2. hooks: exactly one hook per reference, in the order the references are given, with that reference's video_id.
-   Take the reference's TOPIC and the move that made it work, and write the opening line the creator would say
+const HOOK_RULES = `   Take the reference's TOPIC and the move that made it work, and write the opening line the creator would say
    about that topic, for their own audience and where they are in their series. It is a suggestion for a video
    the creator could make, not a rewrite of the reference:
    - the first three seconds as the creator would say them on camera: one or two short sentences, at most 12 words;
@@ -57,10 +54,40 @@ Do two things:
    - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
      "let me tell you", "what nobody tells you";
    - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
-   move: one or two words naming the move your hook makes.
+   move: one or two words naming the move your hook makes.`;
 
-Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
+const OUTPUT_RULES = `Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
 periods. Ids only in id fields.`;
+
+const SYSTEM = `${INPUT}
+
+Do two things:
+1. hook_types: name the move of the opening line of EVERY one of the creator's videos in the window.
+2. hooks: exactly one hook per reference, in the order the references are given, with that reference's video_id.
+${HOOK_RULES}
+
+${OUTPUT_RULES}`;
+
+// One replacement hook after the user checks one off: a single reference, plus "hooks_on_card", the hooks the
+// creator still has on the card, which the new one must not echo.
+const SYSTEM_ONE = `${INPUT}
+
+Write exactly one hook, for the one reference given, with that reference's video_id. You also receive
+"hooks_on_card": the creator's other current hooks; yours must not share an opening word or a template with any of them.
+${HOOK_RULES}
+
+${OUTPUT_RULES}`;
+
+const SCHEMA_ONE = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['ref_video_id', 'hook', 'move'],
+  properties: {
+    ref_video_id: { type: 'string' },
+    hook: { type: 'string', description: 'The first three seconds, spoken: one or two short sentences, at most 12 words.' },
+    move: { type: 'string', description: 'One or two words naming the move.' },
+  },
+};
 
 const SCHEMA = {
   type: 'object',
@@ -240,14 +267,14 @@ function buildInput(window, stats, best, references) {
   };
 }
 
-async function callModel(input) {
+async function callModel(input, system = SYSTEM, schema = SCHEMA) {
   const client = new Anthropic();
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: SYSTEM,
+    system,
     messages: [{ role: 'user', content: JSON.stringify(input) }],
-    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+    output_config: { format: { type: 'json_schema', schema } },
   });
   if (response.stop_reason !== 'end_turn') {
     throw new Error(`model stopped early (${response.stop_reason})`);
@@ -259,6 +286,10 @@ async function callModel(input) {
     model: response.model || MODEL,
   };
 }
+
+// Tests swap the model call for a stub.
+let modelCall = callModel;
+const setModelCall = (fn) => { modelCall = fn || callModel; };
 
 // A readable reason for the stored error column; the SDK's typed errors first.
 function describeError(err) {
@@ -301,7 +332,7 @@ async function generate(trigger) {
     // The cover each hook is written from is stored with the review (the transcript excerpt is input only).
     const references = await competitors.referencesForReview();
     stats.references = references.map(({ transcript, ...r }) => r);
-    const { result, usage, model } = await callModel(buildInput(window, stats, best, references));
+    const { result, usage, model } = await modelCall(buildInput(window, stats, best, references));
     result.hooks = keepHooks(result.hooks, references);
     await run(
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
@@ -330,6 +361,7 @@ async function generate(trigger) {
 async function requestGenerate(trigger = 'manual') {
   if (!hasKey()) return { status: 503, body: { error: 'ANTHROPIC_API_KEY is not set on the server' } };
   if (running) return { status: 409, body: { running: true, error: 'a review is already being generated' } };
+  if (replacing.size) return { status: 409, body: { running: false, error: 'a checked hook is being replaced; try again in a minute' } };
   const t = await throttle();
   if (t) {
     return {
@@ -340,6 +372,82 @@ async function requestGenerate(trigger = 'manual') {
   }
   generate(trigger);   // not awaited: the page polls GET /social/review
   return { status: 202, body: { running: true } };
+}
+
+// -- checking a hook off ---------------------------------------------------------------------
+// The user checks a hook's number on the card: its reference is recorded in social_hook_checks (never
+// offered again) and that slot of the latest review gets a new reference and one new hook, written in the
+// background; the card polls GET /social/review while `replacing` is not empty. Replacements run one at a
+// time through a queue and a full review is refused meanwhile, so nothing races on the stored row.
+const REPLACE_CAP = 20;   // checks per local day (the API is public; each one is a model call)
+const replacing = new Set();
+const replaceErrors = new Map();
+let replaceQueue = Promise.resolve();
+
+async function replaceCap() {
+  const today = localISO();
+  const rows = await all('SELECT checked_at FROM social_hook_checks');
+  return { used: rows.filter((r) => localISO(new Date(r.checked_at)) === today).length, cap: REPLACE_CAP };
+}
+
+async function replaceSlot(refId) {
+  const startedAt = Date.now();
+  try {
+    const row = await latestRow(true);
+    const result = JSON.parse(row.result_json);
+    const stats = JSON.parse(row.stats_json);
+    const hooks = result.hooks || [];
+    const i = hooks.findIndex((h) => h.ref_video_id === refId);
+    if (i < 0) return;
+    const refs = stats.references || [];
+    const others = hooks.filter((_, k) => k !== i);
+    const onCard = others.map((h) => refs.find((r) => r.video_id === h.ref_video_id)).filter(Boolean);
+    const ref = await competitors.nextReference(onCard);
+    let usage = {};
+    if (ref) {
+      const window = await social.recentWindow();
+      const input = { ...buildInput(window, computeStats(window), await social.allTimeBest(10), [ref]), hooks_on_card: others.map((h) => h.hook) };
+      let hook = null;
+      for (let attempt = 0; attempt < 2 && !hook; attempt += 1) {
+        const out = await modelCall(input, SYSTEM_ONE, SCHEMA_ONE);
+        usage = out.usage || {};
+        [hook] = keepHooks([{ ...out.result, ref_video_id: ref.video_id }], [ref]);
+      }
+      if (!hook) throw new Error('the new hook copied its reference twice; Refresh will fill this slot');
+      const { transcript, ...stored } = ref;
+      hooks[i] = hook;
+      stats.references = refs.filter((r) => r.video_id !== refId).concat([stored]);
+    } else {
+      hooks.splice(i, 1);   // no reference left to write from: the list gets shorter
+      stats.references = refs.filter((r) => r.video_id !== refId);
+    }
+    result.hooks = hooks;
+    await run('UPDATE social_reviews SET result_json = ?, stats_json = ? WHERE id = ?', [JSON.stringify(result), JSON.stringify(stats), row.id]);
+    console.log(`[social] hook replaced (${refId} -> ${ref ? ref.video_id : 'none'}): ${usage.input_tokens || 0} in / ${usage.output_tokens || 0} out, ${Math.round((Date.now() - startedAt) / 1000)} s`);
+  } catch (err) {
+    replaceErrors.set(refId, describeError(err));
+    console.error(`[social] hook replace failed (${refId}):`, describeError(err));
+  } finally {
+    replacing.delete(refId);
+  }
+}
+
+// Check a hook off. Returns { status, body } for the route.
+async function requestReplace(refId) {
+  if (!hasKey()) return { status: 503, body: { error: 'ANTHROPIC_API_KEY is not set on the server' } };
+  if (running) return { status: 409, body: { error: 'a review is being generated; try again when it finishes' } };
+  if (replacing.has(refId)) return { status: 409, body: { error: 'this hook is already being replaced' } };
+  const row = await latestRow(true);
+  const hooks = row ? (JSON.parse(row.result_json).hooks || []) : [];
+  const hook = hooks.find((h) => h.ref_video_id === refId);
+  if (!hook) return { status: 404, body: { error: 'that hook is not on the card' } };
+  const cap = await replaceCap();
+  if (cap.used >= cap.cap) return { status: 429, body: { error: `${cap.cap} checked hooks per day; more tomorrow` } };
+  await run('INSERT OR IGNORE INTO social_hook_checks (ref_video_id, hook, checked_at) VALUES (?, ?, ?)', [refId, hook.hook, new Date().toISOString()]);
+  replacing.add(refId);
+  replaceErrors.delete(refId);
+  replaceQueue = replaceQueue.then(() => replaceSlot(refId));
+  return { status: 202, body: { replacing: [...replacing] } };
 }
 
 // Videos posted after the review's window or added to it since (the "stale" line).
@@ -362,6 +470,9 @@ async function current() {
     has_key: hasKey(),
     last_error: latestAny && latestAny.error ? { at: latestAny.generated_at, message: latestAny.error } : (lastError ? { message: lastError } : null),
     throttle: t ? { reason: t.reason, next_allowed_at: t.next_allowed_at, used: t.used, cap: t.cap } : null,
+    replacing: [...replacing],
+    replace_errors: Object.fromEntries(replaceErrors),
+    replace_cap: await replaceCap(),
   };
   if (!row) return { available: false, ...base, competitor_hooks: competitorHooks };
   const stats = JSON.parse(row.stats_json);
@@ -385,7 +496,7 @@ async function current() {
 // Daily refresh: once past 07:15, if nothing was generated today and the tracker has
 // videos the last review did not see, run one. Cheap to call often; it is throttled.
 async function maybeAutoGenerate() {
-  if (!hasKey() || running) return;
+  if (!hasKey() || running || replacing.size) return;
   const now = new Date();
   if (now.getHours() < SCHEDULE_HOUR || (now.getHours() === SCHEDULE_HOUR && now.getMinutes() < SCHEDULE_MINUTE)) return;
   const latestAny = await latestRow(false);
@@ -426,5 +537,6 @@ function startReviewScheduler() {
 }
 
 module.exports = {
-  MODEL, HOOK_TYPES, hasKey, computeStats, sanitize, copiesReference, keepHooks, requestGenerate, current, startReviewScheduler, isRunning: () => running,
+  MODEL, HOOK_TYPES, hasKey, computeStats, sanitize, copiesReference, keepHooks, requestReplace, setModelCall,
+  whenReplaced: () => replaceQueue, requestGenerate, current, startReviewScheduler, isRunning: () => running,
 };

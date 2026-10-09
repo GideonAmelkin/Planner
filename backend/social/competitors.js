@@ -302,9 +302,9 @@ function hookLine(o) {
   return words.length > HOOK_WORDS ? `${words.slice(0, HOOK_WORDS).join(' ')}...` : words.join(' ');
 }
 
-function pickHooks(accounts, limit = 10, perAccount = 3) {
+function pickHooks(accounts, limit = 10, perAccount = 3, exclude = new Set()) {
   const all_ = accounts.flatMap((a) => (a.outliers || [])
-    .filter((o) => o.hook_state === 'ok' && o.hook && o.hook_source !== 'caption')
+    .filter((o) => o.hook_state === 'ok' && o.hook && o.hook_source !== 'caption' && !exclude.has(o.video_id))
     .map((o) => ({ ...o, band: a.band })))
     .sort((x, y) => y.multiple - x.multiple);
   const perHandle = new Map();
@@ -322,14 +322,36 @@ function pickHooks(accounts, limit = 10, perAccount = 3) {
   }));
 }
 
+const TRANSCRIPT_CHARS = 600;   // of each reference's transcript, model input only
+
+// References the user checked off on the card (social_hook_checks); never offered again.
+async function checkedIds() {
+  return new Set((await all('SELECT ref_video_id FROM social_hook_checks')).map((r) => r.ref_video_id));
+}
+
 async function hooksToConsider(limit = 10, perAccount = 3) {
   const p = await payload();
-  return p.available ? pickHooks(p.accounts, limit, perAccount) : [];
+  return p.available ? pickHooks(p.accounts, limit, perAccount, await checkedIds()) : [];
+}
+
+// The next reference for one checked slot: the best outlier by the same rules that is neither checked
+// nor already on the card, keeping at most `perAccount` per account among `onCard` when it can.
+async function nextReference(onCard = [], perAccount = 3) {
+  const p = await payload();
+  if (!p.available) return null;
+  const exclude = await checkedIds();
+  onCard.forEach((r) => exclude.add(r.video_id));
+  const pool = pickHooks(p.accounts, 1000, 1000, exclude);
+  const count = (h) => onCard.filter((r) => r.handle === h).length;
+  const ref = pool.find((r) => count(r.handle) < perAccount) || pool[0];
+  if (!ref) return null;
+  const data = await research.load();
+  const h = data && data.hookById.get(ref.video_id);
+  return { ...ref, transcript: ((h && h.full_transcript) || '').trim().slice(0, TRANSCRIPT_CHARS) };
 }
 
 // The references the Summary review writes its hook suggestions from (review.js v9): the same ten
 // videos plus the start of each one's transcript, for the model input only.
-const TRANSCRIPT_CHARS = 600;
 async function referencesForReview() {
   const refs = await hooksToConsider();
   const data = await research.load();
@@ -351,5 +373,5 @@ async function unsaveVideo(videoId) {
 module.exports = {
   WINDOW_DAYS, OUTLIER_MIN, LABEL_HASH, DEFAULT_NICHE, MAX_WATCH,
   multiplesFor, band, median, cleanHandle, isHandle, nicheHash, niche, ownFollowers, setSetting,
-  listing, changeHandle, payload, pickHooks, hooksToConsider, referencesForReview, saveVideo, unsaveVideo, isoDaysAgo,
+  listing, changeHandle, payload, pickHooks, hooksToConsider, referencesForReview, checkedIds, nextReference, saveVideo, unsaveVideo, isoDaysAgo,
 };

@@ -43,6 +43,13 @@ router.post('/social/review/generate', asyncHandler(async (req, res) => {
   res.status(status).json(body);
 }));
 
+// Check a hook off the card: its reference is never offered again and the slot gets a new hook (background).
+router.post('/social/review/hooks/:refId/check', asyncHandler(async (req, res) => {
+  if (!/^\d{6,25}$/.test(req.params.refId)) return res.status(400).json({ error: 'invalid video id' });
+  const { status, body } = await review.requestReplace(req.params.refId);
+  return res.status(status).json(body);
+}));
+
 // -- Competitors card --------------------------------------------------------------
 
 router.get('/social/competitors', asyncHandler(async (req, res) => {
