@@ -1,9 +1,9 @@
 // The Summary card review: Claude reads the creator's recent videos
 // (metrics, the tracker's baseline multiple, transcript, caption) and explains what
-// made the winners work by naming each opening line's move. The numbers the model sees
-// are computed here and stored next to its text, so the page shows the same figures.
-// Hooks to consider are not written by the model: they are the competitors' real winning
-// opening lines (competitors.hooksToConsider), read live on every GET.
+// made the winners work by naming each opening line's move, and writes Hooks To Consider: one hook in
+// the creator's voice per reference, a competitor outlier (competitors.referencesForReview) whose topic
+// and move it borrows, never its words. The references are stored with the review so the card shows the
+// cover each hook was written from; a hook that copies its reference is dropped in code.
 //
 // The Planner API has no auth and nginx exposes /api/ publicly, so every run is
 // capped from the social_reviews table: five manual runs per local day.
@@ -17,7 +17,7 @@ const competitors = require('./competitors');
 
 const MODEL = 'claude-opus-5';
 const MAX_TOKENS = 8000;   // adaptive thinking counts against this; 2500 was hit once
-const PROMPT_VERSION = 'v8';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
+const PROMPT_VERSION = 'v9';   // stored as a suffix on `trigger`, so rows from older prompts are recognisable
 // The card's Refresh button: at most DAILY_CAP manual runs per local day (the 07:15 scheduled run
 // does not count); the button greys out once they are used. No per-run gap.
 const DAILY_CAP = 5;
@@ -34,22 +34,38 @@ const hasKey = () => Boolean(process.env.ANTHROPIC_API_KEY);
 // Suggested hook moves. The model names each opening line's move in one or two words and may coin its own.
 const HOOK_TYPES = ['Verdict', 'Relatable', 'Objection-first', 'Confession', 'Reveal', 'Contrarian', 'Cold open', 'Countdown', 'Callback', 'Question'];
 
-const SYSTEM = `You classify the opening lines of one TikTok creator's recent videos.
+const SYSTEM = `You write TikTok hooks for one creator, in their own voice, from their own data.
 You receive the creator's recent videos: post date, caption, the first spoken line (hook), the full transcript,
 views, likes, comments, saves, shares, engagement per 1,000 views, rank by views, and the tracker's "multiple" (views
 divided by a rolling baseline of the creator's own previous posts; 1.0 is a normal post, 2.0 is twice normal).
+You also receive "series": where the creator is today in their current run of daily posts, the account's all-time
+best posts, and "references": videos from accounts in the same niche that beat their own baseline, each with its
+opening line, move, topic, caption and the start of its transcript.
 
 Hook moves, one or two words each: ${HOOK_TYPES.join(', ')}. Relatable means the line names the viewer's own
 situation before anything about the creator. Coin your own move when none fits.
 
-hook_types: name the move of the opening line of EVERY video in the window.
+Do two things:
+1. hook_types: name the move of the opening line of EVERY one of the creator's videos in the window.
+2. hooks: exactly one hook per reference, in the order the references are given, with that reference's video_id.
+   Take the reference's TOPIC and the move that made it work, and write the opening line the creator would say
+   about that topic, for their own audience and where they are in their series. It is a suggestion for a video
+   the creator could make, not a rewrite of the reference:
+   - the first three seconds as the creator would say them on camera: one or two short sentences, at most 12 words;
+   - open a loop and do not close it: the line promises, it never explains;
+   - never reuse or paraphrase the reference's wording: no phrase of three or more distinctive words in common;
+   - never these constructions: "here is what", "here's what", "here is why", "actually", "the truth is",
+     "let me tell you", "what nobody tells you";
+   - no two hooks share an opening word or the same template; do not repeat the creator's existing opening lines.
+   move: one or two words naming the move your hook makes.
 
-Rules: no explanations, no preamble, no markdown. Never use em dashes or en dashes. Ids only in id fields.`;
+Rules: no explanations, no preamble, plain sentences, no markdown. Never use em dashes or en dashes; use commas or
+periods. Ids only in id fields.`;
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['hook_types'],
+  required: ['hook_types', 'hooks'],
   properties: {
     hook_types: {
       type: 'array',
@@ -64,8 +80,44 @@ const SCHEMA = {
         },
       },
     },
+    hooks: {
+      type: 'array',
+      description: 'Exactly one hook per reference, in the reference order.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['ref_video_id', 'hook', 'move'],
+        properties: {
+          ref_video_id: { type: 'string', description: 'The video_id of the reference this hook is written from.' },
+          hook: { type: 'string', description: 'The first three seconds, spoken: one or two short sentences, at most 12 words.' },
+          move: { type: 'string', description: 'One or two words naming the move.' },
+        },
+      },
+    },
   },
 };
+
+// A hook that shares COPY_RUN or more consecutive words with its reference's opening line is a copy.
+const COPY_RUN = 4;
+const words = (t) => String(t || '').toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean);
+function copiesReference(hook, refLine) {
+  const h = words(hook); const r = words(refLine);
+  const runs = new Set();
+  for (let i = 0; i + COPY_RUN <= r.length; i++) runs.add(r.slice(i, i + COPY_RUN).join(' '));
+  for (let i = 0; i + COPY_RUN <= h.length; i++) if (runs.has(h.slice(i, i + COPY_RUN).join(' '))) return true;
+  return false;
+}
+
+// Keep the hooks that name a known reference and do not copy it; the dropped ones are logged.
+function keepHooks(hooks, references) {
+  const byId = new Map(references.map((r) => [r.video_id, r]));
+  return (hooks || []).filter((h) => {
+    const ref = byId.get(h.ref_video_id);
+    if (!ref) { console.warn(`[social] hook dropped: unknown reference ${h.ref_video_id}`); return false; }
+    if (copiesReference(h.hook, ref.line)) { console.warn(`[social] hook dropped as a copy of ${ref.video_id}: ${h.hook}`); return false; }
+    return true;
+  });
+}
 
 // House rule: no em dashes anywhere, including AI text.
 const clean = (s) => String(s).replace(/\s*\u2014\s*/g, ', ').replace(/\u2013/g, '-');
@@ -159,10 +211,15 @@ function computeStats(window) {
   };
 }
 
-function buildInput(window, stats) {
+function buildInput(window, stats, best, references) {
   const byId = new Map(window.videos.map((v) => [v.video_id, v]));
   return {
+    references: references.map((r) => ({
+      video_id: r.video_id, account: r.handle, account_size_vs_creator: r.band, opening_line: r.line, move: r.move,
+      topic: r.topic, caption: r.caption, transcript_start: r.transcript, multiple_vs_own_baseline: r.multiple,
+    })),
     period: { basis: stats.basis, start: stats.start, end: stats.end, videos: stats.count, medians: stats.medians },
+    series: stats.series,
     top_performers: stats.top,
     videos: stats.videos.map((v) => ({
       video_id: v.video_id,
@@ -175,6 +232,10 @@ function buildInput(window, stats) {
       caption: v.caption,
       opening_line: v.hook,
       transcript: (byId.get(v.video_id) || {}).script || '',
+    })),
+    all_time_best_by_multiple: best.map((b) => ({
+      video_id: b.video_id, date_posted: b.date_posted, views: b.views, likes: b.likes, comments: b.comments,
+      saves: b.saves, shares: b.shares, multiple: b.multiple, opening_line: b.hook_summary || '', caption: b.caption || '',
     })),
   };
 }
@@ -236,7 +297,12 @@ async function generate(trigger) {
     window = await social.recentWindow();
     if (!window || !window.videos.length) throw new Error('no videos in the tracker database');
     const stats = computeStats(window);
-    const { result, usage, model } = await callModel(buildInput(window, stats));
+    const best = await social.allTimeBest(10);
+    // The cover each hook is written from is stored with the review (the transcript excerpt is input only).
+    const references = await competitors.referencesForReview();
+    stats.references = references.map(({ transcript, ...r }) => r);
+    const { result, usage, model } = await callModel(buildInput(window, stats, best, references));
+    result.hooks = keepHooks(result.hooks, references);
     await run(
       `INSERT INTO social_reviews (generated_at, trigger, window_start, window_end, video_count, newest_video_id, model,
         input_tokens, output_tokens, duration_ms, stats_json, result_json, error)
@@ -360,5 +426,5 @@ function startReviewScheduler() {
 }
 
 module.exports = {
-  MODEL, HOOK_TYPES, hasKey, computeStats, sanitize, requestGenerate, current, startReviewScheduler, isRunning: () => running,
+  MODEL, HOOK_TYPES, hasKey, computeStats, sanitize, copiesReference, keepHooks, requestGenerate, current, startReviewScheduler, isRunning: () => running,
 };

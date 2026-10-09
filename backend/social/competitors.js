@@ -318,12 +318,25 @@ function pickHooks(accounts, limit = 10, perAccount = 3) {
   return picked.map((o) => ({
     video_id: o.video_id, url: o.url, handle: o.handle, band: o.band, line: hookLine(o),
     move: o.move, multiple: o.multiple, views: o.views, has_thumb: Boolean(o.has_thumb),
+    topic: o.topic || null, caption: o.caption || '',
   }));
 }
 
 async function hooksToConsider(limit = 10, perAccount = 3) {
   const p = await payload();
   return p.available ? pickHooks(p.accounts, limit, perAccount) : [];
+}
+
+// The references the Summary review writes its hook suggestions from (review.js v9): the same ten
+// videos plus the start of each one's transcript, for the model input only.
+const TRANSCRIPT_CHARS = 600;
+async function referencesForReview() {
+  const refs = await hooksToConsider();
+  const data = await research.load();
+  return refs.map((r) => {
+    const h = data && data.hookById.get(r.video_id);
+    return { ...r, transcript: ((h && h.full_transcript) || '').trim().slice(0, TRANSCRIPT_CHARS) };
+  });
 }
 
 async function saveVideo(videoId, note) {
@@ -338,5 +351,5 @@ async function unsaveVideo(videoId) {
 module.exports = {
   WINDOW_DAYS, OUTLIER_MIN, LABEL_HASH, DEFAULT_NICHE, MAX_WATCH,
   multiplesFor, band, median, cleanHandle, isHandle, nicheHash, niche, ownFollowers, setSetting,
-  listing, changeHandle, payload, pickHooks, hooksToConsider, saveVideo, unsaveVideo, isoDaysAgo,
+  listing, changeHandle, payload, pickHooks, hooksToConsider, referencesForReview, saveVideo, unsaveVideo, isoDaysAgo,
 };

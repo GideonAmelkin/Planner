@@ -112,6 +112,9 @@ test('payload: on-niche outliers only, adjacent strip, off-niche counted, saves 
   assert.equal(hooks.length, 1);
   assert.equal(hooks[0].line, 'line 7200000000000000001');
   assert.equal(hooks[0].handle, 'scottygange');
+  const refs = await comp.referencesForReview();
+  assert.equal(refs.length, 1);
+  assert.equal(refs[0].transcript, '');
 });
 
 test('pickHooks: top by multiple, per-account cap, no caption fallbacks, 20-word cap', () => {
@@ -125,6 +128,8 @@ test('pickHooks: top by multiple, per-account cap, no caption fallbacks, 20-word
   assert.deepEqual(got.map((h) => h.video_id), ['a1', 'a2', 'b1', 'a3', 'b4']);
   assert.equal(got[2].band, 'Near');
   assert.equal(got[0].has_thumb, true);
+  assert.equal(got[0].caption, '');
+  assert.equal(got[0].topic, null);
   assert.equal(got[1].has_thumb, false);
   assert.equal(got[2].line.split(' ').length, 20);
   assert.ok(got[2].line.endsWith('...'));
@@ -171,4 +176,17 @@ test('openingLine: first 3 s plus the rest of the cut sentence, on-screen text, 
   const cap = 'one two three four five six seven eight nine ten eleven twelve thirteen fourteen';
   assert.deepEqual(openingLine(null, cap), { line: 'one two three four five six seven eight nine ten eleven twelve', more: 'thirteen fourteen' });
   assert.deepEqual(openingLine(null, 'short caption'), { line: 'short caption', more: null });
+});
+
+test('review v9: a hook sharing 4 consecutive words with its reference is dropped, unknown references too', () => {
+  const { copiesReference, keepHooks } = require('../social/review');
+  assert.equal(copiesReference('Life is supposed to be fun, right?', 'Just a quick reminder that life is supposed to be fun'), true);
+  assert.equal(copiesReference('Day 31 and fun finally feels allowed.', 'Just a quick reminder that life is supposed to be fun'), false);
+  const refs = [{ video_id: '1', line: 'You are stressed? Do not you remember asking for this?' }];
+  const kept = keepHooks([
+    { ref_video_id: '1', hook: 'Remember asking for this? I did.', move: 'Callback' },
+    { ref_video_id: '1', hook: 'Stress is the receipt for wanting more.', move: 'Reframe' },
+    { ref_video_id: '9', hook: 'No reference here.', move: 'Verdict' },
+  ], refs);
+  assert.deepEqual(kept.map((h) => h.hook), ['Stress is the receipt for wanting more.']);
 });
