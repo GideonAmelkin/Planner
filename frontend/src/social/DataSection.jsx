@@ -3,6 +3,7 @@ import SocialCard from './SocialCard';
 import SocialTile, { tileGrid, tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { getSocialVideo } from './api';
 import { HEADER_BUTTON_MIN } from './ReviewSection';
+import RecentChart from './RecentChart';
 import { shortDate, dateTime, multipleText, count } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
 import { num } from '../shared/format';
@@ -99,15 +100,19 @@ export default function DataSection({ data, loading, error }) {
 
   const visible = filtered.slice(0, shown);
   const colCount = COLUMNS.length;
+  // The 30-day chart sits above the tiles; both stay visible when the table is folded.
   const tiles = summary ? (
-    <div style={tileGrid(130)}>
-      <SocialTile label="Videos" value={num(summary.videos)} />
-      <SocialTile label="Total views" value={num(summary.total_views)} />
-      <SocialTile label="Views, last 30 days" value={num(summary.views_30d)} />
-      <SocialTile label="Posts, last 30 days" value={num(summary.posts_30d)} />
-      <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
-      <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
-    </div>
+    <>
+      <RecentChart videos={videos} />
+      <div style={tileGrid(130)}>
+        <SocialTile label="Videos" value={num(summary.videos)} />
+        <SocialTile label="Total views" value={num(summary.total_views)} />
+        <SocialTile label="Views, last 30 days" value={num(summary.views_30d)} />
+        <SocialTile label="Posts, last 30 days" value={num(summary.posts_30d)} />
+        <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
+        <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
+      </div>
+    </>
   ) : null;
 
   return (
