@@ -58,7 +58,7 @@ export default function ReviewSection({ videos }) {
     }
   };
 
-  const title = 'Summary';
+  const title = 'Video Recommendations';
   const muted = { color: COLORS.muted, fontSize: 13 };
   const running = Boolean(rev && rev.running);
   const capped = Boolean(rev && rev.throttle);   // the day's refreshes are used up
@@ -142,7 +142,7 @@ function CompetitorHooks({ hooks }) {
   if (!hooks.length) return null;
   return (
     <>
-      <div style={blockLabel}>Hooks to consider</div>
+      <div style={blockLabel}>Hooks To Consider</div>
       <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
         {hooks.map((h, i) => (
           <li key={h.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
