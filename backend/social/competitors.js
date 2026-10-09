@@ -317,7 +317,7 @@ function pickHooks(accounts, limit = 10, perAccount = 3) {
   }
   return picked.map((o) => ({
     video_id: o.video_id, url: o.url, handle: o.handle, band: o.band, line: hookLine(o),
-    move: o.move, multiple: o.multiple, views: o.views,
+    move: o.move, multiple: o.multiple, views: o.views, has_thumb: Boolean(o.has_thumb),
   }));
 }
 
