@@ -7,11 +7,11 @@ import { num } from '../shared/format';
 import { API_BASE } from '../shared/api';
 import { todayISO, shiftISO } from '../shared/dayInfo';
 
-// Video Recommendations' Top Videos tab: your own videos posted in the last 30 days (the same window as
-// the TikTok Data tile and chart), from the live tracker rows, sorted by views. Click a header to sort,
-// a row to read its caption and transcript. Each opening line carries its move from the latest review.
+// Video Recommendations' Top Videos tab: your 10 most viewed videos posted in the last 30 days (the same
+// window as the TikTok Data tile and chart), from the live tracker rows. Click a header to re-sort those
+// ten, a row to read its caption and transcript. Each opening line carries its move from the latest review.
 const WINDOW_DAYS = 30;
-const FIRST = 10;
+const TOP_N = 10;
 const COLS = [
   { key: 'date_posted', label: 'Posted', kind: 'text' },
   { key: 'views', label: 'Views', kind: 'num' },
@@ -36,13 +36,13 @@ function OwnCover({ v }) {
 
 export default function TopVideos({ videos, moves }) {
   const [sort, setSort] = useState({ key: 'views', dir: 'desc' });
-  const [all, setAll] = useState(false);
   const [open, setOpen] = useState(null);
   const [detail, setDetail] = useState({});   // video_id -> row with script | { error }
 
   const start = shiftISO(todayISO(), -WINDOW_DAYS);
   const rows = useMemo(() => {
-    const list = (videos || []).filter((v) => v.date_posted && v.date_posted >= start);
+    const list = (videos || []).filter((v) => v.date_posted && v.date_posted >= start)
+      .sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0)).slice(0, TOP_N);
     const col = COLS.find((c) => c.key === sort.key);
     const val = (v) => (col.kind === 'num' ? Number(v[sort.key]) || 0 : String(v[sort.key] || ''));
     return [...list].sort((a, b) => {
@@ -69,7 +69,6 @@ export default function TopVideos({ videos, moves }) {
       {c.label}{sort.key === c.key ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
     </th>
   );
-  const shown = all ? rows : rows.slice(0, FIRST);
   const muted = { color: COLORS.muted, fontWeight: 400 };
 
   return (
@@ -86,7 +85,7 @@ export default function TopVideos({ videos, moves }) {
             </tr>
           </thead>
           <tbody>
-            {shown.map((v, i) => {
+            {rows.map((v, i) => {
               const views = Number(v.views) || 0;
               const isOpen = open === v.video_id;
               const d = detail[v.video_id];
@@ -127,11 +126,6 @@ export default function TopVideos({ videos, moves }) {
           </tbody>
         </table>
       </div>
-      {rows.length > FIRST ? (
-        <button type="button" onClick={() => setAll((a) => !a)} style={{ ...tableLink, background: 'none', border: 'none', padding: '10px 0 0', cursor: 'pointer', font: 'inherit', fontSize: 13 }}>
-          {all ? 'Show top 10' : `Show all ${rows.length}`}
-        </button>
-      ) : null}
     </>
   );
 }
