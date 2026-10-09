@@ -12,6 +12,10 @@ export const getReview = () => api.get('/social/review', okOr404).then((r) => r.
 export const generateReview = () => api.post('/social/review/generate', {}, {
   validateStatus: (s) => s === 202 || s === 409 || s === 429 || s === 503,
 }).then((r) => ({ status: r.status, ...r.data }));
+// Check a hook off Video Recommendations: 202 started, 404 not on the card, 409 busy, 429 day's cap, 503 no key.
+export const checkHook = (refId) => api.post(`/social/review/hooks/${refId}/check`, {}, {
+  validateStatus: (s) => s === 202 || s === 404 || s === 409 || s === 429 || s === 503,
+}).then((r) => ({ status: r.status, ...r.data }));
 
 // Competitors card.
 export const getCompetitors = () => api.get('/social/competitors').then((r) => r.data);

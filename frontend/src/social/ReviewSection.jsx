@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
-import { getReview, generateReview } from './api';
+import { getReview, generateReview, checkHook } from './api';
 import { dateTime, multipleText } from './format';
 import { Cover } from './CompetitorsSection';
 import TopVideos from './TopVideos';
@@ -24,6 +24,18 @@ export default function ReviewSection({ videos }) {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [tab, setTab] = useState(() => { try { return localStorage.getItem(TAB_KEY) === 'top' ? 'top' : 'hooks'; } catch (_) { return 'hooks'; } });
+  // Check a hook off: the badge flips at once, the poll above brings the new hook in.
+  const check = async (refId) => {
+    setNotice(null);
+    setRev((cur) => ({ ...cur, replacing: [...((cur && cur.replacing) || []), refId] }));
+    try {
+      const r = await checkHook(refId);
+      if (r.status !== 202) setNotice(r.error || 'Could not check that hook off.');
+    } catch (e) {
+      setNotice(e.message);
+    }
+    await load();
+  };
   const pickTab = (key) => { setTab(key); try { localStorage.setItem(TAB_KEY, key); } catch (_) { /* ignore */ } };
   const timer = useRef(null);
 
@@ -37,9 +49,9 @@ export default function ReviewSection({ videos }) {
     }
   }, []);
 
-  // Poll while the server says a run is in progress.
+  // Poll while the server says a run or a checked hook's replacement is in progress.
   useEffect(() => {
-    if (!rev || !rev.running) return undefined;
+    if (!rev || !(rev.running || (rev.replacing || []).length)) return undefined;
     timer.current = setTimeout(load, POLL_MS);
     return () => clearTimeout(timer.current);
   }, [rev, load]);
@@ -80,7 +92,7 @@ export default function ReviewSection({ videos }) {
   const hookList = (
     <>
       {tabStrip}
-      {tab === 'top' ? <TopVideos videos={videos} moves={moves} /> : <HookSuggestions rev={rev} />}
+      {tab === 'top' ? <TopVideos videos={videos} moves={moves} /> : <HookSuggestions rev={rev} onCheck={check} />}
     </>
   );
   const noticeLine = notice ? <div style={{ ...muted, marginTop: 8 }}>{notice}</div> : null;
@@ -111,7 +123,12 @@ const tabStyle = (on) => ({
 });
 
 // The latest review's hooks joined to the references stored with it. Reviews before prompt v9 have none.
-function HookSuggestions({ rev }) {
+// The number is a button: checking it marks the hook used and a new one is written in its place.
+function HookSuggestions({ rev, onCheck }) {
+  const replacing = new Set(rev.replacing || []);
+  const errors = rev.replace_errors || {};
+  const cap = rev.replace_cap || { used: 0, cap: 0 };
+  const blocked = rev.running ? 'A full refresh is running' : cap.used >= cap.cap ? `${cap.cap} checked hooks per day; more tomorrow` : null;
   const refs = new Map((((rev && rev.stats) || {}).references || []).map((r) => [r.video_id, r]));
   const rows = (((rev && rev.review) || {}).hooks || []).map((h) => ({ ...h, ref: refs.get(h.ref_video_id) })).filter((h) => h.ref);
   if (!rows.length) {
@@ -121,13 +138,16 @@ function HookSuggestions({ rev }) {
     <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
       {rows.map((h, i) => {
         const url = h.ref.url || TIKTOK_URL(h.ref.video_id);
+        const busy = replacing.has(h.ref.video_id);
         return (
           <li key={h.ref.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 30px minmax(0, 1fr)', gap: 10, padding: '7px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
-            <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
+            <CheckBadge n={i + 1} busy={busy} disabled={busy || Boolean(blocked)} title={busy ? 'Writing a new hook' : blocked || 'Mark as used and get a new hook'} onClick={() => onCheck(h.ref.video_id)} />
             <span title={`Reference: @${h.ref.handle}, ${multipleText(h.ref.multiple, false)}${h.ref.line ? `: "${h.ref.line}"` : ''}`}>
               <Cover v={{ ...h.ref, url }} width={30} />
             </span>
-            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere', opacity: busy ? 0.45 : 1 }}>
+              {busy ? <div style={{ fontSize: 12, fontWeight: 500, color: COLORS.muted }}>Writing a new hook...</div> : null}
+              {errors[h.ref.video_id] ? <div style={{ fontSize: 12, fontWeight: 500, color: COLORS.danger }}>{errors[h.ref.video_id]}</div> : null}
               "{h.hook}"
               <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
                 {[h.move, `from @${h.ref.handle}`, multipleText(h.ref.multiple, false)].filter(Boolean).join(' \u00b7 ')}
@@ -137,5 +157,25 @@ function HookSuggestions({ rev }) {
         );
       })}
     </ol>
+  );
+}
+
+// The number badge as a check button: the number at rest, a check mark on hover or focus and while the
+// replacement is being written.
+function CheckBadge({ n, busy, disabled, title, onClick }) {
+  const [hover, setHover] = useState(false);
+  const showCheck = busy || (hover && !disabled);
+  return (
+    <button type="button" onClick={onClick} disabled={disabled} title={title} aria-label={`${title} (hook ${n})`}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+      style={{
+        width: 24, height: 24, borderRadius: 8, border: 'none', padding: 0, font: 'inherit', fontSize: 12, fontWeight: 700,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: disabled ? 'default' : 'pointer',
+        background: showCheck ? COLORS.accent : COLORS.calloutBg, color: showCheck ? '#fff' : COLORS.calloutText,
+      }}>
+      {showCheck ? (
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      ) : n}
+    </button>
   );
 }
