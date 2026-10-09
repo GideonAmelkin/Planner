@@ -79,7 +79,9 @@ of the last 30 days of posts, prompt v9 since 2026-10-08, two tabs. Hooks To Con
 suggestions in the user's voice, one per reference video (the competitors' on-niche outliers, top 10 by
 multiple, at most 3 per account), each borrowing the reference's topic and move, never its words (a hook
 sharing 4+ consecutive words with its reference is dropped in code), shown with the reference's cover as
-the link; the references are stored with the review. Top Videos: the user's ten most viewed of the last 30
+the link; the references are stored with the review. Checking a hook's number marks it used: its
+reference is recorded in `social_hook_checks` and never offered again, and that slot gets the next reference
+and one new hook in about 15 s (20 checks a day). Top Videos: the user's ten most viewed of the last 30
 days with covers, sortable, a row opens its transcript, each opening line tagged with its move); rows in `social_reviews`; five manual
 refreshes a day because `/api/` is public; a 07:15 scheduler refreshes once a day when new videos
 arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (a line chart of views per video over the last 30 days above the tiles, visible folded or open; every sheet column,
