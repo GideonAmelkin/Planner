@@ -33,7 +33,7 @@ export default function SocialView() {
       <AgendaRail dateISO={date} section="social" />
       <main style={{ flex: 1, minWidth: 0 }}>
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <ReviewSection videos={data && data.videos} />
+          <ReviewSection />
           <DataSection data={data} loading={loading} error={error} />
           <CompetitorsSection />
           <CompetitorScatter />

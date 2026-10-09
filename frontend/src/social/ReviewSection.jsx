@@ -1,21 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
-import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink, blockLabel } from './SocialTable';
+import { tableLink } from './SocialTable';
 import { getReview, generateReview } from './api';
-import { shortDate, dateTime, multipleText, count } from './format';
+import { dateTime, multipleText } from './format';
+import { Cover } from './CompetitorsSection';
 import { COLORS, outlineButton } from '../shared/styles';
-import { num } from '../shared/format';
 
 const POLL_MS = 3000;
 // Header buttons on this tab share one minimum width so Refresh and the TikTok Data card's Drive match.
 export const HEADER_BUTTON_MIN = 72;
 const TIKTOK_URL = (id) => `https://www.tiktok.com/video/${id}`;
 
-// "Summary": the latest Claude review of the recent videos: Top performers (the backend's own numbers, each opening line tagged
-// with its hook type) and Hooks to consider (the competitors' real winning opening lines, read live from the
-// competitor research, each with its move, account and multiple). The server generates a review each
-// morning when new videos arrive; the card only reads.
-export default function ReviewSection({ videos }) {
+// "Video Recommendations" (layout 8 of https://claude.ai/artifact/JvcMs8PTectBkTGoWv4cuV, 2026-10-08):
+// a tab strip with one tab, Hooks To Consider: the competitors' real winning opening lines, read live
+// from the competitor research, each with its cover, move, account and multiple. Refresh re-runs the
+// Claude review of your own videos; the server also runs it each morning when new videos arrive.
+export default function ReviewSection() {
   const [rev, setRev] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -39,11 +39,6 @@ export default function ReviewSection({ videos }) {
   }, [rev, load]);
 
   useEffect(() => { load(); }, [load]);
-
-  const urlFor = (id) => {
-    const v = (videos || []).find((x) => x.video_id === id);
-    return (v && v.url) || TIKTOK_URL(id);
-  };
 
   // Ask the server for a fresh review; the poll above picks up the result.
   const refresh = async () => {
@@ -78,84 +73,43 @@ export default function ReviewSection({ videos }) {
     ? <div style={{ fontSize: 13, color: COLORS.danger, marginTop: 8 }}>Last attempt failed{rev.last_error.at ? ` (${dateTime(rev.last_error.at)})` : ''}: {rev.last_error.message}</div>
     : null;
 
-  if (!rev.available) {
-    return (
-      <SocialCard title={title} actions={refreshButton}>
-        <div style={muted}>{rev.running ? 'Reviewing your recent videos...' : 'No review yet. One is generated each morning from the tracker\'s new videos.'}</div>
-        {noticeLine}
-        {failed}
-        {hookList}
-      </SocialCard>
-    );
-  }
-
-  const { review, stats } = rev;
-  const byId = new Map(stats.videos.map((v) => [v.video_id, v]));
-  const typeOf = new Map((review.hook_types || []).map((t) => [t.video_id, t.type]));
-  const top = (stats.top || []).map((id) => byId.get(id)).filter(Boolean);
-  const typeTag = (type) => (type ? <span style={{ color: COLORS.muted, fontWeight: 400 }}> ({type})</span> : null);
-
   return (
     <SocialCard title={title} actions={refreshButton}>
       {rev.running ? <div style={{ ...muted, marginBottom: 8 }}>Reviewing your recent videos...</div> : null}
       {noticeLine}
       {failed}
-
-      <div style={blockLabel}>Top performers</div>
-      <div style={tableWrap}>
-        <table style={{ ...table, minWidth: 720 }}>
-          <thead>
-            <tr style={headRow}>
-              <th style={th}>Posted</th><th style={{ ...th, width: '44%' }}>Opening line</th>
-              <th style={thNum}>Views</th><th style={thNum}>Likes</th><th style={thNum}>Comments</th><th style={thNum}>Saves</th><th style={thNum}>Shares</th>
-              <th style={thNum} title="Views relative to your own rolling baseline; 1.0x is a normal post">Multiple</th>
-            </tr>
-          </thead>
-          <tbody>
-            {top.map((v) => (
-              <tr key={v.video_id}>
-                <td style={{ ...td, whiteSpace: 'nowrap' }}>{shortDate(v.date_posted)}</td>
-                <td style={td}>
-                  <a href={urlFor(v.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 500, color: COLORS.ink }}>{v.hook || v.caption || '(no opening line)'}</a>
-                  {typeTag(typeOf.get(v.video_id))}
-                </td>
-                <td style={{ ...tdNum, fontWeight: 600 }} title={`Per 1,000 views: ${num(v.likes_per_k, 1)} likes, ${num(v.comments_per_k, 1)} comments, ${num(v.saves_per_k, 1)} saves, ${num(v.shares_per_k, 1)} shares`}>{count(v.views)}</td>
-                <td style={tdNum}>{count(v.likes)}</td>
-                <td style={tdNum}>{count(v.comments)}</td>
-                <td style={tdNum}>{count(v.saves)}</td>
-                <td style={tdNum}>{count(v.shares)}</td>
-                <td style={tdNum}>{multipleText(v.multiple, false)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
       {hookList}
     </SocialCard>
   );
 }
 
-// Hooks to consider: competitors' outlier opening lines in their own words, linked to the video,
-// then the move, account and multiple in muted italics.
+// The tab strip (one tab today, room for more) and the hook rows: number, cover, the line in the
+// competitor's own words linked to the video, then move, account and multiple in muted italics.
+const tabStrip = { display: 'flex', gap: 4, borderBottom: `1px solid ${COLORS.hairline}`, margin: '10px 0 4px' };
+const tabOn = { fontSize: 13, fontWeight: 600, color: COLORS.ink, padding: '8px 10px', borderBottom: `2px solid ${COLORS.accent}`, marginBottom: -1 };
+
 function CompetitorHooks({ hooks }) {
-  if (!hooks.length) return null;
   return (
     <>
-      <div style={blockLabel}>Hooks To Consider</div>
-      <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
-        {hooks.map((h, i) => (
-          <li key={h.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr', gap: 10, padding: '6px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
-            <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-            <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
-              <a href={h.url || TIKTOK_URL(h.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 600, color: COLORS.ink }}>"{h.line}"</a>
-              <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
-                {[h.move, `@${h.handle}`, multipleText(h.multiple, false)].filter(Boolean).join(' \u00b7 ')}
-              </em>
-            </div>
-          </li>
-        ))}
-      </ol>
+      <div role="tablist" style={tabStrip}>
+        <span role="tab" aria-selected="true" style={tabOn}>Hooks To Consider</span>
+      </div>
+      {!hooks.length ? <div style={{ color: COLORS.muted, fontSize: 13, padding: '8px 0' }}>No competitor hooks yet.</div> : (
+        <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+          {hooks.map((h, i) => (
+            <li key={h.video_id} style={{ display: 'grid', gridTemplateColumns: '28px 30px minmax(0, 1fr)', gap: 10, padding: '7px 0', borderTop: i ? `1px solid ${COLORS.hairline}` : 'none', alignItems: 'center' }}>
+              <div style={{ width: 24, height: 24, borderRadius: 8, background: COLORS.calloutBg, color: COLORS.calloutText, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
+              <Cover v={{ ...h, url: h.url || TIKTOK_URL(h.video_id) }} width={30} />
+              <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.4, minWidth: 0, overflowWrap: 'anywhere' }}>
+                <a href={h.url || TIKTOK_URL(h.video_id)} target="_blank" rel="noreferrer" style={{ ...tableLink, fontWeight: 600, color: COLORS.ink }}>"{h.line}"</a>
+                <em style={{ color: COLORS.muted, fontWeight: 400, fontSize: 13, marginLeft: 8 }}>
+                  {[h.move, `@${h.handle}`, multipleText(h.multiple, false)].filter(Boolean).join(' \u00b7 ')}
+                </em>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </>
   );
 }
