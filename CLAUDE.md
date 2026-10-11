@@ -84,7 +84,7 @@ reference is recorded in `social_hook_checks` and never offered again, and that 
 and one new hook in about 15 s (20 checks a day). Top Videos: the user's ten most viewed of the last 30
 days with covers, sortable, a row opens its transcript, each opening line tagged with its move); rows in `social_reviews`; five manual
 refreshes a day because `/api/` is public; a 07:15 scheduler refreshes once a day when new videos
-arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (a line chart of views per video over the last 30 days above the tiles, visible folded or open; every sheet column,
+arrived; needs `ANTHROPIC_API_KEY` in the server `.env`), **TikTok Data** (a TikTok Studio-style Key metrics chart, metric tabs with range totals over a per-post-day line, above the tiles, visible folded or open; every sheet column,
 search and a Drive button in the card header, sort, click a row for the transcript) and
 **Competitors** (since 2026-10-05, plan `~/.claude/plans/i-have-a-list-lively-crab.md`): the
 watchlist lives in `social_competitors` (seeded with five handles, add / remove on the card, at
@@ -100,7 +100,7 @@ formats / rising-sound lines were removed on 2026-10-06 at the user's request). 
 user picked it from ten layouts, https://claude.ai/artifact/SpJ6aLKFFbQMfA6FzwKwbf): every
 outlier, rising video and all-time hit in one sortable table with its cover, scoped to All, one
 account or Saved; adjacent videos (niche score 1 of 3, a nearby topic) are always listed, tagged in Type.
-The TikTok Data card keeps its six tiles visible and folds only its table behind a chevron (closed
+The TikTok Data card keeps its four tiles (Videos, Total views, Last post, Data updated; the 30-day views and posts tiles moved into the chart's tabs on 2026-10-10) visible and folds only its table behind a chevron (closed
 by default, `planner.social.dataOpen`; no search box; Drive matches Refresh). A fifth card, Scatter,
 plots the same videos as covers by views (right) against saves (up), both log scales. Outliers use the
 tracker's own multiple rule (ported to JS, pinned by a Python fixture). Covers are cached on the

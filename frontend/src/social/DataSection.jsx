@@ -100,15 +100,14 @@ export default function DataSection({ data, loading, error }) {
 
   const visible = filtered.slice(0, shown);
   const colCount = COLUMNS.length;
-  // The 30-day chart sits above the tiles; both stay visible when the table is folded.
+  // The Key metrics chart (its tabs carry the range's views and posts) sits above the tiles; both
+  // stay visible when the table is folded.
   const tiles = summary ? (
     <>
       <RecentChart videos={videos} />
       <div style={tileGrid(130)}>
         <SocialTile label="Videos" value={num(summary.videos)} />
         <SocialTile label="Total views" value={num(summary.total_views)} />
-        <SocialTile label="Views, last 30 days" value={num(summary.views_30d)} />
-        <SocialTile label="Posts, last 30 days" value={num(summary.posts_30d)} />
         <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
         <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
       </div>
