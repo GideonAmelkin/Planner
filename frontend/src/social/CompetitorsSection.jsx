@@ -241,8 +241,9 @@ export default function CompetitorsSection() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [pick, setPick] = useState(readPick() || 'all');
-  const [notice, setNotice] = useState(null);
+  const [notice, setNotice] = useState(null);   // {text, error}
   const [handle, setHandle] = useState('');
+  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);   // the niche editor is open
   const [draft, setDraft] = useState('');
 
@@ -251,16 +252,35 @@ export default function CompetitorsSection() {
 
   const choose = (v) => { setPick(v); writePick(v); };
 
+  const fail = (verb, h, r) => ({ text: `Could not ${verb} @${String(h).replace(/^@+/, '')}: ${(r && r.error) || (r && r.status) || 'no response'}`, error: true });
   const add = async (e) => {
     e.preventDefault();
+    if (adding) return;
     setNotice(null);
-    const r = await changeCompetitor(handle, 'add');
-    if (r.status !== 200) { setNotice(r.error); return; }
-    setHandle('');
-    choose(r.handle);
+    setAdding(true);
+    try {
+      const r = await changeCompetitor(handle, 'add');
+      if (r.status !== 200) { setNotice(fail('add', handle, r)); return; }
+      setHandle('');
+      choose(r.handle);
+      setNotice({ text: `Added @${r.handle}. Its videos arrive after the Mac's next listing (06:30, 12:15 or 18:15).` });
+      load();
+    } catch (err) {
+      setNotice(fail('add', handle, { error: err.message }));
+    } finally {
+      setAdding(false);
+    }
+  };
+  const remove = async (h) => {
+    setNotice(null);
+    try {
+      const r = await changeCompetitor(h, 'remove');
+      if (r.status !== 200) setNotice(fail('remove', h, r));
+    } catch (err) {
+      setNotice(fail('remove', h, { error: err.message }));
+    }
     load();
   };
-  const remove = async (h) => { const r = await changeCompetitor(h, 'remove'); if (r.status !== 200) setNotice(r.error); load(); };
   const toggleSave = async (v) => { if (v.saved) await unsaveCompetitorVideo(v.video_id); else await saveCompetitorVideo(v.video_id, null); load(); };
   const saveNote = async (v, note) => { if ((v.note || '') !== note) { await saveCompetitorVideo(v.video_id, note); load(); } };
   const startEdit = () => {
@@ -270,7 +290,7 @@ export default function CompetitorsSection() {
   };
   const saveEdit = async () => {
     const r = await putCompetitorSettings({ niche: draft });
-    if (r.status !== 200) { setNotice(r.error); return; }
+    if (r.status !== 200) { setNotice({ text: r.error, error: true }); return; }
     setEditing(false);
     load();
   };
@@ -281,7 +301,7 @@ export default function CompetitorsSection() {
       <form onSubmit={add} style={{ display: 'flex', gap: 6 }}>
         <input value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle" aria-label="Add a TikTok handle"
           style={{ width: 120, border: `1px solid ${COLORS.hairline}`, borderRadius: 8, padding: '4px 8px', fontSize: 12 }} />
-        <button type="submit" disabled={!handle.trim()} style={{ ...outlineButton(COLORS.accent, { disabled: !handle.trim() }), minWidth: HEADER_BUTTON_MIN }}>Add</button>
+        <button type="submit" disabled={adding || !handle.trim()} style={{ ...outlineButton(COLORS.accent, { disabled: adding || !handle.trim() }), minWidth: HEADER_BUTTON_MIN }}>{adding ? 'Adding...' : 'Add'}</button>
       </form>
     </span>
   ) : null;
@@ -298,7 +318,7 @@ export default function CompetitorsSection() {
 
   return (
     <SocialCard title="Competitors" actions={actions}>
-      {notice ? <div style={{ fontSize: 13, color: COLORS.danger, marginBottom: 8 }}>{notice}</div> : null}
+      {notice ? <div style={{ fontSize: 13, color: notice.error ? COLORS.danger : COLORS.muted, marginBottom: 8 }}>{notice.text}</div> : null}
       {editing ? (
         <div style={{ marginBottom: 12 }}>
           <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}

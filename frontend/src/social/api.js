@@ -19,10 +19,11 @@ export const checkHook = (refId) => api.post(`/social/review/hooks/${refId}/chec
 
 // Competitors card.
 export const getCompetitors = () => api.get('/social/competitors').then((r) => r.data);
-// action: add | remove. 400 bad handle, 409 at the account cap.
+// action: add | remove. 400 bad handle, 409 at the account cap. The body has its own status
+// (watch | removed), so the HTTP status goes last.
 export const changeCompetitor = (handle, action) => api.post('/social/competitors/handles', { handle, action }, {
-  validateStatus: (s) => s === 200 || s === 400 || s === 409,
-}).then((r) => ({ status: r.status, ...r.data }));
+  validateStatus: (s) => s === 200 || s === 400 || s === 409 || s === 500,
+}).then((r) => ({ ...r.data, status: r.status }));
 export const putCompetitorSettings = (body) => api.put('/social/competitors/settings', body, {
   validateStatus: (s) => s === 200 || s === 400,
 }).then((r) => ({ status: r.status, ...r.data }));
