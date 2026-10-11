@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
-import { getCompetitors } from './api';
 import { leaderboardRows, TYPE_LABEL } from './competitorRows';
 import { compact, perK, secs, Pill, Cover, TYPE_STYLE, OpeningLine } from './CompetitorsSection';
 import { monthDay } from './format';
@@ -38,21 +37,15 @@ const multText = (m) => (m === null ? '-' : `${m >= 100 ? num(Math.round(m)) : n
 // The Scatter section: every Leaderboard video as its cover, placed by its views (right) and its
 // saves (up), both raw counts on log scales, so the most viewed and most saved videos meet in the top
 // right. Clicking a cover shows it in the panel, which keeps the multiple and saves per 1k.
-export default function CompetitorScatter() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+export default function CompetitorScatter({ data, error }) {
   const [pick, setPick] = useState(() => readKey(PICK_KEY, 'all'));
   const [selected, setSelected] = useState(null);
   const narrow = useNarrow();
 
-  useEffect(() => {
-    let live = true;
-    getCompetitors().then((d) => { if (live) setData(d); }).catch((e) => { if (live) setError(e.message); });
-    return () => { live = false; };
-  }, []);
-
   const accounts = useMemo(() => (data && data.accounts) || [], [data]);
   const scope = pick === 'all' || accounts.some((a) => a.handle === pick) ? pick : 'all';
+  // A removed account's pick falls back to All and is forgotten, so its pill can't come back.
+  useEffect(() => { if (data && scope !== pick) { setPick('all'); writeKey(PICK_KEY, 'all'); } }, [data, scope, pick]);
   const points = useMemo(() => leaderboardRows(accounts, scope).filter((v) => v.views),
     [accounts, scope]);
 

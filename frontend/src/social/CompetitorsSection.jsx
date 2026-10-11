@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { API_BASE } from '../shared/api';
-import { getCompetitors, changeCompetitor, putCompetitorSettings, saveCompetitorVideo, unsaveCompetitorVideo } from './api';
+import { changeCompetitor, putCompetitorSettings, saveCompetitorVideo, unsaveCompetitorVideo } from './api';
 import { leaderboardRows, sortRows, TYPE_LABEL, TEXT_COLUMNS } from './competitorRows';
 import { monthDay, dateTime, multipleText } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
@@ -237,18 +237,13 @@ function AccountLine({ a, onRemove }) {
 
 // The Competitors card: one leaderboard over every account's videos (or one account, or Saved), with
 // covers. The user adds every account.
-export default function CompetitorsSection() {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
+export default function CompetitorsSection({ data, error, reload }) {
   const [pick, setPick] = useState(readPick() || 'all');
   const [notice, setNotice] = useState(null);   // {text, error}
   const [handle, setHandle] = useState('');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);   // the niche editor is open
   const [draft, setDraft] = useState('');
-
-  const load = useCallback(() => getCompetitors().then((d) => { setData(d); setError(null); }).catch((e) => setError(e.message)), []);
-  useEffect(() => { load(); }, [load]);
 
   const choose = (v) => { setPick(v); writePick(v); };
 
@@ -263,8 +258,8 @@ export default function CompetitorsSection() {
       if (r.status !== 200) { setNotice(fail('add', handle, r)); return; }
       setHandle('');
       choose(r.handle);
-      setNotice({ text: `Added @${r.handle}. Its videos arrive after the Mac's next listing (06:30, 12:15 or 18:15).` });
-      load();
+      setNotice({ text: `Added @${r.handle}. Its videos arrive within 15 minutes, while the Mac is awake.` });
+      reload();
     } catch (err) {
       setNotice(fail('add', handle, { error: err.message }));
     } finally {
@@ -279,10 +274,10 @@ export default function CompetitorsSection() {
     } catch (err) {
       setNotice(fail('remove', h, { error: err.message }));
     }
-    load();
+    reload();
   };
-  const toggleSave = async (v) => { if (v.saved) await unsaveCompetitorVideo(v.video_id); else await saveCompetitorVideo(v.video_id, null); load(); };
-  const saveNote = async (v, note) => { if ((v.note || '') !== note) { await saveCompetitorVideo(v.video_id, note); load(); } };
+  const toggleSave = async (v) => { if (v.saved) await unsaveCompetitorVideo(v.video_id); else await saveCompetitorVideo(v.video_id, null); reload(); };
+  const saveNote = async (v, note) => { if ((v.note || '') !== note) { await saveCompetitorVideo(v.video_id, note); reload(); } };
   const startEdit = () => {
     if (editing) { setEditing(false); return; }
     setEditing(true);
@@ -292,7 +287,7 @@ export default function CompetitorsSection() {
     const r = await putCompetitorSettings({ niche: draft });
     if (r.status !== 200) { setNotice({ text: r.error, error: true }); return; }
     setEditing(false);
-    load();
+    reload();
   };
 
   const actions = data ? (

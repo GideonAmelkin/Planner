@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import AgendaRail from '../shared/AgendaRail';
 import ReviewSection from './ReviewSection';
 import DataSection from './DataSection';
 import CompetitorsSection from './CompetitorsSection';
 import CompetitorScatter from './CompetitorScatter';
-import { getSocialVideos } from './api';
+import { getSocialVideos, getCompetitors } from './api';
 import { COLORS } from '../shared/styles';
 import { useViewDate } from '../shared/today';
 
@@ -17,6 +17,14 @@ export default function SocialView() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // One copy of the competitor data for both the Competitors and Scatter cards, so an add or remove
+  // on the first shows on the second at once.
+  const [competitors, setCompetitors] = useState(null);
+  const [competitorsError, setCompetitorsError] = useState(null);
+  const loadCompetitors = useCallback(() => getCompetitors()
+    .then((d) => { setCompetitors(d); setCompetitorsError(null); })
+    .catch((e) => setCompetitorsError(e.message)), []);
+  useEffect(() => { loadCompetitors(); }, [loadCompetitors]);
 
   useEffect(() => {
     let live = true;
@@ -35,8 +43,8 @@ export default function SocialView() {
         <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '24px 24px 64px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
           <ReviewSection videos={data && data.videos} />
           <DataSection data={data} loading={loading} error={error} />
-          <CompetitorsSection />
-          <CompetitorScatter />
+          <CompetitorsSection data={competitors} error={competitorsError} reload={loadCompetitors} />
+          <CompetitorScatter data={competitors} error={competitorsError} />
           <div style={{ fontSize: 11, color: COLORS.faint }}>
             TikTok data is read from the tracker's database on this server (TikTokAnalyzer, <code>data/tiktok.db</code>), the same file its daily run writes to the Google Sheet.
           </div>

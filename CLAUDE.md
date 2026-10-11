@@ -102,7 +102,8 @@ outlier, rising video and all-time hit in one sortable table with its cover, sco
 account or Saved; adjacent videos (niche score 1 of 3, a nearby topic) are always listed, tagged in Type.
 The TikTok Data card has no tiles since 2026-10-10 (Last post and Data updated sit beside the chart's Key metrics title, the tab totals are exact counts, Videos and Total views were removed); the chart stays visible and folds only its table behind a chevron (closed
 by default, `planner.social.dataOpen`; no search box; Drive matches Refresh). A fifth card, Scatter,
-plots the same videos as covers by views (right) against saves (up), both log scales. Outliers use the
+plots the same videos as covers by views (right) against saves (up), both log scales. Competitors and
+Scatter share one `getCompetitors()` copy held in `SocialView`, so an add or remove shows on both at once. Outliers use the
 tracker's own multiple rule (ported to JS, pinned by a Python fixture). Covers are cached on the
 server once per video (`backend/social-state/thumbs/`, server-only data like `planner.db`). The user adds every account by hand; there is no discovery or
 proposal step (removed 2026-10-06).
