@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import SocialCard from './SocialCard';
 import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { getSocialVideo } from './api';
@@ -6,10 +6,11 @@ import { HEADER_BUTTON_MIN } from './ReviewSection';
 import RecentChart from './RecentChart';
 import { shortDate, dateTime, multipleText, count } from './format';
 import { COLORS, outlineButton } from '../shared/styles';
-import { num } from '../shared/format';
 
 export const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1XQocZ1-cCv-i-6NwtBvgB2isWFnrGj45WbAH357JjyQ';
-const PAGE = 100;
+// The open table shows exactly this many videos (the newest by default); the rest scroll inside it.
+const VISIBLE_ROWS = 15;
+const stickyTh = { position: 'sticky', top: 0, background: COLORS.paper, zIndex: 1 };
 
 // The sheet's columns, in the sheet's order. `num` columns sort numerically and align right.
 const COLUMNS = [
@@ -47,7 +48,6 @@ const OPEN_KEY = 'planner.social.dataOpen';
 
 export default function DataSection({ data, loading, error }) {
   const [sort, setSort] = useState({ key: 'date_posted', dir: 'desc' });
-  const [shown, setShown] = useState(PAGE);
   const [open, setOpen] = useState(null);
   // The card folds behind a chevron, closed by default; remembered per browser.
   const [cardOpen, setCardOpen] = useState(() => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch (_) { return false; } });
@@ -62,7 +62,25 @@ export default function DataSection({ data, loading, error }) {
     return [...videos].sort((a, b) => compare(a, b, sort.key, col.sort, sort.dir) || compare(a, b, 'video_id', 'text', 'desc'));
   }, [videos, sort]);
 
-  useEffect(() => { setShown(PAGE); }, [sort]);
+  // The box is measured to the bottom of the 15th video row (header included), so a taller row
+  // still leaves exactly 15 in view. Measured on load, re-sort and a width change, not when a row's
+  // transcript opens: that opens inside the box and scrolls with it. A re-sort scrolls back to the top.
+  const boxRef = useRef(null);
+  const [boxHeight, setBoxHeight] = useState(null);
+  useLayoutEffect(() => {
+    const box = boxRef.current;
+    if (!box) return undefined;
+    box.scrollTop = 0;
+    const measure = () => {
+      const trs = box.querySelectorAll('tbody tr[data-video]');
+      if (trs.length <= VISIBLE_ROWS) { setBoxHeight(null); return; }
+      const last = trs[VISIBLE_ROWS - 1];
+      setBoxHeight(last.offsetTop + last.offsetHeight + 1);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [filtered, cardOpen]);
 
   useEffect(() => {
     if (!open || detail[open]) return;
@@ -98,7 +116,7 @@ export default function DataSection({ data, loading, error }) {
     );
   }
 
-  const visible = filtered.slice(0, shown);
+  const visible = filtered;
   const colCount = COLUMNS.length;
   // The Key metrics chart (last post and data updated beside its title) stays visible when the table
   // is folded.
@@ -107,12 +125,12 @@ export default function DataSection({ data, loading, error }) {
   return (
     <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions} always={tiles}>
 
-      <div style={{ ...tableWrap, marginTop: 18 }}>
+      <div ref={boxRef} style={{ ...tableWrap, marginTop: 18, overflowY: 'auto', maxHeight: boxHeight || (filtered.length > VISIBLE_ROWS ? 440 : undefined) }}>
         <table style={{ ...table, minWidth: 1180 }}>
           <thead>
             <tr style={headRow}>
               {COLUMNS.map((c) => (
-                <th key={c.key} onClick={() => clickSort(c)} style={{ ...(c.sort === 'num' ? thNum : th), cursor: c.sort ? 'pointer' : 'default', userSelect: 'none' }} title={c.sort ? 'Sort' : undefined}>
+                <th key={c.key} onClick={() => clickSort(c)} style={{ ...(c.sort === 'num' ? thNum : th), ...stickyTh, cursor: c.sort ? 'pointer' : 'default', userSelect: 'none' }} title={c.sort ? 'Sort' : undefined}>
                   {c.label}{arrow(c)}
                 </th>
               ))}
@@ -124,7 +142,7 @@ export default function DataSection({ data, loading, error }) {
               const d = detail[v.video_id];
               return (
                 <React.Fragment key={v.video_id}>
-                  <tr className="row-hover" onClick={() => setOpen(isOpen ? null : v.video_id)} style={{ cursor: 'pointer', background: isOpen ? COLORS.page : undefined }}>
+                  <tr data-video className="row-hover" onClick={() => setOpen(isOpen ? null : v.video_id)} style={{ cursor: 'pointer', background: isOpen ? COLORS.page : undefined }}>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>{shortDate(v.date_posted)}</td>
                     <td style={mutedCell}>{v.video_id}</td>
                     <td style={mutedCell}>{v.username || '-'}</td>
@@ -167,13 +185,6 @@ export default function DataSection({ data, loading, error }) {
           </tbody>
         </table>
       </div>
-      {filtered.length > shown ? (
-        <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={() => setShown((n) => n + PAGE)} style={outlineButton(COLORS.ink)}>
-            Show {Math.min(PAGE, filtered.length - shown)} more ({num(filtered.length - shown)} left)
-          </button>
-        </div>
-      ) : null}
     </SocialCard>
   );
 }
