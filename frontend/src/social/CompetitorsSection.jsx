@@ -229,7 +229,7 @@ function AccountLine({ a, onRemove }) {
         </div>
         <button type="button" onClick={() => onRemove(a.handle)} style={outlineButton(COLORS.muted, { small: true })}>Remove</button>
       </div>
-      {!a.deep_walked_at ? <div style={{ ...muted, marginTop: 6 }}>Waiting for the first listing (the Mac lists new accounts at 06:30, 12:15 and 18:15).</div> : null}
+      {!a.deep_walked_at ? <div style={{ ...muted, marginTop: 6 }}>Waiting for the first listing (the Mac lists a new account within 15 minutes, while it is awake).</div> : null}
       {pending ? <div style={{ fontSize: 12, color: COLORS.muted, marginTop: 4 }}>{pending}.</div> : null}
     </div>
   );

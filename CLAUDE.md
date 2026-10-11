@@ -90,7 +90,7 @@ search and a Drive button in the card header, sort, click a row for the transcri
 watchlist lives in `social_competitors` (seeded with five handles, add / remove on the card, at
 most 15), the TikTok tracker reads it from `GET /api/social/competitors/handles` and writes
 `research.db` (the accounts' videos come from a signed-out yt-dlp listing on the Mac in the hook
-job, because TikTok refuses the server's signed-out browser on profile grids; `research.py
+job, and a newly added account is listed within 15 minutes by the Mac's `com.gideon.tiktok.newhandles` agent, because TikTok refuses the server's signed-out browser on profile grids; `research.py
 competitors` 09:30 probes follower counts; nothing in the feature signs in to TikTok), the Mac hook
 job extracts hooks for card-eligible videos only (2x outliers, Rising, Popular top 10); the Planner reads `research.db`
 read-only (`RESEARCH_DB_PATH`) and its own job (`social/competitorJobs.js`, Haiku 4.5, every 15
