@@ -100,7 +100,7 @@ formats / rising-sound lines were removed on 2026-10-06 at the user's request). 
 user picked it from ten layouts, https://claude.ai/artifact/SpJ6aLKFFbQMfA6FzwKwbf): every
 outlier, rising video and all-time hit in one sortable table with its cover, scoped to All, one
 account or Saved; adjacent videos (niche score 1 of 3, a nearby topic) are always listed, tagged in Type.
-The TikTok Data card keeps its four tiles (Videos, Total views, Last post, Data updated; the 30-day views and posts tiles moved into the chart's tabs on 2026-10-10) visible and folds only its table behind a chevron (closed
+The TikTok Data card has no tiles since 2026-10-10 (Last post and Data updated sit beside the chart's Key metrics title, the tab totals are exact counts, Videos and Total views were removed); the chart stays visible and folds only its table behind a chevron (closed
 by default, `planner.social.dataOpen`; no search box; Drive matches Refresh). A fifth card, Scatter,
 plots the same videos as covers by views (right) against saves (up), both log scales. Outliers use the
 tracker's own multiple rule (ported to JS, pinned by a Python fixture). Covers are cached on the

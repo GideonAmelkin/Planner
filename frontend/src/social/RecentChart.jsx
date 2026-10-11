@@ -3,7 +3,7 @@ import { COLORS } from '../shared/styles';
 import { CHART } from '../shared/charts/palette';
 import { todayISO, isoToDate } from '../shared/dayInfo';
 import { num } from '../shared/format';
-import { shortDate } from './format';
+import { shortDate, dateTime } from './format';
 import { METRICS, RANGES, rangeStart, windowPosts, totals, seriesPoints, median, niceTicks } from './studioSeries';
 
 // The TikTok Data card's chart, drawn like TikTok Studio's "Key metrics" (option 1 of
@@ -16,7 +16,7 @@ const H = 200;
 const PAD = { top: 10, right: 44, bottom: 24, left: 4 };
 const METRIC_KEY = 'planner.social.chartMetric';
 const RANGE_KEY = 'planner.social.chartRange';
-const TAB_MIN = 112;   // the strip scrolls sideways inside the card below six of these
+const TAB_MIN = 132;   // the strip scrolls sideways inside the card below six of these
 
 const load = (key, ok, fallback) => { try { const v = localStorage.getItem(key); return ok(v) ? v : fallback; } catch (_) { return fallback; } };
 const save = (key, v) => { try { localStorage.setItem(key, String(v)); } catch (_) { /* ignore */ } };
@@ -42,7 +42,7 @@ const tabStyle = (on, last) => ({
   background: on ? COLORS.paper : COLORS.page, color: COLORS.ink, cursor: 'pointer', fontFamily: 'inherit',
 });
 
-export default function RecentChart({ videos }) {
+export default function RecentChart({ videos, lastPost, updatedAt }) {
   const wrap = useRef(null);
   const gradId = `studio-fill-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const [width, setWidth] = useState(0);
@@ -76,7 +76,14 @@ export default function RecentChart({ videos }) {
 
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-      <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.ink }}>Key metrics</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px 14px', flexWrap: 'wrap' }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.ink }}>Key metrics</div>
+        <div style={{ fontSize: 12, color: COLORS.muted }}>
+          {lastPost ? <>Last post <span style={{ color: COLORS.ink }}>{shortDate(lastPost)}</span></> : null}
+          {lastPost && updatedAt ? ' · ' : null}
+          {updatedAt ? <>Data updated <span style={{ color: COLORS.ink }} title="When the TikTok tracker last refreshed its database">{dateTime(updatedAt)}</span></> : null}
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
       <span style={{ fontSize: 12, color: COLORS.muted, fontVariantNumeric: 'tabular-nums' }}>{start === today ? monthDayYear(today) : `${(start.slice(0, 4) === today.slice(0, 4) ? monthDay : monthDayYear)(start)} - ${monthDayYear(today)}`}</span>
       <div role="group" aria-label="Date range" style={{ display: 'inline-flex', border: `1px solid ${COLORS.hairline}`, borderRadius: 8, overflow: 'hidden' }}>
@@ -98,7 +105,7 @@ export default function RecentChart({ videos }) {
             <button key={x.key} type="button" role="tab" aria-selected={on} onClick={() => pickMetric(x.key)} style={tabStyle(on, i === METRICS.length - 1)}>
               {on ? <span style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 4, background: CHART.blue }} /> : null}
               <span style={{ fontSize: 13, fontWeight: 500 }}>{x.label}</span>
-              <span style={{ fontSize: 22, fontWeight: 500, color: on ? CHART.blue : COLORS.ink, fontVariantNumeric: 'tabular-nums' }}>{shortNum(sums[x.key])}</span>
+              <span style={{ fontSize: 22, fontWeight: 500, color: on ? CHART.blue : COLORS.ink, fontVariantNumeric: 'tabular-nums' }}>{num(sums[x.key])}</span>
               <span style={{ fontSize: 11, color: COLORS.muted }}>{rangeLabel(range)}</span>
             </button>
           );
@@ -176,7 +183,7 @@ export default function RecentChart({ videos }) {
               {med !== null ? (
                 <>
                   <line x1={PAD.left} x2={PAD.left + innerW} y1={medY} y2={medY} stroke={COLORS.faint} strokeWidth={1} strokeDasharray="4 4" />
-                  <text x={PAD.left + innerW - 2} y={medY - 4} textAnchor="end" fontSize={11} fill={COLORS.muted}>median {shortNum(med)} per post {weekly ? 'week' : 'day'}</text>
+                  <text x={PAD.left + innerW - 2} y={medY - 4} textAnchor="end" fontSize={11} fill={COLORS.muted}>median {num(med)} per post {weekly ? 'week' : 'day'}</text>
                 </>
               ) : null}
               <path d={line} fill="none" stroke={CHART.blue} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import SocialCard from './SocialCard';
-import SocialTile, { tileGrid, tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
+import { tableWrap, table, th, thNum, headRow, td, tdNum, tableLink } from './SocialTable';
 import { getSocialVideo } from './api';
 import { HEADER_BUTTON_MIN } from './ReviewSection';
 import RecentChart from './RecentChart';
@@ -100,19 +100,9 @@ export default function DataSection({ data, loading, error }) {
 
   const visible = filtered.slice(0, shown);
   const colCount = COLUMNS.length;
-  // The Key metrics chart (its tabs carry the range's views and posts) sits above the tiles; both
-  // stay visible when the table is folded.
-  const tiles = summary ? (
-    <>
-      <RecentChart videos={videos} />
-      <div style={tileGrid(130)}>
-        <SocialTile label="Videos" value={num(summary.videos)} />
-        <SocialTile label="Total views" value={num(summary.total_views)} />
-        <SocialTile label="Last post" value={shortDate(summary.last_post)} size={16} />
-        <SocialTile label="Data updated" value={dateTime(summary.updated_at)} size={16} sub="tracker refresh" />
-      </div>
-    </>
-  ) : null;
+  // The Key metrics chart (last post and data updated beside its title) stays visible when the table
+  // is folded.
+  const tiles = summary ? <RecentChart videos={videos} lastPost={summary.last_post} updatedAt={summary.updated_at} /> : null;
 
   return (
     <SocialCard title="TikTok Data" collapsible open={cardOpen} onToggle={toggleCard} actions={actions} always={tiles}>
