@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <!-- Every hour: press Me > Sync Data in the Home Workouts Mac app (skipped while the user is
-       active; retried next hour), export the app, ship the snapshot to RT100. python3 is run
+  <!-- At 10:00 and 21:00 every day: open the Home Workouts Mac app, press Me > Sync Data, quit the
+       app again (always, whatever the outcome), export the app, ship the snapshot to RT100.
+       APP_SYNC_FORCE=1: the run goes ahead even while the user is at the keyboard. A Mac asleep at
+       the time runs it on wake; a locked screen skips it until the next slot. python3 is run
        directly (no shell) so it is the one binary that needs the grants: Full Disk Access (the
        app container and this repo) and Accessibility (to click the app). Both in System
        Settings > Privacy & Security, "+" > Cmd+Shift+G > /Library/Developer/CommandLineTools/usr/bin/python3.
@@ -20,10 +22,26 @@
     <string>/Users/gideonamelkin/Documents/Planner/tools/homeworkouts/sync.py</string>
     <string>--app-sync</string>
   </array>
-  <key>StartInterval</key>
-  <integer>3600</integer>
-  <key>RunAtLoad</key>
-  <true/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>APP_SYNC_FORCE</key>
+    <string>1</string>
+  </dict>
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key>
+      <integer>10</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>21</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+  </array>
   <key>StandardOutPath</key>
   <string>/Users/gideonamelkin/Library/Application Support/PlannerHomeWorkouts/launchd.log</string>
   <key>StandardErrorPath</key>

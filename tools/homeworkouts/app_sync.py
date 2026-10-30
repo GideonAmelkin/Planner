@@ -21,9 +21,10 @@ invisible (AXPress does not raise the window). It is skipped only when it would 
 screen: activating a sleeping app, or a coordinate click. (Until 2026-09-28 any activity skipped
 it, and a day at the Mac meant no sync at all.) A locked screen is skipped too: the app does not
 answer accessibility then, and every overnight run used to end in a timeout. When the app stops
-answering with the screen unlocked, it is quit and relaunched hidden, once. APP_SYNC_FORCE=1
-ignores the activity rule for attended runs. Afterwards the app is hidden again unless it was
-the frontmost app.
+answering with the screen unlocked, it is quit and relaunched, once. APP_SYNC_FORCE=1
+ignores the activity rule (attended runs and the 10:00 / 21:00 schedule). Afterwards the app is
+QUIT on every outcome, unless it was the frontmost app when the run started, and the app that
+was in front is brought back (2026-10-30: windows of failed runs were left on screen).
 """
 import ctypes
 import os
@@ -33,7 +34,6 @@ import sys
 import time
 
 BUNDLE_ID = 'com.abishkking.maleworkout'
-PROCESS_MATCH = 'Wrapper/homeworkout.app/homeworkout'
 IDLE_MIN_S = 120         # never take the screen if the user touched the keyboard or mouse more recently
 WINDOW_WAIT_S = 30
 SYNC_WAIT_S = 60
@@ -249,8 +249,11 @@ def front_bundle_id():
 
 
 def app_pid():
-    p = subprocess.run(['/usr/bin/pgrep', '-f', PROCESS_MATCH], capture_output=True, text=True)
-    return int(p.stdout.split()[0]) if p.returncode == 0 and p.stdout.split() else None
+    """The app's pid by bundle id. Not pgrep -f: that also matched any shell whose command line
+    held the pattern, and _quit() then killed it (2026-10-30)."""
+    out = subprocess.run(['/usr/bin/lsappinfo', 'info', '-only', 'pid', '-app', BUNDLE_ID], capture_output=True, text=True).stdout
+    val = out.split('=')[-1].strip()
+    return int(val) if val.isdigit() and int(val) > 0 else None
 
 
 def wait_window(app, seconds):
@@ -264,8 +267,11 @@ def wait_window(app, seconds):
 
 
 def trigger(log=print):
+    """Sync, then quit the app whatever the outcome (since 2026-10-30: a window left open by a
+    failed run sat on the user's screen). The app stays open only if the user had it in front
+    when the run started; otherwise the app that was in front is brought back."""
     idle = hid_idle_seconds()
-    # APP_SYNC_FORCE=1 is for attended runs: take the screen even though someone is at the keyboard.
+    # APP_SYNC_FORCE=1 is for attended and scheduled runs: take the screen even though someone is at the keyboard.
     active = idle is not None and idle < IDLE_MIN_S and not os.environ.get('APP_SYNC_FORCE')
     if not AX.AXIsProcessTrusted():
         log('app sync: no permission: grant Accessibility to %s (System Settings > Privacy & Security > Accessibility)' % sys.executable)
@@ -273,6 +279,21 @@ def trigger(log=print):
     if screen_locked():
         log('app sync: skipped, screen locked (the app does not answer accessibility then)')
         return 'skipped_locked'
+    front = front_bundle_id()
+    in_use = front == BUNDLE_ID
+    try:
+        return _run(active, idle, in_use, log)
+    finally:
+        if not in_use:
+            pid = app_pid()
+            if pid is not None:
+                _quit(pid)
+                log('app sync: quit the app')
+            if front:
+                subprocess.run(['/usr/bin/open', '-b', front], capture_output=True)
+
+
+def _run(active, idle, in_use, log):
     pid = app_pid()
     launched = False
     if pid is None:
@@ -283,12 +304,11 @@ def trigger(log=print):
     outcome = _attempt(pid, active, launched, idle, log)
     if outcome != 'unresponsive':
         return outcome
-    # Unlocked and still silent: the app is wedged. Relaunch it hidden, once, unless the user
-    # is looking at it.
-    if front_bundle_id() == BUNDLE_ID:
+    # Unlocked and still silent: the app is wedged. Relaunch it, once, unless the user is looking at it.
+    if in_use:
         log('app sync: timeout: the app is frontmost but does not answer; left alone')
         return 'timeout'
-    log('app sync: relaunching the app hidden (pid %d does not answer)' % pid)
+    log('app sync: relaunching the app (pid %d does not answer)' % pid)
     _quit(pid)
     pid = _launch(log)
     if pid in ('app_missing', 'timeout'):
@@ -298,8 +318,9 @@ def trigger(log=print):
 
 
 def _launch(log):
-    """Start the app in the background; its pid, or 'app_missing' / 'timeout'."""
-    if subprocess.run(['/usr/bin/open', '-g', '-b', BUNDLE_ID], capture_output=True).returncode != 0:
+    """Start the app; its pid, or 'app_missing' / 'timeout'. Launched in front: a background
+    launch (open -g) often never got a window, and the run is quit right after anyway."""
+    if subprocess.run(['/usr/bin/open', '-b', BUNDLE_ID], capture_output=True).returncode != 0:
         log('app sync: app missing (open -b %s failed)' % BUNDLE_ID)
         return 'app_missing'
     deadline = time.time() + WINDOW_WAIT_S
