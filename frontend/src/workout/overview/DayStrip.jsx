@@ -8,7 +8,8 @@ import { W, glassCard, roundButton } from '../theme';
 // The Overview's bottom strip: one slot per day (seven Sunday-start weeks ending with the shown
 // day's week), the month name over each month's first slot, a dumbbell tinted with the main muscle
 // group on gym days, a house on home days, a dot on rest days. The range's last seven days sit on a
-// white band; the shown day's number is the indigo pill. A day opens that date on this view.
+// white band; every day carries its number, the shown day's is the indigo pill. A day opens that
+// date on this view.
 const SLOT = 40;
 const monthName = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { month: 'long' });
 const longDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -36,7 +37,6 @@ export default function DayStrip({ days, date, bandStart, bandEnd }) {
             const sel = d.date === date;
             const color = d.kind === 'gym' ? (d.muscle ? groupOf(d.muscle).color : COLORS.workout) : W.blue;
             const what = d.kind === 'gym' ? `gym${d.muscle ? `, mostly ${groupOf(d.muscle).label.toLowerCase()}` : ''}` : d.kind === 'home' ? 'home' : 'rest day';
-            const showNum = d.kind || sel || new Date(`${d.date}T12:00:00`).getDay() === 0;
             return (
               <button
                 key={d.date}
@@ -60,7 +60,7 @@ export default function DayStrip({ days, date, bandStart, bandEnd }) {
                 <span style={{
                   fontSize: 11, fontVariantNumeric: 'tabular-nums', lineHeight: '16px',
                   color: sel ? '#FFFFFF' : COLORS.muted, background: sel ? COLORS.accent : 'transparent', borderRadius: 999, padding: '0 5px',
-                }}>{showNum ? Number(d.date.slice(8)) : ' '}</span>
+                }}>{Number(d.date.slice(8))}</span>
               </button>
             );
           })}
