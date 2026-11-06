@@ -335,12 +335,19 @@ def _launch(log):
 
 
 def _quit(pid):
-    os.kill(pid, signal.SIGTERM)
+    # The app may exit on its own between lookup and kill (2026-11-03: Errno 3).
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
     deadline = time.time() + 15
     while app_pid() == pid and time.time() < deadline:
         time.sleep(0.5)
     if app_pid() == pid:
-        os.kill(pid, signal.SIGKILL)
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            return
         time.sleep(1)
 
 
@@ -391,9 +398,7 @@ def _attempt(pid, active, launched, idle, log):
         log('app sync: no Me tab; elements: ' + ' | '.join(dump(win, limit=12)))
         _finish(app, was_front)
         return 'unresponsive'
-    log('app sync: Me: %s' % press(me))
-    time.sleep(1.5)
-    row = find(win, lambda r, t: t.startswith('Sync Data'))
+    row = open_me_tab(app, win, me, active, log)
     if not row:
         log('app sync: no Sync Data row; elements: ' + ' | '.join(dump(win)))
         _finish(app, was_front)
@@ -424,6 +429,61 @@ def _attempt(pid, active, launched, idle, log):
     log('app sync: %s' % outcome)
     _finish(app, was_front)
     return outcome
+
+
+def _sync_row(win, seconds):
+    deadline = time.time() + seconds
+    while True:
+        row = find(win, lambda r, t: t.startswith('Sync Data'))
+        if row or time.time() >= deadline:
+            return row
+        time.sleep(0.5)
+
+
+def _me_radio(win):
+    """The unlabelled AXRadioButton that follows the 'Me' button in the Tab Bar group. Since
+    2026-10-30 AXPress on the 'Me' AXButton succeeds but no longer switches the tab."""
+    bar = find(win, lambda r, t: t == 'Tab Bar')
+    if not bar:
+        return None
+    kids = attr_list(bar, 'AXChildren')
+    for i, kid in enumerate(kids):
+        if attr_str(kid, 'AXRole') == 'AXButton' and label(kid) == 'Me':
+            for nxt in kids[i + 1:i + 2]:
+                if attr_str(nxt, 'AXRole') == 'AXRadioButton':
+                    return nxt
+    return None
+
+
+def open_me_tab(app, win, me, active, log):
+    """Switch to the Me tab; the Sync Data row, or None. Tries, in order: AXPress on the 'Me'
+    button, AXPress on its radio button, a real click at the button's centre (window raised;
+    not while the user is working)."""
+    log('app sync: Me: %s' % press(me))
+    row = _sync_row(win, 6)
+    if row:
+        return row
+    radio = _me_radio(win)
+    if radio:
+        log('app sync: Me radio: %s' % press(radio))
+        row = _sync_row(win, 6)
+        if row:
+            return row
+    if active:
+        log('app sync: skipped the Me click, user active')
+        return None
+    set_bool(app, 'AXFrontmost', True)
+    time.sleep(0.8)
+    g = geom(me)
+    if g:
+        x, y = g[0] + g[2] / 2, g[1] + g[3] / 2
+        for kind in (5, 1, 2):
+            ev = AX.CGEventCreateMouseEvent(None, kind, CGPoint(x, y), 0)
+            AX.CGEventPost(0, ev)
+            CF.CFRelease(ev)
+            time.sleep(0.08)
+        log('app sync: Me: clicked at %d,%d' % (x, y))
+    return _sync_row(win, 6)
 
 
 def _finish(app, was_front):
